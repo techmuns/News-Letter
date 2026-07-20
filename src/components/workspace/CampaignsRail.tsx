@@ -104,13 +104,15 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
 export function CampaignsRail({
   campaigns,
   highlightId,
+  showHeading = true,
 }: {
   campaigns: Campaign[]
   highlightId?: string | null
+  showHeading?: boolean
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <MicroLabel>Campaigns</MicroLabel>
+      {showHeading && <MicroLabel>Campaigns</MicroLabel>}
       {campaigns.length === 0 ? (
         <Card className="p-4">
           <p className="text-[12.5px] leading-relaxed text-text-muted">

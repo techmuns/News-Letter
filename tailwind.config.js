@@ -6,20 +6,29 @@ export default {
       colors: {
         // base
         bg: 'var(--bg)',
+        rail: 'var(--rail)',
         surface: 'var(--surface)',
+        'surface-soft': 'var(--surface-soft)',
+        'surface-hover': 'var(--surface-hover)',
         'surface-solid': 'var(--surface-solid)',
         // borders
         border: 'var(--border)',
+        'border-soft': 'var(--border-soft)',
         'border-strong': 'var(--border-strong)',
         glow: 'var(--glow)',
         // primary
         violet: 'var(--violet)',
         'violet-dim': 'var(--violet-dim)',
+        purple: 'var(--purple)',
+        'purple-bright': 'var(--purple-bright)',
+        'purple-soft': 'var(--purple-soft)',
+        orange: 'var(--orange)',
         // status
         green: 'var(--green)',
         amber: 'var(--amber)',
         'grey-dot': 'var(--grey-dot)',
         pink: 'var(--pink)',
+        red: 'var(--red)',
         // text
         text: 'var(--text)',
         'text-2': 'var(--text-2)',
@@ -32,12 +41,13 @@ export default {
         mono: ['"JetBrains Mono"', '"Geist Mono"', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
-        card: '18px',
-        panel: '20px',
+        card: '14px',
+        panel: '16px',
       },
       boxShadow: {
         glow: 'var(--glow-shadow)',
-        'glow-soft': '0 0 16px rgba(157,140,245,0.14)',
+        'glow-soft': '0 0 16px rgba(145,71,245,0.14)',
+        panel: '0 1px 2px rgba(0,0,0,0.4), 0 8px 30px -18px rgba(0,0,0,0.7)',
       },
       backdropBlur: {
         glass: '20px',

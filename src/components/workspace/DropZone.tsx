@@ -3,7 +3,7 @@ import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
-import { IconPlus, IconNote } from '../icons'
+import { IconPlus, IconUpload, IconUploadCloud, IconClose } from '../icons'
 
 function formatBytes(n: number): string {
   if (!n) return ''
@@ -13,13 +13,14 @@ function formatBytes(n: number): string {
 }
 
 /**
- * The drop zone at the top of the Workspace: mocked file drop + a quick
+ * The upload card at the top of the Workspace: mocked file drop + a quick
  * text-note input. No tagging, no structure required (§3.1).
  */
 export function DropZone() {
   const addFiles = useStore((s) => s.addFiles)
   const addNote = useStore((s) => s.addNote)
   const [dragging, setDragging] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
   const [flash, setFlash] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -57,6 +58,7 @@ export function DropZone() {
     if (!text) return
     addNote(text)
     setNote('')
+    setNoteOpen(false)
     flashMsg('Note dropped into the pile')
   }
 
@@ -72,47 +74,80 @@ export function DropZone() {
         setDragging(false)
         ingest(e.dataTransfer.files)
       }}
-      className={cn(
-        'relative rounded-panel border border-dashed p-5 transition-all duration-[350ms] ease-premium md:p-6',
-        dragging
-          ? 'glow-active border-solid'
-          : 'border-border bg-surface backdrop-blur-glass',
-      )}
+      className="relative rounded-panel border border-border bg-surface p-4 shadow-panel md:p-5"
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
-        {/* Note input */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <IconNote size={15} className="text-violet-dim" />
-            <MicroLabel>Drop PDFs, screenshots or notes — or paste a thought</MicroLabel>
-          </div>
+      {/* card heading */}
+      <div className="flex items-center gap-2.5 px-1 pb-3.5">
+        <IconUpload size={14} className="text-violet-dim" />
+        <MicroLabel className="text-text-muted">
+          Drop PDFs, screenshots or notes — we&rsquo;ll handle the rest
+        </MicroLabel>
+      </div>
+
+      {/* dashed drop target */}
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          'flex min-h-[148px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-8 text-center',
+          'transition-all duration-[350ms] ease-premium focus-violet',
+          dragging
+            ? 'border-glow bg-purple-soft'
+            : 'border-border-strong bg-surface-soft hover:border-[rgba(145,71,245,0.4)] hover:bg-surface-hover',
+        )}
+      >
+        <IconUploadCloud size={30} className="text-violet" strokeWidth={1.5} />
+        <span className="mt-1 text-[14px] font-medium text-text-2">Drag &amp; drop files here</span>
+        <span className="text-[12.5px] text-text-muted">or click to browse</span>
+      </button>
+
+      {/* actions */}
+      <div className="mt-4 flex flex-wrap items-center gap-2.5 px-1">
+        <Button
+          variant="subtle"
+          size="sm"
+          onClick={() => setNoteOpen((o) => !o)}
+          aria-expanded={noteOpen}
+        >
+          <IconPlus size={15} /> Add note
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
+          Browse files
+        </Button>
+      </div>
+
+      {/* inline note composer */}
+      {noteOpen && (
+        <div className="mt-3 animate-fade-up rounded-xl border border-border bg-surface-soft p-3">
           <textarea
             value={note}
+            autoFocus
             onChange={(e) => setNote(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
                 submitNote()
               }
+              if (e.key === 'Escape') setNoteOpen(false)
             }}
             rows={3}
-            placeholder="e.g. Insurers quietly repricing — worth a Wednesday story?"
+            placeholder="Paste a thought, a link, or a stray observation…"
             className={cn(
-              'mt-3 w-full resize-none rounded-xl border border-border bg-[rgba(255,255,255,0.02)] px-4 py-3',
+              'w-full resize-none rounded-lg border border-border bg-bg px-3.5 py-2.5',
               'text-[14px] leading-relaxed text-text placeholder:text-text-dim',
               'focus-violet transition-all duration-[350ms] ease-premium',
             )}
           />
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button variant="subtle" size="sm" onClick={submitNote} disabled={!note.trim()}>
-              <IconPlus size={15} /> Add note
+          <div className="mt-2.5 flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setNoteOpen(false)}>
+              Cancel
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
-              Browse files
+            <Button variant="subtle" size="sm" onClick={submitNote} disabled={!note.trim()}>
+              <IconPlus size={14} /> Add to pile
             </Button>
           </div>
         </div>
-      </div>
+      )}
 
       <input
         ref={inputRef}
@@ -127,16 +162,19 @@ export function DropZone() {
 
       {/* drag overlay hint */}
       {dragging && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-panel bg-[rgba(157,140,245,0.06)]">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-panel bg-[rgba(145,71,245,0.05)]">
           <MicroLabel className="micro-violet text-[12px]">Release to add to the pile</MicroLabel>
         </div>
       )}
 
       {/* transient confirmation */}
       {flash && (
-        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-[rgba(61,220,151,0.3)] bg-[rgba(61,220,151,0.08)] px-3 py-1 animate-fade-up">
-          <span className="h-1.5 w-1.5 rounded-full bg-green shadow-[0_0_8px_rgba(61,220,151,0.7)]" />
+        <div className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-[rgba(71,214,161,0.3)] bg-[rgba(71,214,161,0.08)] px-3 py-1 animate-fade-up">
+          <span className="h-1.5 w-1.5 rounded-full bg-green shadow-[0_0_8px_rgba(71,214,161,0.7)]" />
           <MicroLabel className="text-green">{flash}</MicroLabel>
+          <button type="button" onClick={() => setFlash(null)} aria-label="Dismiss">
+            <IconClose size={12} className="text-green/70 hover:text-green" />
+          </button>
         </div>
       )}
     </div>

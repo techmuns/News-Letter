@@ -5,6 +5,8 @@ export const ROUTES = {
   linkedin: '/linkedin',
   email: '/email',
   articles: '/articles',
+  reports: '/reports',
+  campaigns: '/campaigns',
 } as const
 
 const CHANNEL_BASE: Record<ChannelKind, string> = {

@@ -14,6 +14,7 @@ import {
   GENERATABLE,
   PROMOTIONS,
 } from '../data/mockData'
+import { DEFAULT_BRIEF } from '../lib/brief'
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
@@ -36,8 +37,12 @@ interface StoreState {
   genIndex: number
   /** the last campaign generated from the pile (for surfacing/scroll) */
   lastGeneratedId: string | null
+  /** the persisted content-settings brief applied to every generation */
+  brief: GenerationBrief
 
   // --- Workspace actions ---
+  /** patch one or more fields of the persisted content-settings brief */
+  updateBrief: (patch: Partial<GenerationBrief>) => void
   addNote: (text: string, addedBy?: string) => void
   addFiles: (
     files: { name: string; sizeLabel?: string; imageUrl?: string }[],
@@ -67,6 +72,9 @@ export const useStore = create<StoreState>()(
       campaigns: SEED_CAMPAIGNS,
       genIndex: 0,
       lastGeneratedId: null,
+      brief: DEFAULT_BRIEF,
+
+      updateBrief: (patch) => set((s) => ({ brief: { ...s.brief, ...patch } })),
 
       addNote: (text, addedBy = 'You') => {
         const trimmed = text.trim()
@@ -220,18 +228,20 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 4,
+      version: 5,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
+        brief: s.brief,
       }),
-      // Schema changed (images, headlines, approval, briefs) — reset older stores
-      // to the fresh seed rather than trying to backfill missing fields.
+      // Schema changed (images, headlines, approval, briefs, settings) — reset
+      // older stores to the fresh seed rather than backfilling missing fields.
       migrate: () => ({
         items: SEED_ITEMS,
         campaigns: SEED_CAMPAIGNS,
         genIndex: 0,
+        brief: DEFAULT_BRIEF,
       }),
       // Clear any in-flight processing flags that were persisted mid-action.
       onRehydrateStorage: () => (state) => {

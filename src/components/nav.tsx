@@ -6,6 +6,8 @@ import {
   IconLinkedIn,
   IconEmail,
   IconArticle,
+  IconReports,
+  IconCampaigns,
 } from './icons'
 
 export interface NavItem {
@@ -21,9 +23,11 @@ export const NAV_ITEMS: NavItem[] = [
   { n: '02', label: 'LinkedIn', to: ROUTES.linkedin, Icon: IconLinkedIn },
   { n: '03', label: 'Email', to: ROUTES.email, Icon: IconEmail },
   { n: '04', label: 'Articles', to: ROUTES.articles, Icon: IconArticle },
+  { n: '05', label: 'Reports', to: ROUTES.reports, Icon: IconReports },
+  { n: '06', label: 'Campaigns', to: ROUTES.campaigns, Icon: IconCampaigns },
 ]
 
-/** Desktop left-rail nav item — active item gets the violet glow border (§5.5). */
+/** Desktop left-rail nav item — active item gets the muted-violet glow chip. */
 export function RailItem({ item }: { item: NavItem }) {
   const { Icon } = item
   return (
@@ -36,7 +40,7 @@ export function RailItem({ item }: { item: NavItem }) {
           'transition-all duration-[350ms] ease-premium',
           isActive
             ? 'glow-active text-text'
-            : 'border border-transparent text-text-muted hover:text-text-2 hover:border-border',
+            : 'border border-transparent text-text-muted hover:text-text-2 hover:bg-surface-hover',
         )
       }
     >
@@ -44,14 +48,17 @@ export function RailItem({ item }: { item: NavItem }) {
         <>
           <span
             className={cn(
-              'micro w-5 shrink-0 text-center',
+              'micro w-5 shrink-0 text-center text-[10px]',
               isActive ? 'text-violet' : 'text-text-dim group-hover:text-text-muted',
             )}
           >
             {item.n}
           </span>
-          <Icon size={18} className={cn(isActive ? 'text-violet' : 'text-text-muted')} />
-          <span className="font-medium text-[14px]">{item.label}</span>
+          <Icon
+            size={18}
+            className={cn(isActive ? 'text-violet' : 'text-text-muted group-hover:text-text-2')}
+          />
+          <span className="text-[14px] font-medium">{item.label}</span>
         </>
       )}
     </NavLink>
