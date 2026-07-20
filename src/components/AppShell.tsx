@@ -16,7 +16,7 @@ function UserChip() {
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-border bg-[rgba(39,34,54,0.72)] px-4 backdrop-blur-glass md:px-7">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-border-strong bg-[rgba(39,34,54,0.72)] px-4 backdrop-blur-glass md:px-7">
       <div className="md:hidden">
         <ProductMark compact />
       </div>
@@ -30,7 +30,7 @@ function TopBar() {
 
 function LeftRail() {
   return (
-    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border px-4 py-5 md:flex">
+    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border-strong bg-[var(--rail)] px-4 py-5 md:flex">
       <div className="px-2">
         <ProductMark />
       </div>

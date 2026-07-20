@@ -24,7 +24,9 @@ export function Card({
     <div
       className={cn(
         'rounded-card',
-        solid ? 'bg-surface-solid border border-border' : 'glass',
+        solid
+          ? 'bg-surface-solid border border-border'
+          : 'glass shadow-[0_2px_12px_-6px_rgba(0,0,0,0.45)]',
         active && 'glow-active',
         interactive &&
           'cursor-pointer transition-all duration-[350ms] ease-premium hover:border-border-strong',

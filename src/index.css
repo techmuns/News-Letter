@@ -10,13 +10,14 @@
 :root {
   /* base */
   --bg: #272236; /* dark lavender — clearly lifted off black */
-  --surface: rgba(255, 255, 255, 0.07); /* soft glass panel over --bg */
+  --rail: #1e1a2a; /* deeper panel for the sidebar, so it reads as its own surface */
+  --surface: rgba(255, 255, 255, 0.085); /* soft glass panel over --bg */
   --surface-solid: #322b45; /* solid elevated panel */
   --glass-blur: 20px;
 
   /* borders */
-  --border: rgba(255, 255, 255, 0.11);
-  --border-strong: rgba(255, 255, 255, 0.19);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
   --glow: rgba(170, 152, 248, 0.5); /* active/violet border */
   --glow-shadow: 0 0 22px rgba(170, 152, 248, 0.18);
 
