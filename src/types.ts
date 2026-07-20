@@ -60,6 +60,8 @@ export interface WorkspaceItem {
   title: string
   /** short preview snippet or filename detail */
   preview: string
+  /** data URL for image items (screenshots) — shown as a thumbnail */
+  imageUrl?: string
   addedBy: string
   createdAt: string // ISO
 }
@@ -70,6 +72,8 @@ export interface LinkedInContent {
   authorName: string
   authorHandle: string
   authorAvatar: string // initials
+  /** catchy phrase / hook shown as the post lead */
+  headline: string
   body: string
   reactions: number
   comments: number
@@ -128,10 +132,14 @@ export interface Campaign {
   createdAt: string // ISO
   /** workspace items this campaign was generated from */
   sourceItemIds: string[]
+  /** hero image (data URL) carried into LinkedIn + the article hero */
+  heroImage?: string
   linkedin: ChannelVersion<LinkedInContent>
   email: ChannelVersion<EmailContent>
   article: ChannelVersion<ArticleContent>
   promo?: Promotion
+  /** false while awaiting review; true once a human approves the drafts */
+  approved: boolean
   /** true during the mocked "turn into content" processing state */
   processing?: boolean
 }

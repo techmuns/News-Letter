@@ -6,9 +6,11 @@ import { IconArticle, IconArrowRight } from '../icons'
 export function ArticlePreview({
   content,
   promo,
+  image,
 }: {
   content: ArticleContent
   promo?: Promotion
+  image?: string
 }) {
   return (
     <div>
@@ -19,8 +21,16 @@ export function ArticlePreview({
 
       <article className="mx-auto max-w-[660px] overflow-hidden rounded-panel border border-border bg-[rgba(255,255,255,0.02)]">
         {/* hero band */}
-        <div className="relative flex h-28 items-end overflow-hidden border-b border-border bg-[linear-gradient(135deg,rgba(170,152,248,0.2),rgba(170,152,248,0.03)_60%,transparent)] px-6 py-4 sm:px-9">
-          <MicroLabel className="micro-violet">{content.hero}</MicroLabel>
+        <div className="relative flex h-32 items-end overflow-hidden border-b border-border px-6 py-4 sm:px-9">
+          {image ? (
+            <>
+              <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1c1926] via-[#1c1926]/45 to-transparent" />
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(170,152,248,0.2),rgba(170,152,248,0.03)_60%,transparent)]" />
+          )}
+          <MicroLabel className="relative micro-violet">{content.hero}</MicroLabel>
         </div>
 
         <div className="px-6 py-7 sm:px-9 sm:py-9">

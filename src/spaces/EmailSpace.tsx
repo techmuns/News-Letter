@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ROUTES, channelPath } from '../lib/routes'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { type Campaign } from '../types'
 import { weekBucket, weekdayName } from '../lib/date'
 import { PageHeader } from '../components/PageHeader'
@@ -63,10 +64,12 @@ function EmailRow({
 }
 
 export function EmailSpace() {
-  const campaigns = useStore((s) => s.campaigns)
+  const campaigns = useStore((s) => s.campaigns).filter((c) => c.approved)
   const { campaignId } = useParams()
   const navigate = useNavigate()
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
   const selected = campaigns.find((c) => c.id === campaignId) ?? null
+  const previewCampaign = selected ?? (isDesktop ? campaigns[0] ?? null : null)
 
   const grouped = GROUP_ORDER.map((g) => ({
     ...g,
@@ -92,7 +95,7 @@ export function EmailSpace() {
               <EmailRow
                 key={c.id}
                 campaign={c}
-                active={c.id === campaignId}
+                active={c.id === previewCampaign?.id}
                 onClick={() => navigate(channelPath('email', c.id))}
               />
             ))}
@@ -102,9 +105,9 @@ export function EmailSpace() {
     </div>
   )
 
-  const preview = selected ? (
-    <PreviewShell campaign={selected} kind="email" onBack={() => navigate(ROUTES.email)}>
-      <EmailPreview content={selected.email.content} />
+  const preview = previewCampaign ? (
+    <PreviewShell campaign={previewCampaign} kind="email" onBack={() => navigate(ROUTES.email)}>
+      <EmailPreview content={previewCampaign.email.content} />
     </PreviewShell>
   ) : (
     <PreviewEmpty label="Select a send to preview the newsletter." />

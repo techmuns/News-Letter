@@ -2,8 +2,15 @@ import { type LinkedInContent } from '../../types'
 import { MicroLabel } from '../MicroLabel'
 import { IconLinkedIn } from '../icons'
 
-/** Renders a LinkedIn post as it will actually appear (§3.2), draft-clean. */
-export function LinkedInPost({ content }: { content: LinkedInContent }) {
+/** Renders a LinkedIn post as it will actually appear (§3.2): text + a
+    graphic carrying the catchy phrase. */
+export function LinkedInPost({
+  content,
+  image,
+}: {
+  content: LinkedInContent
+  image?: string
+}) {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
@@ -28,6 +35,17 @@ export function LinkedInPost({ content }: { content: LinkedInContent }) {
         <div className="whitespace-pre-line px-4 py-3 text-[14px] leading-[1.5] text-[#1b1f23]">
           {content.body}
         </div>
+
+        {/* graphic: picture + catchy phrase overlay */}
+        {image && (
+          <div className="relative border-y border-[#e6e6e6]">
+            <img src={image} alt="" className="block max-h-[300px] w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/15 to-transparent" />
+            <p className="absolute inset-x-4 bottom-3 font-display text-[20px] font-bold leading-tight text-white">
+              {content.headline}
+            </p>
+          </div>
+        )}
 
         {/* actions (no fake metrics) */}
         <div className="grid grid-cols-4 border-t border-[#e6e6e6] py-1 text-[13px] font-medium text-[#5e6670]">

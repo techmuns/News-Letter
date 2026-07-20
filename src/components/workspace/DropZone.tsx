@@ -29,12 +29,25 @@ export function DropZone() {
     window.setTimeout(() => setFlash(null), 2200)
   }
 
-  function ingest(fileList: FileList | null) {
+  function readImage(file: File): Promise<string | undefined> {
+    if (!file.type.startsWith('image/')) return Promise.resolve(undefined)
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : undefined)
+      reader.onerror = () => resolve(undefined)
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function ingest(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return
-    const files = Array.from(fileList).map((f) => ({
-      name: f.name,
-      sizeLabel: formatBytes(f.size),
-    }))
+    const files = await Promise.all(
+      Array.from(fileList).map(async (f) => ({
+        name: f.name,
+        sizeLabel: formatBytes(f.size),
+        imageUrl: await readImage(f),
+      })),
+    )
     addFiles(files)
     flashMsg(`Added ${files.length} item${files.length > 1 ? 's' : ''} to the pile`)
   }

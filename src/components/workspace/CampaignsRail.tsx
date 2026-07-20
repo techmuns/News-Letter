@@ -1,12 +1,17 @@
 import { cn } from '../../lib/cn'
 import { type Campaign } from '../../types'
+import { useStore } from '../../store/useStore'
 import { Card } from '../Card'
+import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
 import { ChannelChips } from '../ChannelChips'
 import { StatusDot } from '../StatusDot'
 import { SkeletonLines } from '../Skeleton'
+import { IconCheck } from '../icons'
 
 function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlight: boolean }) {
+  const approveCampaign = useStore((s) => s.approveCampaign)
+
   if (campaign.processing) {
     return (
       <Card active className="p-4">
@@ -19,17 +24,28 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
     )
   }
 
+  const needsReview = !campaign.approved
+
   return (
     <Card
-      active={highlight}
+      active={highlight || needsReview}
       className={cn('p-4 transition-all duration-[350ms] ease-premium', highlight && 'animate-fade-up')}
     >
       <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-text">
         {campaign.name}
       </p>
       <div className="mt-3">
-        <ChannelChips campaign={campaign} deepLink />
+        <ChannelChips campaign={campaign} deepLink={campaign.approved} />
       </div>
+
+      {needsReview && (
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-[rgba(255,255,255,0.07)] pt-3">
+          <MicroLabel className="text-amber">Needs review</MicroLabel>
+          <Button variant="primary" size="sm" onClick={() => approveCampaign(campaign.id)}>
+            <IconCheck size={14} /> Approve
+          </Button>
+        </div>
+      )}
     </Card>
   )
 }

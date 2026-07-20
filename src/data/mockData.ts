@@ -46,6 +46,27 @@ export const PROMOTIONS: Promotion[] = [
 
 const promo = (id: string) => PROMOTIONS.find((p) => p.id === id)!
 
+/* Lightweight inline SVG "chart" placeholders so the picture flow is visible
+   without real uploads. Returns a data URL. */
+function chartImg(c1: string, c2: string): string {
+  const bars = Array.from({ length: 9 }, (_, i) => {
+    const h = 50 + ((i * 53) % 200)
+    const op = (0.28 + (i % 3) * 0.14).toFixed(2)
+    return `<rect x='${56 + i * 82}' y='${360 - h}' width='46' height='${h}' rx='7' fill='#ffffff' opacity='${op}'/>`
+  }).join('')
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='450'>` +
+    `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
+    `<stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/></linearGradient></defs>` +
+    `<rect width='800' height='450' fill='url(#g)'/>${bars}` +
+    `</svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+export const IMG_IPO = chartImg('#5b46b8', '#9d8cf5')
+export const IMG_INSURANCE = chartImg('#2f7d5b', '#47d6a1')
+export const IMG_FRAMEWORK = chartImg('#7d5bb8', '#c9a3f5')
+
 /* ============================================================
    Workspace pile — raw ingredients the team dropped in.
    ============================================================ */
@@ -63,6 +84,7 @@ export const SEED_ITEMS: WorkspaceItem[] = [
     type: 'screenshot',
     title: 'Sector heatmap — insurance margins',
     preview: 'Screenshot · health insurers turning amber on loss ratios',
+    imageUrl: IMG_INSURANCE,
     addedBy: 'Arjun',
     createdAt: hoursAgo(6),
   },
@@ -88,7 +110,7 @@ export const SEED_ITEMS: WorkspaceItem[] = [
 /* ============================================================
    Channel content builders (kept terse but real-sounding).
    ============================================================ */
-const li = (c: Partial<LinkedInContent> & { body: string }): LinkedInContent => ({
+const li = (c: Partial<LinkedInContent> & { body: string; headline: string }): LinkedInContent => ({
   authorName: 'Munshot',
   authorHandle: 'Intelligence for institutional investors',
   authorAvatar: 'M',
@@ -108,12 +130,15 @@ const campaignA: Campaign = {
   topic: 'IPO / Primary markets',
   createdAt: hoursAgo(22),
   sourceItemIds: ['item-1', 'item-3'],
+  heroImage: IMG_IPO,
+  approved: true,
   promo: promo('promo-drhp'),
   linkedin: {
     kind: 'linkedin',
     status: 'Ready',
     edited: true,
     content: li({
+      headline: 'The Q3 IPO wave is smaller than it looks',
       body:
         'Q3 brought 38 live DRHPs to market — but the headline count is the least interesting part.\n\nRun the filings side by side and a pattern shows up: median issue size fell ~18% while the number of filers rose. Smaller, more frequent raises. That is a different market than the 2024 mega-IPO cycle, and it changes how you screen.\n\nWhat most people miss: the risk isn’t in the draft DRHP — it’s in the diff between the draft and the final RHP. That’s where use-of-proceeds quietly shifts and promoter selling gets sized.\n\nThe Munshot DRHP tracker surfaces those amendments as they land, so the edit shows up before the listing does.',
     }),
@@ -176,6 +201,8 @@ const campaignB: Campaign = {
   topic: 'Insurance / Sector',
   createdAt: daysAgo(1),
   sourceItemIds: ['item-2', 'item-4'],
+  heroImage: IMG_INSURANCE,
+  approved: true,
   promo: promo('promo-sector'),
   linkedin: {
     kind: 'linkedin',
@@ -185,6 +212,7 @@ const campaignB: Campaign = {
       reactions: 96,
       comments: 12,
       reposts: 8,
+      headline: 'Health insurers look fine — until you read the loss ratios',
       body:
         'Health insurers look fine on premium growth. Look at loss ratios instead.\n\nAcross the listed private health book, claims ratios have drifted up for three straight quarters while premium repricing has lagged. The top line hides it; the margin line doesn’t.\n\nThe question for the next two quarters isn’t growth — it’s whether pricing catches up to claims before it shows up in combined ratio.\n\nSector Pulse flags these margin shifts across the tape as they move, not a quarter later.',
     }),
@@ -241,6 +269,8 @@ const campaignC: Campaign = {
   topic: 'Framework / Checklist',
   createdAt: daysAgo(2),
   sourceItemIds: ['item-1'],
+  heroImage: IMG_FRAMEWORK,
+  approved: true,
   promo: promo('promo-diligence'),
   linkedin: {
     kind: 'linkedin',
@@ -250,6 +280,7 @@ const campaignC: Campaign = {
       reactions: 41,
       comments: 5,
       reposts: 3,
+      headline: 'Three questions that kill a bad IPO in ten minutes',
       body:
         'A 3-question filter we use before spending real time on any IPO:\n\n1. What moved between the draft DRHP and the final RHP?\n2. How much of the raise is fresh capital vs offer-for-sale?\n3. Does use-of-proceeds match the growth story management is selling?\n\nMost screens die at question 1. That’s the point — it’s the cheapest way to say no.\n\nDiligence OS builds this out from a single filing upload.',
     }),
@@ -305,6 +336,7 @@ interface GeneratableTemplate {
   name: string
   topic: string
   promoId: string
+  heroImage: string
   linkedin: LinkedInContent
   email: EmailContent
   article: ArticleContent
@@ -315,10 +347,9 @@ export const GENERATABLE: GeneratableTemplate[] = [
     name: 'Insurers are quietly repricing — the signal in the filings',
     topic: 'Insurance / Sector',
     promoId: 'promo-sector',
+    heroImage: IMG_INSURANCE,
     linkedin: li({
-      reactions: 0,
-      comments: 0,
-      reposts: 0,
+      headline: 'Insurers are repricing in plain sight',
       body:
         'Repricing shows up in the fine print before it shows up in the P&L.\n\nAcross the health book, renewal-rate disclosures are moving up while combined ratios are still catching down. The market is treating this as a growth story; the filings read like a margin-repair story.\n\nSector Pulse tracks the repricing as it flows through the book.',
     }),
@@ -360,10 +391,9 @@ export const GENERATABLE: GeneratableTemplate[] = [
     name: 'What Q3 DRHP filings reveal about the IPO pipeline',
     topic: 'IPO / Primary markets',
     promoId: 'promo-drhp',
+    heroImage: IMG_IPO,
     linkedin: li({
-      reactions: 0,
-      comments: 0,
-      reposts: 0,
+      headline: 'The IPO pipeline is changing shape, not just size',
       body:
         'The IPO pipeline isn’t just "busy" — it’s changing shape.\n\nQ3 DRHPs skew smaller and more repeat-issuer than a year ago. That tells you something about how companies read the current window: raise less, raise more often, keep optionality.\n\nDRHP Dash surfaces the filings and their amendments as they hit.',
     }),

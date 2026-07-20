@@ -27,7 +27,15 @@ export function PileItemCard({ item, selected, onToggle }: PileItemCardProps) {
       aria-pressed={selected}
       className="flex gap-3 p-4"
     >
-      <Icon size={17} className={cn('mt-0.5 shrink-0', tint)} />
+      {item.imageUrl ? (
+        <img
+          src={item.imageUrl}
+          alt=""
+          className="mt-0.5 h-10 w-14 shrink-0 rounded-md border border-border object-cover"
+        />
+      ) : (
+        <Icon size={17} className={cn('mt-0.5 shrink-0', tint)} />
+      )}
 
       <div className="min-w-0 flex-1">
         <p className="line-clamp-1 text-[14px] font-medium text-text">{item.title}</p>

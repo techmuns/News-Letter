@@ -38,13 +38,18 @@ interface StoreState {
 
   // --- Workspace actions ---
   addNote: (text: string, addedBy?: string) => void
-  addFiles: (files: { name: string; sizeLabel?: string }[], addedBy?: string) => void
+  addFiles: (
+    files: { name: string; sizeLabel?: string; imageUrl?: string }[],
+    addedBy?: string,
+  ) => void
   removeItem: (id: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
   turnIntoContent: (itemIds: string[]) => string
 
   // --- Campaign / channel actions ---
+  /** Approve the generated drafts → channels move to Ready, distributed to spaces. */
+  approveCampaign: (campaignId: string) => void
   setChannelStatus: (campaignId: string, kind: ChannelKind, status: ChannelStatus) => void
   scheduleChannel: (campaignId: string, kind: ChannelKind, date: string) => void
   markChannelEdited: (campaignId: string, kind: ChannelKind, edited?: boolean) => void
@@ -77,7 +82,7 @@ export const useStore = create<StoreState>()(
 
       addFiles: (files, addedBy = 'You') => {
         const newItems: WorkspaceItem[] = files.map((f) => {
-          const type = typeFromName(f.name)
+          const type = f.imageUrl ? 'screenshot' : typeFromName(f.name)
           return {
             id: uid('item'),
             type,
@@ -89,6 +94,7 @@ export const useStore = create<StoreState>()(
                 : type === 'screenshot'
                   ? 'Screenshot · dropped into workspace'
                   : 'Note · dropped into workspace'),
+            imageUrl: f.imageUrl,
             addedBy,
             createdAt: new Date().toISOString(),
           }
@@ -103,16 +109,23 @@ export const useStore = create<StoreState>()(
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
         const id = uid('camp')
         const now = new Date().toISOString()
+        // Prefer a picture from the selected items; fall back to the template hero.
+        const items = get().items
+        const heroFromSelection = itemIds
+          .map((iid) => items.find((it) => it.id === iid)?.imageUrl)
+          .find(Boolean)
         const campaign: Campaign = {
           id,
           name: tpl.name,
           topic: tpl.topic,
           createdAt: now,
           sourceItemIds: itemIds,
+          heroImage: heroFromSelection ?? tpl.heroImage,
+          approved: false, // awaits review before it distributes to the channels
           promo: PROMOTIONS.find((p) => p.id === tpl.promoId),
-          linkedin: { kind: 'linkedin', status: 'Draft', edited: false, content: tpl.linkedin },
-          email: { kind: 'email', status: 'Draft', edited: false, content: tpl.email },
-          article: { kind: 'article', status: 'Draft', edited: false, content: tpl.article },
+          linkedin: { kind: 'linkedin', status: 'In Review', edited: false, content: tpl.linkedin },
+          email: { kind: 'email', status: 'In Review', edited: false, content: tpl.email },
+          article: { kind: 'article', status: 'In Review', edited: false, content: tpl.article },
           processing: true,
         }
         set((s) => ({
@@ -130,6 +143,21 @@ export const useStore = create<StoreState>()(
         }, PROCESSING_MS)
         return id
       },
+
+      approveCampaign: (campaignId) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? {
+                  ...c,
+                  approved: true,
+                  linkedin: { ...c.linkedin, status: 'Ready' },
+                  email: { ...c.email, status: 'Ready' },
+                  article: { ...c.article, status: 'Ready' },
+                }
+              : c,
+          ),
+        })),
 
       setChannelStatus: (campaignId, kind, status) =>
         set((s) => ({
@@ -180,11 +208,18 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 1,
+      version: 2,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
+      }),
+      // Schema changed (images, headlines, approval) — reset older stores to the
+      // fresh seed rather than trying to backfill missing fields.
+      migrate: () => ({
+        items: SEED_ITEMS,
+        campaigns: SEED_CAMPAIGNS,
+        genIndex: 0,
       }),
       // Clear any in-flight processing flags that were persisted mid-action.
       onRehydrateStorage: () => (state) => {
