@@ -4,6 +4,7 @@ import {
   type Campaign,
   type ChannelKind,
   type ChannelStatus,
+  type GenerationBrief,
   type WorkspaceItem,
   type WorkspaceItemType,
 } from '../types'
@@ -45,7 +46,7 @@ interface StoreState {
   removeItem: (id: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
-  turnIntoContent: (itemIds: string[]) => string
+  turnIntoContent: (itemIds: string[], brief?: GenerationBrief) => string
 
   // --- Campaign / channel actions ---
   /** Approve one channel → it moves to Ready and distributes to its space. */
@@ -107,7 +108,7 @@ export const useStore = create<StoreState>()(
       removeItem: (id) =>
         set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
 
-      turnIntoContent: (itemIds) => {
+      turnIntoContent: (itemIds, brief) => {
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
         const id = uid('camp')
         const now = new Date().toISOString()
@@ -124,6 +125,7 @@ export const useStore = create<StoreState>()(
           sourceItemIds: itemIds,
           heroImage: heroFromSelection ?? tpl.heroImage,
           promo: PROMOTIONS.find((p) => p.id === tpl.promoId),
+          brief,
           // Each channel awaits its own review before it distributes to its space.
           linkedin: { kind: 'linkedin', status: 'In Review', edited: false, approved: false, content: tpl.linkedin },
           email: { kind: 'email', status: 'In Review', edited: false, approved: false, content: tpl.email },
@@ -218,14 +220,14 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 3,
+      version: 4,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
       }),
-      // Schema changed (images, headlines, approval) — reset older stores to the
-      // fresh seed rather than trying to backfill missing fields.
+      // Schema changed (images, headlines, approval, briefs) — reset older stores
+      // to the fresh seed rather than trying to backfill missing fields.
       migrate: () => ({
         items: SEED_ITEMS,
         campaigns: SEED_CAMPAIGNS,
