@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore'
+import { type GenerationBrief } from '../types'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
 import { Button } from '../components/Button'
 import { DropZone } from '../components/workspace/DropZone'
 import { PileItemCard } from '../components/workspace/PileItemCard'
 import { CampaignsRail } from '../components/workspace/CampaignsRail'
+import { BriefModal } from '../components/workspace/BriefModal'
 import { IconSparkle, IconClose } from '../components/icons'
 
 export function Workspace() {
@@ -15,6 +17,7 @@ export function Workspace() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [briefOpen, setBriefOpen] = useState(false)
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -24,10 +27,13 @@ export function Workspace() {
     })
   }
 
-  function handleTurn() {
+  const selectedItems = items.filter((it) => selected.has(it.id))
+
+  function handleGenerate(brief: GenerationBrief) {
     if (selected.size === 0) return
-    const id = turnIntoContent([...selected])
+    const id = turnIntoContent([...selected], brief)
     setSelected(new Set())
+    setBriefOpen(false)
     setHighlightId(id)
     window.setTimeout(() => setHighlightId(null), 4000)
   }
@@ -37,7 +43,7 @@ export function Workspace() {
       <PageHeader
         eyebrow="01"
         title="Workspace"
-        subtitle="Drop raw material as it comes — PDFs, screenshots, a stray thought. Select a few pieces and turn them into content."
+        subtitle="The drafting desk. Drop raw material — PDFs, screenshots, a stray thought — select a few pieces, set a content brief, and generate one campaign across three channels."
       />
 
       <DropZone />
@@ -54,15 +60,16 @@ export function Workspace() {
 
           {/* Selection action bar */}
           {selected.size > 0 && (
-            <div className="glow-active mt-4 flex items-center justify-between gap-3 rounded-xl p-3 animate-fade-up">
+            <div className="glow-active mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 animate-fade-up">
               <span className="text-[13px] text-text-2">
                 {selected.size} selected
+                <span className="ml-2 text-text-dim">· set a brief, then generate</span>
               </span>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                   <IconClose size={14} /> Clear
                 </Button>
-                <Button variant="primary" size="sm" onClick={handleTurn}>
+                <Button variant="primary" size="sm" onClick={() => setBriefOpen(true)}>
                   <IconSparkle size={15} /> Turn into content
                 </Button>
               </div>
@@ -94,6 +101,13 @@ export function Workspace() {
           <CampaignsRail campaigns={campaigns} highlightId={highlightId} />
         </aside>
       </div>
+
+      <BriefModal
+        open={briefOpen}
+        items={selectedItems}
+        onClose={() => setBriefOpen(false)}
+        onGenerate={handleGenerate}
+      />
     </div>
   )
 }
