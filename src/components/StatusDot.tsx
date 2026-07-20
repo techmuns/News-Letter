@@ -10,11 +10,11 @@ const TONE_BG: Record<StatusTone | 'pink', string> = {
 }
 
 const TONE_GLOW: Record<StatusTone | 'pink', string> = {
-  green: 'shadow-[0_0_8px_rgba(61,220,151,0.7)]',
-  amber: 'shadow-[0_0_8px_rgba(245,194,75,0.7)]',
+  green: 'shadow-[0_0_6px_rgba(71,214,161,0.5)]',
+  amber: 'shadow-[0_0_6px_rgba(242,197,102,0.5)]',
   grey: '',
-  violet: 'shadow-[0_0_8px_rgba(157,140,245,0.7)]',
-  pink: 'shadow-[0_0_10px_rgba(251,94,126,0.8)]',
+  violet: 'shadow-[0_0_6px_rgba(170,152,248,0.55)]',
+  pink: 'shadow-[0_0_8px_rgba(251,110,146,0.7)]',
 }
 
 interface StatusDotProps {

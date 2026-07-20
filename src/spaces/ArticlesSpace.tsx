@@ -16,7 +16,7 @@ export function ArticlesSpace() {
 
   const list = (
     <div className="flex flex-col gap-3">
-      <MicroLabel>{campaigns.length} articles</MicroLabel>
+      <MicroLabel>Drafts</MicroLabel>
       {campaigns.map((c) => (
         <ChannelListRow
           key={c.id}
@@ -41,9 +41,9 @@ export function ArticlesSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="04 · Articles"
-        title="Long-form articles"
-        subtitle="The deep version of each campaign — one idea, worked through, ending in a relevant Munshot pointer."
+        eyebrow="04"
+        title="Articles"
+        subtitle="The long-form version of each campaign. Click to read the draft."
       />
       <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
     </div>

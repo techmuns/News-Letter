@@ -79,25 +79,9 @@ export const SEED_ITEMS: WorkspaceItem[] = [
     id: 'item-4',
     type: 'note',
     title: 'Stray thought',
-    preview: 'Insurers quietly repricing — worth a Wednesday story? Channel Probe is picking it up too.',
+    preview: 'Insurers quietly repricing — worth a Wednesday story?',
     addedBy: 'Priya',
     createdAt: daysAgo(1),
-  },
-  {
-    id: 'item-5',
-    type: 'screenshot',
-    title: 'Channel Probe — distributor sentiment',
-    preview: 'Screenshot · two-wheeler channel checks softening into the print',
-    addedBy: 'Dev',
-    createdAt: daysAgo(2),
-  },
-  {
-    id: 'item-6',
-    type: 'pdf',
-    title: 'Diligence OS — sample coverage memo.pdf',
-    preview: '6-page structured memo generated from a single RHP upload',
-    addedBy: 'Arjun',
-    createdAt: daysAgo(3),
   },
 ]
 
@@ -106,11 +90,11 @@ export const SEED_ITEMS: WorkspaceItem[] = [
    ============================================================ */
 const li = (c: Partial<LinkedInContent> & { body: string }): LinkedInContent => ({
   authorName: 'Munshot',
-  authorHandle: 'Intelligence for institutional investors · 12,438 followers',
+  authorHandle: 'Intelligence for institutional investors',
   authorAvatar: 'M',
-  reactions: 214,
-  comments: 27,
-  reposts: 19,
+  reactions: 0,
+  comments: 0,
+  reposts: 0,
   ...c,
 })
 
@@ -256,7 +240,7 @@ const campaignC: Campaign = {
   name: 'A 3-question filter for early-cycle IPO screening',
   topic: 'Framework / Checklist',
   createdAt: daysAgo(2),
-  sourceItemIds: ['item-6'],
+  sourceItemIds: ['item-1'],
   promo: promo('promo-diligence'),
   linkedin: {
     kind: 'linkedin',
@@ -311,77 +295,7 @@ const campaignC: Campaign = {
   },
 }
 
-const campaignD: Campaign = {
-  id: 'camp-channel',
-  name: 'Channel checks are flashing before the print',
-  topic: 'Channel checks / Consumer',
-  createdAt: daysAgo(4),
-  sourceItemIds: ['item-5'],
-  promo: promo('promo-channel'),
-  linkedin: {
-    kind: 'linkedin',
-    status: 'Published',
-    edited: true,
-    content: li({
-      reactions: 338,
-      comments: 44,
-      reposts: 31,
-      body:
-        'By the time channel softness shows up in reported numbers, the stock has usually already moved.\n\nThat’s the whole case for reading distribution directly. Two-wheeler channel checks have been cooling for six weeks — inventory building at dealers, discounts creeping in — well ahead of any print.\n\nThe tape confirms it late. The channel says it early.\n\nChannel Probe reads distributor and dealer signals weeks before the numbers do.',
-    }),
-  },
-  email: {
-    kind: 'email',
-    status: 'Scheduled',
-    edited: false,
-    scheduledDate: weekdayIn(1, 0), // next Monday
-    content: {
-      subject: 'The channel knew first: reading distribution ahead of the print',
-      from: 'Munshot Intelligence <intel@munshot.io>',
-      preheader: 'Two-wheeler channel checks have cooled for six weeks. The print hasn’t caught up.',
-      idea:
-        'Reported numbers are a lagging indicator of demand. Distribution is a leading one. When the two disagree, the channel is usually early and the tape is usually late.',
-      story:
-        'Two-wheeler dealer checks have softened for six straight weeks — inventory building, discounting creeping back — with no corresponding move in the reported volume line yet. Every prior cycle, that gap closed toward the channel, not away from it.',
-      takeaway:
-        'When channel signals and reported numbers diverge, weight the channel. The print will reconcile to it, not the other way round.',
-      ctaLabel: 'Read the channel in Channel Probe',
-    },
-  },
-  article: {
-    kind: 'article',
-    status: 'Published',
-    edited: true,
-    content: {
-      title: 'When the channel disagrees with the print, trust the channel',
-      deck: 'Distribution leads reported demand. Here is how to read it before the number lands.',
-      hero: 'CONSUMER · CHANNEL CHECKS',
-      readMinutes: 7,
-      sections: [
-        {
-          body:
-            'Reported volumes are the market’s rear-view mirror. They are accurate and they are late. The interesting question is always what the distribution layer is doing before the number is printed.',
-        },
-        {
-          heading: 'Six weeks of quiet cooling',
-          body:
-            'Two-wheeler channel checks have softened for a month and a half: dealer inventory building, discounts returning, order momentum slowing. None of it is in the reported line yet — which is exactly why it is worth reading now rather than after.',
-        },
-        {
-          heading: 'The gap always closes toward the channel',
-          body:
-            'In prior cycles, when channel signals and reported demand diverged, reconciliation ran toward the channel. The distribution layer sees the slowdown first because it lives closest to the buyer.',
-        },
-      ],
-      ctaTitle: 'Read distribution directly with Channel Probe',
-      ctaBody:
-        'Channel Probe aggregates distributor and dealer signals into a live read on demand — weeks ahead of the reported print.',
-      ctaLabel: 'Open Channel Probe',
-    },
-  },
-}
-
-export const SEED_CAMPAIGNS: Campaign[] = [campaignA, campaignB, campaignC, campaignD]
+export const SEED_CAMPAIGNS: Campaign[] = [campaignA, campaignB, campaignC]
 
 /* ============================================================
    Generatable templates — the mocked "Turn into content" action

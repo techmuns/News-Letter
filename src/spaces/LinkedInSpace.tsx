@@ -20,7 +20,7 @@ export function LinkedInSpace() {
 
   const list = (
     <div className="flex flex-col gap-3">
-      <MicroLabel>{campaigns.length} post drafts</MicroLabel>
+      <MicroLabel>Drafts</MicroLabel>
       {campaigns.map((c) => (
         <ChannelListRow
           key={c.id}
@@ -45,9 +45,9 @@ export function LinkedInSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="02 · LinkedIn"
-        title="LinkedIn posts"
-        subtitle="One post draft per campaign, each with its own status. Click a draft to preview it exactly as it will appear in-feed."
+        eyebrow="02"
+        title="LinkedIn"
+        subtitle="One post per campaign. Click a draft to preview how it reads in-feed."
       />
       <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
     </div>

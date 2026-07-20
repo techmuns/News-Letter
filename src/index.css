@@ -3,37 +3,38 @@
 @tailwind utilities;
 
 /* ============================================================
-   Design tokens — Munshot Content System (Channel Probe family)
-   Near-black base · violet primary · restrained glass · glow accents
+   Design tokens — Munshot Content System
+   Dark-lavender base · soft off-white glow · violet accent.
+   Lighter and calmer than a black console: approachable, premium.
    ============================================================ */
 :root {
   /* base */
-  --bg: #0a0912; /* near-black, faint purple */
-  --surface: rgba(255, 255, 255, 0.03); /* glass panel fill, over --bg */
-  --surface-solid: #131120; /* solid elevated panel */
+  --bg: #272236; /* dark lavender — clearly lifted off black */
+  --surface: rgba(255, 255, 255, 0.07); /* soft glass panel over --bg */
+  --surface-solid: #322b45; /* solid elevated panel */
   --glass-blur: 20px;
 
   /* borders */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --glow: rgba(157, 140, 245, 0.5); /* active/violet border */
-  --glow-shadow: 0 0 24px rgba(157, 140, 245, 0.22);
+  --border: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.19);
+  --glow: rgba(170, 152, 248, 0.5); /* active/violet border */
+  --glow-shadow: 0 0 22px rgba(170, 152, 248, 0.18);
 
   /* primary */
-  --violet: #9d8cf5;
-  --violet-dim: #6e64a8;
+  --violet: #a896f7;
+  --violet-dim: #8a7fc0;
 
   /* status */
-  --green: #3ddc97;
-  --amber: #f5c24b;
-  --grey-dot: #3a3a48;
-  --pink: #fb5e7e;
+  --green: #47d6a1;
+  --amber: #f2c566;
+  --grey-dot: #4c4763;
+  --pink: #fb6e92;
 
-  /* text */
-  --text: #f5f5fa;
-  --text-2: #a0a0b0;
-  --text-muted: #6b6b80;
-  --text-dim: #45454f;
+  /* text — brighter, lavender-tinted, high contrast */
+  --text: #f5f3fc;
+  --text-2: #c8c3dc;
+  --text-muted: #9a93b2;
+  --text-dim: #6e6789;
 
   color-scheme: dark;
 }
@@ -52,13 +53,22 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    /* subtle radial gradient toward center for depth */
+    /* soft off-white / lavender glow for a lighter, warmer canvas */
     background-image: radial-gradient(
-        1100px 700px at 68% -8%,
-        #0e0b18 0%,
-        rgba(14, 11, 24, 0) 60%
+        1200px 760px at 50% -10%,
+        rgba(214, 204, 253, 0.2),
+        rgba(214, 204, 253, 0) 58%
       ),
-      radial-gradient(900px 600px at 8% 108%, #100c1c 0%, rgba(16, 12, 28, 0) 55%);
+      radial-gradient(
+        860px 580px at 100% 4%,
+        rgba(182, 164, 251, 0.14),
+        rgba(182, 164, 251, 0) 55%
+      ),
+      radial-gradient(
+        780px 580px at 0% 100%,
+        rgba(156, 194, 244, 0.08),
+        rgba(156, 194, 244, 0) 55%
+      );
     background-attachment: fixed;
     color: var(--text);
     font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
@@ -68,7 +78,7 @@
   }
 
   ::selection {
-    background: rgba(157, 140, 245, 0.28);
+    background: rgba(170, 152, 248, 0.3);
     color: var(--text);
   }
 
@@ -81,19 +91,19 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.09);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(157, 140, 245, 0.25);
+    background: rgba(170, 152, 248, 0.3);
     background-clip: padding-box;
   }
 }
 
 @layer components {
-  /* Glass panel — the workhorse surface. Present, never heavy. */
+  /* Glass panel — the workhorse surface. Soft, present, never heavy. */
   .glass {
     background-color: var(--surface);
     backdrop-filter: blur(var(--glass-blur));
@@ -101,14 +111,14 @@
     border: 1px solid var(--border);
   }
 
-  /* Active / focused surface — violet glow border. Use sparingly. */
+  /* Active / focused surface — gentle violet glow. Used sparingly. */
   .glow-active {
     border: 1px solid var(--glow);
     box-shadow: var(--glow-shadow);
     background-image: linear-gradient(
       180deg,
-      rgba(157, 140, 245, 0.06),
-      rgba(157, 140, 245, 0.01)
+      rgba(170, 152, 248, 0.08),
+      rgba(170, 152, 248, 0.02)
     );
   }
 
@@ -123,20 +133,20 @@
   }
 
   .micro-violet {
-    color: var(--violet-dim);
+    color: var(--violet);
   }
 
   .divider {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
   }
 
-  /* Shimmer used for mocked loading states */
+  /* Shimmer used for the single mocked loading state */
   .shimmer {
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.02) 25%,
-      rgba(157, 140, 245, 0.1) 50%,
-      rgba(255, 255, 255, 0.02) 75%
+      rgba(255, 255, 255, 0.03) 25%,
+      rgba(170, 152, 248, 0.12) 50%,
+      rgba(255, 255, 255, 0.03) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 1.8s linear infinite;

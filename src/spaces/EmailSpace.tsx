@@ -3,11 +3,9 @@ import { useStore } from '../store/useStore'
 import { ROUTES, channelPath } from '../lib/routes'
 import { type Campaign } from '../types'
 import { weekBucket, weekdayName } from '../lib/date'
-import { cn } from '../lib/cn'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
 import { StatusChip } from '../components/StatusChip'
-import { ChannelChips } from '../components/ChannelChips'
 import { Card } from '../components/Card'
 import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
 import { PreviewShell } from '../components/preview/PreviewShell'
@@ -46,7 +44,7 @@ function EmailRow({
   return (
     <Card active={active} interactive onClick={onClick} className="flex items-stretch gap-0 p-0">
       {/* weekday rail */}
-      <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-[rgba(255,255,255,0.06)] py-4">
+      <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-[rgba(255,255,255,0.07)] py-4">
         <span className="micro text-[10px] text-violet">{wday}</span>
         <span className="font-display text-[16px] font-bold leading-none text-text">
           {date ? new Date(`${date}T12:00:00`).getDate() : '·'}
@@ -55,12 +53,9 @@ function EmailRow({
       {/* body */}
       <div className="min-w-0 flex-1 p-4">
         <p className="line-clamp-1 text-[13.5px] font-semibold text-text">{email.content.subject}</p>
-        <p className="mt-1 line-clamp-1 text-[11.5px] text-text-muted">
-          {campaign.name}
-        </p>
-        <div className="mt-2.5 flex items-center justify-between gap-2">
+        <p className="mt-1 line-clamp-1 text-[11.5px] text-text-muted">{campaign.name}</p>
+        <div className="mt-2.5">
           <StatusChip status={email.status} />
-          <ChannelChips campaign={campaign} />
         </div>
       </div>
     </Card>
@@ -118,14 +113,9 @@ export function EmailSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="03 · Email"
-        title="Email schedule"
-        subtitle="The weekly newsletter rhythm. Each send is one campaign's email version — click to preview it as it lands in the inbox."
-        right={
-          <span className={cn('hidden rounded-full border border-border px-3 py-1.5 sm:inline-flex')}>
-            <MicroLabel>{campaigns.length} sends queued</MicroLabel>
-          </span>
-        }
+        eyebrow="03"
+        title="Email"
+        subtitle="The weekly newsletter rhythm. Click a send to preview it as it lands."
       />
       <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
     </div>

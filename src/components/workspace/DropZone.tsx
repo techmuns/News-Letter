@@ -97,7 +97,6 @@ export function DropZone() {
             <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
               Browse files
             </Button>
-            <MicroLabel className="text-text-dim">⌘ + Enter to add</MicroLabel>
           </div>
         </div>
       </div>

@@ -19,10 +19,7 @@ export function ArticlePreview({
 
       <article className="mx-auto max-w-[660px] overflow-hidden rounded-panel border border-border bg-[rgba(255,255,255,0.02)]">
         {/* hero band */}
-        <div className="relative flex h-32 items-end overflow-hidden border-b border-border bg-[linear-gradient(135deg,rgba(157,140,245,0.22),rgba(157,140,245,0.04)_60%,transparent)] px-6 py-4 sm:px-9">
-          <div className="absolute right-5 top-4">
-            <MicroLabel className="text-[9.5px]">{content.readMinutes} min read</MicroLabel>
-          </div>
+        <div className="relative flex h-28 items-end overflow-hidden border-b border-border bg-[linear-gradient(135deg,rgba(170,152,248,0.2),rgba(170,152,248,0.03)_60%,transparent)] px-6 py-4 sm:px-9">
           <MicroLabel className="micro-violet">{content.hero}</MicroLabel>
         </div>
 

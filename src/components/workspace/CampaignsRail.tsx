@@ -1,5 +1,4 @@
 import { cn } from '../../lib/cn'
-import { relativeTime } from '../../lib/date'
 import { type Campaign } from '../../types'
 import { Card } from '../Card'
 import { MicroLabel } from '../MicroLabel'
@@ -12,11 +11,10 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
     return (
       <Card active className="p-4">
         <div className="flex items-center gap-2">
-          <StatusDot tone="pink" pulse size={8} />
-          <MicroLabel className="text-pink">Generating 3 channel drafts…</MicroLabel>
+          <StatusDot tone="pink" pulse size={7} />
+          <MicroLabel className="text-pink">Drafting three versions…</MicroLabel>
         </div>
-        <p className="mt-3 line-clamp-1 text-[13.5px] font-medium text-text-2">{campaign.name}</p>
-        <SkeletonLines lines={3} className="mt-3" />
+        <SkeletonLines lines={2} className="mt-3" />
       </Card>
     )
   }
@@ -26,24 +24,12 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
       active={highlight}
       className={cn('p-4 transition-all duration-[350ms] ease-premium', highlight && 'animate-fade-up')}
     >
-      <div className="flex items-center justify-between gap-2">
-        <MicroLabel className="micro-violet line-clamp-1">{campaign.topic}</MicroLabel>
-        <MicroLabel className="shrink-0 text-[9.5px]">{relativeTime(campaign.createdAt)}</MicroLabel>
-      </div>
-      <p className="mt-2 line-clamp-2 text-[13.5px] font-semibold leading-snug text-text">
+      <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-text">
         {campaign.name}
       </p>
       <div className="mt-3">
-        <ChannelChips campaign={campaign} deepLink variant="full" />
+        <ChannelChips campaign={campaign} deepLink />
       </div>
-      {campaign.promo && (
-        <div className="mt-3 flex items-center gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3">
-          <span className="h-1.5 w-1.5 rounded-full bg-violet-dim" />
-          <span className="text-[11px] text-text-muted">
-            Promotes <span className="text-text-2">{campaign.promo.name}</span>
-          </span>
-        </div>
-      )}
     </Card>
   )
 }
@@ -57,14 +43,11 @@ export function CampaignsRail({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <MicroLabel>Campaigns in progress</MicroLabel>
-        <MicroLabel className="text-text-dim">{campaigns.length}</MicroLabel>
-      </div>
+      <MicroLabel>Campaigns</MicroLabel>
       {campaigns.length === 0 ? (
         <Card className="p-4">
           <p className="text-[12.5px] leading-relaxed text-text-muted">
-            No campaigns yet. Select items from the pile and turn them into content.
+            Select items from the pile and turn them into content.
           </p>
         </Card>
       ) : (
