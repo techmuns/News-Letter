@@ -7,9 +7,11 @@ import { IconLinkedIn } from '../icons'
 export function LinkedInPost({
   content,
   image,
+  topic,
 }: {
   content: LinkedInContent
   image?: string
+  topic?: string
 }) {
   return (
     <div>
@@ -36,14 +38,34 @@ export function LinkedInPost({
           {content.body}
         </div>
 
-        {/* graphic: picture + catchy phrase overlay */}
+        {/* branded graphic: picture + catchy phrase on a Munshot template */}
         {image && (
-          <div className="relative border-y border-[#e6e6e6]">
-            <img src={image} alt="" className="block max-h-[300px] w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/15 to-transparent" />
-            <p className="absolute inset-x-4 bottom-3 font-display text-[20px] font-bold leading-tight text-white">
-              {content.headline}
-            </p>
+          <div className="relative overflow-hidden border-y border-[#e6e6e6]">
+            <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(28,25,38,0.95)_0%,rgba(28,25,38,0.82)_46%,rgba(42,37,64,0.62)_100%)]" />
+            <div className="relative flex min-h-[266px] flex-col justify-between p-6">
+              {/* brand */}
+              <div className="flex items-center gap-2">
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#12101e] ring-1 ring-[rgba(170,152,248,0.55)]">
+                  <span className="h-2 w-2 rounded-full bg-[#a896f7]" />
+                </span>
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#cabff8]">
+                  Munshot Intelligence
+                </span>
+              </div>
+              {/* headline */}
+              <div>
+                {topic && (
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[#a896f7]">
+                    {topic}
+                  </p>
+                )}
+                <p className="font-display text-[24px] font-bold leading-[1.16] text-white">
+                  {content.headline}
+                </p>
+                <div className="mt-4 h-[3px] w-12 rounded-full bg-[#a896f7]" />
+              </div>
+            </div>
           </div>
         )}
 

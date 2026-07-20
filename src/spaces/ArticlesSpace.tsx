@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ROUTES, channelPath } from '../lib/routes'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { channelApproved } from '../types'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
 import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
@@ -10,7 +11,7 @@ import { PreviewShell } from '../components/preview/PreviewShell'
 import { ArticlePreview } from '../components/preview/ArticlePreview'
 
 export function ArticlesSpace() {
-  const campaigns = useStore((s) => s.campaigns).filter((c) => c.approved)
+  const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.article))
   const { campaignId } = useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery('(min-width: 1024px)')

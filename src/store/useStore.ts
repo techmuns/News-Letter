@@ -48,7 +48,9 @@ interface StoreState {
   turnIntoContent: (itemIds: string[]) => string
 
   // --- Campaign / channel actions ---
-  /** Approve the generated drafts → channels move to Ready, distributed to spaces. */
+  /** Approve one channel → it moves to Ready and distributes to its space. */
+  approveChannel: (campaignId: string, kind: ChannelKind) => void
+  /** Approve all three channels at once. */
   approveCampaign: (campaignId: string) => void
   setChannelStatus: (campaignId: string, kind: ChannelKind, status: ChannelStatus) => void
   scheduleChannel: (campaignId: string, kind: ChannelKind, date: string) => void
@@ -121,11 +123,11 @@ export const useStore = create<StoreState>()(
           createdAt: now,
           sourceItemIds: itemIds,
           heroImage: heroFromSelection ?? tpl.heroImage,
-          approved: false, // awaits review before it distributes to the channels
           promo: PROMOTIONS.find((p) => p.id === tpl.promoId),
-          linkedin: { kind: 'linkedin', status: 'In Review', edited: false, content: tpl.linkedin },
-          email: { kind: 'email', status: 'In Review', edited: false, content: tpl.email },
-          article: { kind: 'article', status: 'In Review', edited: false, content: tpl.article },
+          // Each channel awaits its own review before it distributes to its space.
+          linkedin: { kind: 'linkedin', status: 'In Review', edited: false, approved: false, content: tpl.linkedin },
+          email: { kind: 'email', status: 'In Review', edited: false, approved: false, content: tpl.email },
+          article: { kind: 'article', status: 'In Review', edited: false, approved: false, content: tpl.article },
           processing: true,
         }
         set((s) => ({
@@ -144,16 +146,24 @@ export const useStore = create<StoreState>()(
         return id
       },
 
+      approveChannel: (campaignId, kind) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? { ...c, [kind]: { ...c[kind], approved: true, status: 'Ready' } }
+              : c,
+          ),
+        })),
+
       approveCampaign: (campaignId) =>
         set((s) => ({
           campaigns: s.campaigns.map((c) =>
             c.id === campaignId
               ? {
                   ...c,
-                  approved: true,
-                  linkedin: { ...c.linkedin, status: 'Ready' },
-                  email: { ...c.email, status: 'Ready' },
-                  article: { ...c.article, status: 'Ready' },
+                  linkedin: { ...c.linkedin, approved: true, status: 'Ready' },
+                  email: { ...c.email, approved: true, status: 'Ready' },
+                  article: { ...c.article, approved: true, status: 'Ready' },
                 }
               : c,
           ),
@@ -208,7 +218,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 2,
+      version: 3,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,

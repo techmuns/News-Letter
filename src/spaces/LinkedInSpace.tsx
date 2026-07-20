@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ROUTES, channelPath } from '../lib/routes'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { channelApproved } from '../types'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
 import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
@@ -14,7 +15,7 @@ function firstLine(s: string): string {
 }
 
 export function LinkedInSpace() {
-  const campaigns = useStore((s) => s.campaigns).filter((c) => c.approved)
+  const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.linkedin))
   const { campaignId } = useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -40,7 +41,11 @@ export function LinkedInSpace() {
 
   const preview = previewCampaign ? (
     <PreviewShell campaign={previewCampaign} kind="linkedin" onBack={() => navigate(ROUTES.linkedin)}>
-      <LinkedInPost content={previewCampaign.linkedin.content} image={previewCampaign.heroImage} />
+      <LinkedInPost
+        content={previewCampaign.linkedin.content}
+        image={previewCampaign.heroImage}
+        topic={previewCampaign.topic}
+      />
     </PreviewShell>
   ) : (
     <PreviewEmpty label="Select a post to preview how it will look on LinkedIn." />

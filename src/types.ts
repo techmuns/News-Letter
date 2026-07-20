@@ -113,6 +113,9 @@ export interface ChannelVersion<T extends ChannelContent = ChannelContent> {
   status: ChannelStatus
   /** true once a human has edited this version — protects it from re-generate clobber */
   edited: boolean
+  /** false while awaiting review; a channel only distributes once approved.
+      Undefined (seed content) is treated as approved. */
+  approved?: boolean
   scheduledDate?: string // ISO date (yyyy-mm-dd)
   content: T
 }
@@ -138,10 +141,18 @@ export interface Campaign {
   email: ChannelVersion<EmailContent>
   article: ChannelVersion<ArticleContent>
   promo?: Promotion
-  /** false while awaiting review; true once a human approves the drafts */
-  approved: boolean
   /** true during the mocked "turn into content" processing state */
   processing?: boolean
+}
+
+/** A channel distributes once approved; seed content (undefined) counts as approved. */
+export function channelApproved(ch: ChannelVersion): boolean {
+  return ch.approved !== false
+}
+
+/** A campaign needs review while any of its channels is still unapproved. */
+export function campaignNeedsReview(campaign: Campaign): boolean {
+  return CHANNEL_ORDER.some((k) => campaign[k].approved === false)
 }
 
 /** Convenience accessor for a campaign's channel version by kind. */

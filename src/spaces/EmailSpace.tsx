@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ROUTES, channelPath } from '../lib/routes'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import { type Campaign } from '../types'
+import { type Campaign, channelApproved } from '../types'
 import { weekBucket, weekdayName } from '../lib/date'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
@@ -64,7 +64,7 @@ function EmailRow({
 }
 
 export function EmailSpace() {
-  const campaigns = useStore((s) => s.campaigns).filter((c) => c.approved)
+  const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.email))
   const { campaignId } = useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery('(min-width: 1024px)')

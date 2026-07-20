@@ -131,7 +131,6 @@ const campaignA: Campaign = {
   createdAt: hoursAgo(22),
   sourceItemIds: ['item-1', 'item-3'],
   heroImage: IMG_IPO,
-  approved: true,
   promo: promo('promo-drhp'),
   linkedin: {
     kind: 'linkedin',
@@ -202,7 +201,6 @@ const campaignB: Campaign = {
   createdAt: daysAgo(1),
   sourceItemIds: ['item-2', 'item-4'],
   heroImage: IMG_INSURANCE,
-  approved: true,
   promo: promo('promo-sector'),
   linkedin: {
     kind: 'linkedin',
@@ -270,7 +268,6 @@ const campaignC: Campaign = {
   createdAt: daysAgo(2),
   sourceItemIds: ['item-1'],
   heroImage: IMG_FRAMEWORK,
-  approved: true,
   promo: promo('promo-diligence'),
   linkedin: {
     kind: 'linkedin',
