@@ -76,3 +76,13 @@ export function weekBucket(iso: string): 'this' | 'next' | 'later' | 'past' {
   if (diffDays < 14) return 'next'
   return 'later'
 }
+
+/** Shared quick-pick dates for scheduling any channel — Mon/Wed/Fri, this week and next. */
+export const SCHEDULE_OPTIONS = [
+  { label: 'This Mon', date: () => weekdayIn(0, 0) },
+  { label: 'This Wed', date: () => weekdayIn(0, 2) },
+  { label: 'This Fri', date: () => weekdayIn(0, 4) },
+  { label: 'Next Mon', date: () => weekdayIn(1, 0) },
+  { label: 'Next Wed', date: () => weekdayIn(1, 2) },
+  { label: 'Next Fri', date: () => weekdayIn(1, 4) },
+]

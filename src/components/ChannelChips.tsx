@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { cn } from '../lib/cn'
-import { channelPath } from '../lib/routes'
+import { previewPath } from '../lib/routes'
 import { type Campaign, CHANNEL_ORDER, CHANNEL_LABEL, statusTone } from '../types'
 import { ChannelIcon } from './icons'
 import { StatusDot } from './StatusDot'
@@ -32,7 +32,7 @@ export function ChannelChips({ campaign, deepLink = false, className }: ChannelC
               deepLink
                 ? (e) => {
                     e.stopPropagation()
-                    navigate(channelPath(kind, campaign.id))
+                    navigate(previewPath(campaign.id, kind))
                   }
                 : undefined
             }

@@ -100,6 +100,15 @@ export function IconSparkle({ size = 18, className, strokeWidth = 1.6 }: IconPro
   )
 }
 
+export function IconEye({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 export function IconCalendar({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

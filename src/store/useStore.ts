@@ -54,6 +54,8 @@ interface StoreState {
   approveCampaign: (campaignId: string) => void
   setChannelStatus: (campaignId: string, kind: ChannelKind, status: ChannelStatus) => void
   scheduleChannel: (campaignId: string, kind: ChannelKind, date: string) => void
+  /** Pulls a Scheduled channel back to Ready and clears its date. */
+  unscheduleChannel: (campaignId: string, kind: ChannelKind) => void
   markChannelEdited: (campaignId: string, kind: ChannelKind, edited?: boolean) => void
   /** Replaces a channel's content from a fresh template (drops edited flag). */
   regenerateChannel: (campaignId: string, kind: ChannelKind) => void
@@ -183,6 +185,15 @@ export const useStore = create<StoreState>()(
           campaigns: s.campaigns.map((c) =>
             c.id === campaignId
               ? { ...c, [kind]: { ...c[kind], scheduledDate: date, status: 'Scheduled' as ChannelStatus } }
+              : c,
+          ),
+        })),
+
+      unscheduleChannel: (campaignId, kind) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? { ...c, [kind]: { ...c[kind], scheduledDate: undefined, status: 'Ready' as ChannelStatus } }
               : c,
           ),
         })),

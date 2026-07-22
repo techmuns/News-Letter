@@ -6,20 +6,13 @@ import {
   CHANNEL_STATUS_FLOW,
   type ChannelStatus,
 } from '../../types'
-import { formatDate, weekdayIn } from '../../lib/date'
+import { formatDate, SCHEDULE_OPTIONS } from '../../lib/date'
 import { MicroLabel } from '../MicroLabel'
 import { StatusChip } from '../StatusChip'
 import { Menu, MenuItem } from '../Menu'
 import { IconCalendar } from '../icons'
 
 const SETTABLE_STATUSES: ChannelStatus[] = CHANNEL_STATUS_FLOW.filter((s) => s !== 'Scheduled')
-
-const SCHEDULE_OPTS = [
-  { label: 'This Mon', date: () => weekdayIn(0, 0) },
-  { label: 'This Wed', date: () => weekdayIn(0, 2) },
-  { label: 'This Fri', date: () => weekdayIn(0, 4) },
-  { label: 'Next Mon', date: () => weekdayIn(1, 0) },
-]
 
 interface PreviewShellProps {
   campaign: Campaign
@@ -58,7 +51,7 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
       {/* The rendered preview */}
       <div>{children}</div>
 
-      {/* Minimal actions: status, and schedule for email only */}
+      {/* Minimal actions: status and schedule */}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.07)] pt-5">
         <Menu
           trigger={
@@ -86,39 +79,37 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
           )}
         </Menu>
 
-        {kind === 'email' && (
-          <Menu
-            trigger={
-              <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
-                <IconCalendar size={14} className="text-violet-dim" />
-                {ch.scheduledDate ? formatDate(ch.scheduledDate) : 'Schedule'}
-              </span>
-            }
-          >
-            {(close) => (
-              <>
-                {SCHEDULE_OPTS.map((opt) => {
-                  const date = opt.date()
-                  return (
-                    <MenuItem
-                      key={opt.label}
-                      active={ch.scheduledDate === date}
-                      onClick={() => {
-                        scheduleChannel(campaign.id, kind, date)
-                        close()
-                      }}
-                    >
-                      <span className="flex w-full items-center justify-between gap-4">
-                        <span>{opt.label}</span>
-                        <span className="micro text-text-dim">{formatDate(date)}</span>
-                      </span>
-                    </MenuItem>
-                  )
-                })}
-              </>
-            )}
-          </Menu>
-        )}
+        <Menu
+          trigger={
+            <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
+              <IconCalendar size={14} className="text-violet-dim" />
+              {ch.scheduledDate ? formatDate(ch.scheduledDate) : 'Schedule'}
+            </span>
+          }
+        >
+          {(close) => (
+            <>
+              {SCHEDULE_OPTIONS.map((opt) => {
+                const date = opt.date()
+                return (
+                  <MenuItem
+                    key={opt.label}
+                    active={ch.scheduledDate === date}
+                    onClick={() => {
+                      scheduleChannel(campaign.id, kind, date)
+                      close()
+                    }}
+                  >
+                    <span className="flex w-full items-center justify-between gap-4">
+                      <span>{opt.label}</span>
+                      <span className="micro text-text-dim">{formatDate(date)}</span>
+                    </span>
+                  </MenuItem>
+                )
+              })}
+            </>
+          )}
+        </Menu>
       </div>
     </div>
   )
