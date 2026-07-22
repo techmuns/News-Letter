@@ -6,6 +6,7 @@ const TONE_BG: Record<StatusTone | 'pink', string> = {
   amber: 'bg-amber',
   grey: 'bg-grey-dot',
   violet: 'bg-violet',
+  red: 'bg-red',
   pink: 'bg-pink',
 }
 
@@ -14,6 +15,7 @@ const TONE_GLOW: Record<StatusTone | 'pink', string> = {
   amber: 'shadow-[0_0_6px_rgba(242,197,102,0.5)]',
   grey: '',
   violet: 'shadow-[0_0_6px_rgba(170,152,248,0.55)]',
+  red: 'shadow-[0_0_6px_rgba(226,104,90,0.55)]',
   pink: 'shadow-[0_0_8px_rgba(251,110,146,0.7)]',
 }
 

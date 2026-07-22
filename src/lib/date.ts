@@ -48,6 +48,16 @@ export function weekdayName(iso: string): string {
   return full[d.getDay()]
 }
 
+/** "9:00 AM" from a 24h "HH:mm" string. */
+export function formatTime(hhmm: string): string {
+  const [hStr, mStr] = hhmm.split(':')
+  const h = Number(hStr)
+  const m = mStr ?? '00'
+  const period = h < 12 ? 'AM' : 'PM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${m} ${period}`
+}
+
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
 }

@@ -258,6 +258,81 @@ export function IconLink({ size = 18, className, strokeWidth = 1.6 }: IconProps)
   )
 }
 
+export function IconUsers({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 5.2a3.2 3.2 0 0 1 0 6.1M17.5 20a5.5 5.5 0 0 0-3-4.9" />
+    </svg>
+  )
+}
+
+export function IconBuilding({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <rect x="5" y="3.5" width="14" height="17" rx="1.5" />
+      <path d="M9 8h2M13 8h2M9 12h2M13 12h2M9 16h6" />
+    </svg>
+  )
+}
+
+export function IconNews({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M4 5.5h12v13H5.5A1.5 1.5 0 0 1 4 17V5.5Z" />
+      <path d="M16 8.5h3V17a1.5 1.5 0 0 1-3 0V8.5Z" />
+      <path d="M7 9h6M7 12h6M7 15h4" />
+    </svg>
+  )
+}
+
+export function IconMessage({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M4 5.5h16v10H9l-4 3.5v-3.5H4V5.5Z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </svg>
+  )
+}
+
+export function IconTrend({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M4 15l5-5 3 3 6-7" />
+      <path d="M15 6h4v4" />
+    </svg>
+  )
+}
+
+export function IconRefresh({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M20 11a8 8 0 0 0-14-4.5L4 8" />
+      <path d="M4 4v4h4" />
+      <path d="M4 13a8 8 0 0 0 14 4.5L20 16" />
+      <path d="M20 20v-4h-4" />
+    </svg>
+  )
+}
+
+export function IconSend({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M20 4 3.5 10.5l6.5 2.2M20 4l-2.5 16-4.8-7.3M20 4 10 12.7" />
+    </svg>
+  )
+}
+
+export function IconEdit({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17.5V20Z" />
+      <path d="M14 8l2.8 2.8" />
+    </svg>
+  )
+}
+
 /** Icon for a channel kind. */
 export function ChannelIcon({ kind, ...props }: { kind: ChannelKind } & IconProps) {
   if (kind === 'linkedin') return <IconLinkedIn {...props} />

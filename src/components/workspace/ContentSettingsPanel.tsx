@@ -36,24 +36,30 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 interface ContentSettingsPanelProps {
-  selectedCount: number
+  /** whether the primary action is enabled */
+  canGenerate: boolean
+  /** label for the primary button (e.g. "Generate content" / "Regenerate") */
+  ctaLabel: string
   onGenerate: () => void
   feedback?: { text: string; ok: boolean } | null
+  /** helper line under the button */
+  hint?: string
 }
 
 /**
  * The persistent Content Settings card — every control is bound to the real,
- * persisted generation brief in the store; the Generate button hands the
- * current selection + brief to the existing turn-into-content flow.
+ * persisted generation brief in the store; the primary button hands the
+ * current selection + brief to the generation flow (generate or regenerate).
  */
 export function ContentSettingsPanel({
-  selectedCount,
+  canGenerate,
+  ctaLabel,
   onGenerate,
   feedback,
+  hint,
 }: ContentSettingsPanelProps) {
   const brief = useStore((s) => s.brief)
   const updateBrief = useStore((s) => s.updateBrief)
-  const canGenerate = selectedCount > 0
 
   return (
     <div className="rounded-panel border border-border bg-surface p-5 shadow-panel">
@@ -134,9 +140,10 @@ export function ContentSettingsPanel({
         <Button
           variant="primary"
           onClick={onGenerate}
+          disabled={!canGenerate}
           className="w-full justify-center py-3 text-[14px]"
         >
-          <IconSparkle size={16} /> Generate Content
+          <IconSparkle size={16} /> {ctaLabel}
         </Button>
 
         {feedback ? (
@@ -150,9 +157,7 @@ export function ContentSettingsPanel({
           </p>
         ) : (
           <p className="mt-3 text-center text-[11px] leading-relaxed text-text-dim">
-            {canGenerate
-              ? `${selectedCount} item${selectedCount > 1 ? 's' : ''} selected — these preferences apply to every generation.`
-              : 'These preferences will be applied to all content you generate.'}
+            {hint ?? 'These preferences will be applied to all content you generate.'}
           </p>
         )}
       </div>

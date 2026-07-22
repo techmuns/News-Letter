@@ -20,6 +20,7 @@ import { ChannelChips } from '../components/ChannelChips'
 import { StatusDot } from '../components/StatusDot'
 import { ChannelIcon } from '../components/icons'
 import { PreviewShell } from '../components/preview/PreviewShell'
+import { PublishBar } from '../components/preview/PublishBar'
 import { LinkedInPost } from '../components/preview/LinkedInPost'
 import { EmailPreview } from '../components/preview/EmailPreview'
 import { ArticlePreview } from '../components/preview/ArticlePreview'
@@ -98,9 +99,10 @@ function ChannelBody({ campaign, kind }: { campaign: Campaign; kind: ChannelKind
 }
 
 export function PreviewSpace() {
-  // Every campaign is previewable here — including ones still awaiting review,
-  // which is where they now get approved (skip only the brief processing beat).
-  const campaigns = useStore((s) => s.campaigns).filter((c) => !c.processing)
+  // Every committed campaign is previewable here — including ones still awaiting
+  // review, which is where they get approved. Drafts (still being composed in the
+  // Workspace) and the brief processing beat are excluded.
+  const campaigns = useStore((s) => s.campaigns).filter((c) => !c.processing && !c.draft)
   const { campaignId, channel } = useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -144,6 +146,7 @@ export function PreviewSpace() {
         <PreviewShell campaign={previewCampaign} kind={activeKind} onBack={() => navigate(ROUTES.preview)}>
           <ChannelBody campaign={previewCampaign} kind={activeKind} />
         </PreviewShell>
+        <PublishBar campaign={previewCampaign} />
       </div>
     ) : (
       <PreviewEmpty label="Select a campaign to preview LinkedIn, Email and Article together." />

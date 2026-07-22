@@ -15,7 +15,8 @@ export const CHANNEL_LABEL: Record<ChannelKind, string> = {
   article: 'Article',
 }
 
-/** Per-channel status flow — independent per channel version. */
+/** Per-channel status flow — independent per channel version.
+    'Failed' sits outside the linear flow: a publish that needs attention. */
 export type ChannelStatus =
   | 'Idea'
   | 'Draft'
@@ -23,7 +24,9 @@ export type ChannelStatus =
   | 'Ready'
   | 'Scheduled'
   | 'Published'
+  | 'Failed'
 
+/** The linear happy-path flow (Failed is handled separately, off-flow). */
 export const CHANNEL_STATUS_FLOW: ChannelStatus[] = [
   'Idea',
   'Draft',
@@ -33,7 +36,7 @@ export const CHANNEL_STATUS_FLOW: ChannelStatus[] = [
   'Published',
 ]
 
-export type StatusTone = 'green' | 'amber' | 'grey' | 'violet'
+export type StatusTone = 'green' | 'amber' | 'grey' | 'violet' | 'red'
 
 /** Maps a status to the shared status-dot tone (see design §5.4). */
 export function statusTone(status: ChannelStatus): StatusTone {
@@ -45,6 +48,8 @@ export function statusTone(status: ChannelStatus): StatusTone {
       return 'amber'
     case 'Scheduled':
       return 'violet'
+    case 'Failed':
+      return 'red'
     case 'Draft':
     case 'Idea':
     default:
@@ -117,6 +122,10 @@ export interface ChannelVersion<T extends ChannelContent = ChannelContent> {
       Undefined (seed content) is treated as approved. */
   approved?: boolean
   scheduledDate?: string // ISO date (yyyy-mm-dd)
+  scheduledTime?: string // HH:mm (24h), paired with scheduledDate
+  /** channel-specific caption/copy the user can tweak at schedule time.
+      Falls back to a channel-derived string when unset (see captionOf). */
+  caption?: string
   content: T
 }
 
@@ -254,8 +263,34 @@ export interface Campaign {
   promo?: Promotion
   /** the pre-generation brief that produced this campaign (provenance) */
   brief?: GenerationBrief
+  /** how this campaign was sourced — manual upload vs the automatic generator */
+  sourceMode?: SourceMode
+  /** human-readable labels of the inputs this was generated from (provenance) */
+  sources?: string[]
+  /** true while still being composed in the Workspace — hidden from Preview
+      and Scheduling until the author hits "Continue to Preview". */
+  draft?: boolean
   /** true during the mocked "turn into content" processing state */
   processing?: boolean
+}
+
+/** Where a campaign's raw material came from. */
+export type SourceMode = 'manual' | 'auto'
+
+/** The caption shown for a channel in scheduling/publish contexts — the
+    author's override if set, else a sensible channel-derived default. */
+export function captionOf(ch: ChannelVersion): string {
+  if (ch.caption) return ch.caption
+  switch (ch.kind) {
+    case 'linkedin':
+      return (ch.content as LinkedInContent).body
+    case 'email':
+      return (ch.content as EmailContent).subject
+    case 'article':
+      return (ch.content as ArticleContent).title
+    default:
+      return ''
+  }
 }
 
 /** A channel distributes once approved; seed content (undefined) counts as approved. */

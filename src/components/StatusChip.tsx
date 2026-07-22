@@ -7,6 +7,7 @@ const TEXT_TONE = {
   amber: 'text-amber',
   grey: 'text-text-muted',
   violet: 'text-violet',
+  red: 'text-red',
 } as const
 
 interface StatusChipProps {
