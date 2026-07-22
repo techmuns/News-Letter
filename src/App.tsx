@@ -3,6 +3,8 @@ import { AppShell } from './components/AppShell'
 import { Workspace } from './spaces/Workspace'
 import { PreviewSpace } from './spaces/PreviewSpace'
 import { SchedulingSpace } from './spaces/SchedulingSpace'
+import { ReportsSpace } from './spaces/ReportsSpace'
+import { CampaignsSpace } from './spaces/CampaignsSpace'
 
 export default function App() {
   return (
@@ -13,6 +15,8 @@ export default function App() {
         <Route path="/preview/:campaignId" element={<PreviewSpace />} />
         <Route path="/preview/:campaignId/:channel" element={<PreviewSpace />} />
         <Route path="/scheduling" element={<SchedulingSpace />} />
+        <Route path="/reports" element={<ReportsSpace />} />
+        <Route path="/campaigns" element={<CampaignsSpace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

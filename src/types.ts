@@ -128,6 +128,117 @@ export interface Promotion {
   ctaLabel: string
 }
 
+/* ============================================================
+   Generation brief — the pre-generation filter set a user
+   configures before turning workspace items into content.
+   Mirrors content-strategy/content-filters.md (a curated,
+   UI-friendly subset). Stored on the Campaign for provenance.
+   ============================================================ */
+
+export type Persona =
+  | 'hedge-fund-pm'
+  | 'buy-side-analyst'
+  | 'sell-side-analyst'
+  | 'pe-investor'
+  | 'vc-investor'
+  | 'allocator'
+  | 'cio'
+  | 'analyst-generalist'
+
+export type Objective =
+  | 'authority'
+  | 'educate'
+  | 'engagement'
+  | 'nurture'
+  | 'category'
+
+export type PillarId =
+  | 'research-tradecraft'
+  | 'market-science'
+  | 'financial-forensics'
+  | 'decision-frameworks'
+  | 'behavioral-edge'
+  | 'governance-incentives'
+  | 'portfolio-risk'
+  | 'ai-native'
+
+export type ContentType =
+  | 'framework'
+  | 'deep-dive'
+  | 'data-drop'
+  | 'contrarian'
+  | 'explainer'
+  | 'case-study'
+  | 'myth-buster'
+  | 'trend'
+  | 'teardown'
+  | 'bookshelf'
+
+export type Depth = 'surface' | 'standard' | 'deep' | 'technical'
+
+export type LengthTarget = 'micro' | 'short' | 'standard' | 'long' | 'deep'
+
+export type Tone =
+  | 'authoritative'
+  | 'analytical'
+  | 'provocative'
+  | 'conversational'
+  | 'academic'
+
+export type PointOfView = 'consensus' | 'balanced' | 'variant' | 'contrarian'
+
+export type DataIntensity = 'qualitative' | 'illustrative' | 'data-led' | 'quantitative'
+
+export type MarketLens = 'global' | 'us' | 'india-em' | 'europe' | 'apac'
+
+/** % insight (the remainder is the quiet product pointer). */
+export type PromotionRatio = 100 | 90 | 80 | 70
+
+export type ComplianceMode =
+  | 'off'
+  | 'marketing-reviewed'
+  | 'no-forward-looking'
+  | 'research-grade'
+  | 'no-advice'
+
+export type SourcingRigor = 'none' | 'named' | 'fully-cited' | 'munshot-only' | 'primary-only'
+
+export type Confidence = 'measured' | 'balanced' | 'assertive' | 'strong'
+
+export type PresetId =
+  | 'terminal-note'
+  | 'executive-memo'
+  | 'contrarian-take'
+  | 'explainer'
+  | 'data-drop'
+  | 'governance-alert'
+  | 'category-pov'
+
+/** The structured brief that drives (and is stored with) a generation. */
+export interface GenerationBrief {
+  // Intent
+  audience: Persona
+  objective: Objective
+  pillar: PillarId
+  // Substance
+  contentType: ContentType
+  depth: Depth
+  dataIntensity: DataIntensity
+  pointOfView: PointOfView
+  // Voice & format
+  tone: Tone
+  length: LengthTarget
+  // Governance
+  promotionRatio: PromotionRatio
+  compliance: ComplianceMode
+  sourcing: SourcingRigor
+  confidence: Confidence
+  // Context
+  marketLens: MarketLens
+  /** the preset this brief started from, if any (provenance) */
+  preset?: PresetId
+}
+
 export interface Campaign {
   id: string
   name: string
@@ -141,6 +252,8 @@ export interface Campaign {
   email: ChannelVersion<EmailContent>
   article: ChannelVersion<ArticleContent>
   promo?: Promotion
+  /** the pre-generation brief that produced this campaign (provenance) */
+  brief?: GenerationBrief
   /** true during the mocked "turn into content" processing state */
   processing?: boolean
 }

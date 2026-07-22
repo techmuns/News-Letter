@@ -1,7 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { ROUTES } from '../lib/routes'
-import { IconWorkspace, IconEye, IconCalendar } from './icons'
+import {
+  IconWorkspace,
+  IconEye,
+  IconCalendar,
+  IconReports,
+  IconCampaigns,
+} from './icons'
 
 export interface NavItem {
   n: string
@@ -15,9 +21,11 @@ export const NAV_ITEMS: NavItem[] = [
   { n: '01', label: 'Workspace', to: ROUTES.workspace, end: true, Icon: IconWorkspace },
   { n: '02', label: 'Preview', to: ROUTES.preview, Icon: IconEye },
   { n: '03', label: 'Scheduling', to: ROUTES.scheduling, Icon: IconCalendar },
+  { n: '04', label: 'Reports', to: ROUTES.reports, Icon: IconReports },
+  { n: '05', label: 'Campaigns', to: ROUTES.campaigns, Icon: IconCampaigns },
 ]
 
-/** Desktop left-rail nav item — active item gets the violet glow border (§5.5). */
+/** Desktop left-rail nav item — active item gets the muted-violet glow chip. */
 export function RailItem({ item }: { item: NavItem }) {
   const { Icon } = item
   return (
@@ -30,7 +38,7 @@ export function RailItem({ item }: { item: NavItem }) {
           'transition-all duration-[350ms] ease-premium',
           isActive
             ? 'glow-active text-text'
-            : 'border border-transparent text-text-muted hover:text-text-2 hover:border-border',
+            : 'border border-transparent text-text-muted hover:text-text-2 hover:bg-surface-hover',
         )
       }
     >
@@ -38,14 +46,17 @@ export function RailItem({ item }: { item: NavItem }) {
         <>
           <span
             className={cn(
-              'micro w-5 shrink-0 text-center',
+              'micro w-5 shrink-0 text-center text-[10px]',
               isActive ? 'text-violet' : 'text-text-dim group-hover:text-text-muted',
             )}
           >
             {item.n}
           </span>
-          <Icon size={18} className={cn(isActive ? 'text-violet' : 'text-text-muted')} />
-          <span className="font-medium text-[14px]">{item.label}</span>
+          <Icon
+            size={18}
+            className={cn(isActive ? 'text-violet' : 'text-text-muted group-hover:text-text-2')}
+          />
+          <span className="text-[14px] font-medium">{item.label}</span>
         </>
       )}
     </NavLink>

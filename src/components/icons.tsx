@@ -159,6 +159,105 @@ export function IconArrowRight({ size = 18, className, strokeWidth = 1.7 }: Icon
   )
 }
 
+export function IconChevronDown({ size = 18, className, strokeWidth = 1.8 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="m5 9 7 7 7-7" />
+    </svg>
+  )
+}
+
+export function IconUploadCloud({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M7 18a4.5 4.5 0 0 1-.5-8.97 6 6 0 0 1 11.5 1.02A3.75 3.75 0 0 1 17.5 18" />
+      <path d="M12 12.5V21M9 15l3-3 3 3" />
+    </svg>
+  )
+}
+
+export function IconUpload({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M12 15V4M8 8l4-4 4 4" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+
+export function IconBell({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M18 8a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14 18 8Z" />
+      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  )
+}
+
+export function IconCrown({ size = 18, className, strokeWidth = 1.5 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M3 8l3.8 3L12 5l5.2 6L21 8l-1.6 10H4.6L3 8Z" />
+    </svg>
+  )
+}
+
+export function IconDots({ size = 18, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <circle cx="12" cy="5" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="12" cy="19" r="1.6" />
+    </svg>
+  )
+}
+
+export function IconFilter({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M3 5h18l-7 8v6l-4-2v-4L3 5Z" />
+    </svg>
+  )
+}
+
+export function IconSliders({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="8" cy="12" r="2" />
+      <circle cx="13" cy="18" r="2" />
+    </svg>
+  )
+}
+
+export function IconReports({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="m10 9 5 3-5 3V9Z" />
+    </svg>
+  )
+}
+
+export function IconCampaigns({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M5 20v-6M12 20V8M19 20v-9" />
+    </svg>
+  )
+}
+
+export function IconLink({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M9.5 14.5 14.5 9.5" />
+      <path d="M8 12 6.5 13.5a3.2 3.2 0 0 0 4.5 4.5L13 16" />
+      <path d="M16 12l1.5-1.5a3.2 3.2 0 0 0-4.5-4.5L11 8" />
+    </svg>
+  )
+}
+
 /** Icon for a channel kind. */
 export function ChannelIcon({ kind, ...props }: { kind: ChannelKind } & IconProps) {
   if (kind === 'linkedin') return <IconLinkedIn {...props} />

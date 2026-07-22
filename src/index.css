@@ -4,38 +4,46 @@
 
 /* ============================================================
    Design tokens — Munshot Content System
-   Dark-lavender base · soft off-white glow · violet accent.
-   Lighter and calmer than a black console: approachable, premium.
+   Warm near-black / brown base · soft off-white text · violet accent.
+   Calm, premium, restrained — no glass, no neon, no full-page gradients.
    ============================================================ */
 :root {
   /* base */
-  --bg: #272236; /* dark lavender — clearly lifted off black */
-  --rail: #1e1a2a; /* deeper panel for the sidebar, so it reads as its own surface */
-  --surface: rgba(255, 255, 255, 0.085); /* soft glass panel over --bg */
-  --surface-solid: #322b45; /* solid elevated panel */
-  --glass-blur: 20px;
+  --bg: #0d0908; /* warm page background — near-black */
+  --rail: #0b0807; /* sidebar — a touch deeper than the page */
+  --surface: #211713; /* warm dark-brown panel (upload / settings cards) */
+  --surface-soft: #1a1210; /* recessed surface */
+  --surface-hover: #291c18; /* row / control hover */
+  --surface-solid: #241a15; /* elevated surface — menus, modal */
+  --glass-blur: 0px;
 
   /* borders */
-  --border: rgba(255, 255, 255, 0.14);
-  --border-strong: rgba(255, 255, 255, 0.26);
-  --glow: rgba(170, 152, 248, 0.5); /* active/violet border */
-  --glow-shadow: 0 0 22px rgba(170, 152, 248, 0.18);
+  --border: #382820; /* fine warm-brown hairline */
+  --border-soft: #2b201b;
+  --border-strong: #4a352a;
+  --glow: rgba(145, 71, 245, 0.55); /* active violet border */
+  --glow-shadow: 0 0 22px rgba(145, 71, 245, 0.2);
 
-  /* primary */
-  --violet: #a896f7;
-  --violet-dim: #8a7fc0;
+  /* primary — violet */
+  --violet: #a557ff; /* bright accent for text / icons on dark */
+  --violet-dim: #9147f5;
+  --purple: #9147f5; /* solid button fill */
+  --purple-bright: #a557ff;
+  --purple-soft: rgba(145, 71, 245, 0.18);
+  --orange: #d9914d;
 
   /* status */
   --green: #47d6a1;
   --amber: #f2c566;
-  --grey-dot: #4c4763;
+  --grey-dot: #5a4a40;
   --pink: #fb6e92;
+  --red: #e2685a;
 
-  /* text — brighter, lavender-tinted, high contrast */
-  --text: #f5f3fc;
-  --text-2: #c8c3dc;
-  --text-muted: #9a93b2;
-  --text-dim: #6e6789;
+  /* text — warm off-white, high contrast on brown-black */
+  --text: #f5f1ee;
+  --text-2: #c4b6ac;
+  --text-muted: #93837a;
+  --text-dim: #6d5f57;
 
   color-scheme: dark;
 }
@@ -54,21 +62,16 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    /* soft off-white / lavender glow for a lighter, warmer canvas */
+    /* very soft warm/violet lift in the top-right — never a full-page wash */
     background-image: radial-gradient(
-        1200px 760px at 50% -10%,
-        rgba(214, 204, 253, 0.2),
-        rgba(214, 204, 253, 0) 58%
+        900px 620px at 100% -8%,
+        rgba(145, 71, 245, 0.08),
+        rgba(145, 71, 245, 0) 60%
       ),
       radial-gradient(
-        860px 580px at 100% 4%,
-        rgba(182, 164, 251, 0.14),
-        rgba(182, 164, 251, 0) 55%
-      ),
-      radial-gradient(
-        780px 580px at 0% 100%,
-        rgba(156, 194, 244, 0.08),
-        rgba(156, 194, 244, 0) 55%
+        720px 520px at 0% 108%,
+        rgba(217, 145, 77, 0.04),
+        rgba(217, 145, 77, 0) 60%
       );
     background-attachment: fixed;
     color: var(--text);
@@ -79,7 +82,7 @@
   }
 
   ::selection {
-    background: rgba(170, 152, 248, 0.3);
+    background: rgba(145, 71, 245, 0.32);
     color: var(--text);
   }
 
@@ -92,23 +95,21 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.06);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(170, 152, 248, 0.3);
+    background: rgba(145, 71, 245, 0.3);
     background-clip: padding-box;
   }
 }
 
 @layer components {
-  /* Glass panel — the workhorse surface. Soft, present, never heavy. */
+  /* Workhorse surface — solid warm-brown panel, hairline border. No glass. */
   .glass {
     background-color: var(--surface);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--border);
   }
 
@@ -116,19 +117,16 @@
   .glow-active {
     border: 1px solid var(--glow);
     box-shadow: var(--glow-shadow);
-    background-image: linear-gradient(
-      180deg,
-      rgba(170, 152, 248, 0.08),
-      rgba(170, 152, 248, 0.02)
-    );
+    background-color: var(--purple-soft);
   }
 
-  /* Monospace micro-label — section headers, ids, timestamps */
+  /* Uppercase, letter-spaced micro-label — section headers, ids, eyebrows */
   .micro {
-    font-family: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
+    font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     font-size: 10.5px;
+    font-weight: 600;
     line-height: 1;
     color: var(--text-muted);
   }
@@ -138,7 +136,7 @@
   }
 
   .divider {
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    border-top: 1px solid var(--border-soft);
   }
 
   /* Shimmer used for the single mocked loading state */
@@ -146,7 +144,7 @@
     background: linear-gradient(
       90deg,
       rgba(255, 255, 255, 0.03) 25%,
-      rgba(170, 152, 248, 0.12) 50%,
+      rgba(145, 71, 245, 0.14) 50%,
       rgba(255, 255, 255, 0.03) 75%
     );
     background-size: 200% 100%;
@@ -158,5 +156,39 @@
     outline: none;
     border-color: var(--glow);
     box-shadow: var(--glow-shadow);
+  }
+
+  /* Themed range slider — violet fill up to the thumb, quiet track after. */
+  .range-violet {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  .range-violet::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 999px;
+    background: var(--purple-bright);
+    border: 2px solid #1a1210;
+    box-shadow: 0 0 0 3px rgba(145, 71, 245, 0.22);
+    transition: box-shadow 0.2s ease;
+  }
+  .range-violet::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 5px rgba(145, 71, 245, 0.26);
+  }
+  .range-violet::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 999px;
+    background: var(--purple-bright);
+    border: 2px solid #1a1210;
+    box-shadow: 0 0 0 3px rgba(145, 71, 245, 0.22);
   }
 }

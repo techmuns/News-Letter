@@ -8,6 +8,7 @@ import {
   campaignNeedsReview,
 } from '../../types'
 import { useStore } from '../../store/useStore'
+import { briefRailLine } from '../../lib/brief'
 import { Card } from '../Card'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
@@ -74,6 +75,13 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
         {campaign.name}
       </p>
 
+      {campaign.brief && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <StatusDot tone="violet" size={5} />
+          <MicroLabel className="truncate text-text-dim">{briefRailLine(campaign.brief)}</MicroLabel>
+        </div>
+      )}
+
       {review ? (
         <>
           <ReviewRows campaign={campaign} />
@@ -96,13 +104,15 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
 export function CampaignsRail({
   campaigns,
   highlightId,
+  showHeading = true,
 }: {
   campaigns: Campaign[]
   highlightId?: string | null
+  showHeading?: boolean
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <MicroLabel>Campaigns</MicroLabel>
+      {showHeading && <MicroLabel>Campaigns</MicroLabel>}
       {campaigns.length === 0 ? (
         <Card className="p-4">
           <p className="text-[12.5px] leading-relaxed text-text-muted">

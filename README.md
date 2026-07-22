@@ -94,6 +94,28 @@ That's it. From then on, every push to `main` deploys automatically — no manua
 Client-side routes are handled by [`public/_redirects`](public/_redirects)
 (`/* /index.html 200`).
 
+### Optional: password-protect the site
+
+[`functions/_middleware.js`](functions/_middleware.js) is a Cloudflare Pages
+Function that gates every route behind a single shared password (HTTP Basic
+Auth), so the whole site — not just individual pages — needs it before
+anything loads.
+
+It's **inert until you set it up** — deploying this file alone changes
+nothing:
+
+1. Cloudflare dashboard → your Pages project → **Settings → Environment
+   variables** → add `SITE_PASSWORD` (mark it **Encrypt**) for Production
+   (and Preview, if you want previews locked too).
+2. Redeploy (push again, or **Retry deployment** in the dashboard) — env var
+   changes need a new build to take effect.
+3. Visiting the site now prompts the browser's native login dialog; any
+   username works, only the password is checked.
+
+To change the password later, update `SITE_PASSWORD` and redeploy. To remove
+the lock, delete the env var and redeploy (the function no-ops with no
+password set).
+
 ---
 
 ## What Phase 1 deliberately does **not** build

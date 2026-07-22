@@ -4,6 +4,7 @@ import {
   type Campaign,
   type ChannelKind,
   type ChannelStatus,
+  type GenerationBrief,
   type WorkspaceItem,
   type WorkspaceItemType,
 } from '../types'
@@ -13,6 +14,7 @@ import {
   GENERATABLE,
   PROMOTIONS,
 } from '../data/mockData'
+import { DEFAULT_BRIEF } from '../lib/brief'
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
@@ -35,8 +37,12 @@ interface StoreState {
   genIndex: number
   /** the last campaign generated from the pile (for surfacing/scroll) */
   lastGeneratedId: string | null
+  /** the persisted content-settings brief applied to every generation */
+  brief: GenerationBrief
 
   // --- Workspace actions ---
+  /** patch one or more fields of the persisted content-settings brief */
+  updateBrief: (patch: Partial<GenerationBrief>) => void
   addNote: (text: string, addedBy?: string) => void
   addFiles: (
     files: { name: string; sizeLabel?: string; imageUrl?: string }[],
@@ -45,7 +51,7 @@ interface StoreState {
   removeItem: (id: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
-  turnIntoContent: (itemIds: string[]) => string
+  turnIntoContent: (itemIds: string[], brief?: GenerationBrief) => string
 
   // --- Campaign / channel actions ---
   /** Approve one channel → it moves to Ready and distributes to its space. */
@@ -68,6 +74,9 @@ export const useStore = create<StoreState>()(
       campaigns: SEED_CAMPAIGNS,
       genIndex: 0,
       lastGeneratedId: null,
+      brief: DEFAULT_BRIEF,
+
+      updateBrief: (patch) => set((s) => ({ brief: { ...s.brief, ...patch } })),
 
       addNote: (text, addedBy = 'You') => {
         const trimmed = text.trim()
@@ -109,7 +118,7 @@ export const useStore = create<StoreState>()(
       removeItem: (id) =>
         set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
 
-      turnIntoContent: (itemIds) => {
+      turnIntoContent: (itemIds, brief) => {
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
         const id = uid('camp')
         const now = new Date().toISOString()
@@ -126,6 +135,7 @@ export const useStore = create<StoreState>()(
           sourceItemIds: itemIds,
           heroImage: heroFromSelection ?? tpl.heroImage,
           promo: PROMOTIONS.find((p) => p.id === tpl.promoId),
+          brief,
           // Each channel awaits its own review before it distributes to its space.
           linkedin: { kind: 'linkedin', status: 'In Review', edited: false, approved: false, content: tpl.linkedin },
           email: { kind: 'email', status: 'In Review', edited: false, approved: false, content: tpl.email },
@@ -229,18 +239,20 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 3,
+      version: 5,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
+        brief: s.brief,
       }),
-      // Schema changed (images, headlines, approval) — reset older stores to the
-      // fresh seed rather than trying to backfill missing fields.
+      // Schema changed (images, headlines, approval, briefs, settings) — reset
+      // older stores to the fresh seed rather than backfilling missing fields.
       migrate: () => ({
         items: SEED_ITEMS,
         campaigns: SEED_CAMPAIGNS,
         genIndex: 0,
+        brief: DEFAULT_BRIEF,
       }),
       // Clear any in-flight processing flags that were persisted mid-action.
       onRehydrateStorage: () => (state) => {

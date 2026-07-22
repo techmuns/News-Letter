@@ -36,6 +36,12 @@ export function formatDate(iso: string): string {
   return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`
 }
 
+/** "Jul 20, 2026" from a full ISO or yyyy-mm-dd date. */
+export function formatAbsolute(iso: string): string {
+  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso)
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+}
+
 export function weekdayName(iso: string): string {
   const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso)
   const full = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
