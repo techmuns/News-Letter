@@ -9,7 +9,7 @@ import {
   type ChannelKind,
   CHANNEL_ORDER,
   CHANNEL_LABEL,
-  channelApproved,
+  campaignNeedsReview,
   statusTone,
 } from '../types'
 import { PageHeader } from '../components/PageHeader'
@@ -33,13 +33,18 @@ function CampaignListRow({
   active: boolean
   onClick: () => void
 }) {
+  const needsReview = campaignNeedsReview(campaign)
   return (
     <Card active={active} interactive onClick={onClick} className="p-4">
       <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-text">{campaign.name}</p>
       <p className="mt-1 line-clamp-1 text-[12.5px] text-text-muted">{campaign.topic}</p>
       <div className="mt-3 flex items-center justify-between gap-2">
         <ChannelChips campaign={campaign} />
-        <MicroLabel className="text-[9.5px]">{relativeTime(campaign.createdAt)}</MicroLabel>
+        {needsReview ? (
+          <MicroLabel className="text-[9.5px] text-amber">Needs review</MicroLabel>
+        ) : (
+          <MicroLabel className="text-[9.5px]">{relativeTime(campaign.createdAt)}</MicroLabel>
+        )}
       </div>
     </Card>
   )
@@ -93,9 +98,9 @@ function ChannelBody({ campaign, kind }: { campaign: Campaign; kind: ChannelKind
 }
 
 export function PreviewSpace() {
-  const campaigns = useStore((s) => s.campaigns).filter((c) =>
-    CHANNEL_ORDER.some((k) => channelApproved(c[k])),
-  )
+  // Every campaign is previewable here — including ones still awaiting review,
+  // which is where they now get approved (skip only the brief processing beat).
+  const campaigns = useStore((s) => s.campaigns).filter((c) => !c.processing)
   const { campaignId, channel } = useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -104,12 +109,14 @@ export function PreviewSpace() {
   // On desktop, default the preview to the first campaign so the panel is never empty.
   const previewCampaign = selected ?? (isDesktop ? campaigns[0] ?? null : null)
 
-  const availableKinds = previewCampaign
-    ? CHANNEL_ORDER.filter((k) => channelApproved(previewCampaign[k]))
-    : []
+  // All three channels are always shown as tabs so each can be reviewed in place.
+  const availableKinds = CHANNEL_ORDER
   const requestedKind = channel as ChannelKind | undefined
-  const activeKind: ChannelKind | null =
-    requestedKind && availableKinds.includes(requestedKind) ? requestedKind : availableKinds[0] ?? null
+  const activeKind: ChannelKind | null = previewCampaign
+    ? requestedKind && availableKinds.includes(requestedKind)
+      ? requestedKind
+      : availableKinds[0]
+    : null
 
   const list = (
     <div className="flex flex-col gap-3">

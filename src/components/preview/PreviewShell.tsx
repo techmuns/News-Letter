@@ -3,14 +3,18 @@ import {
   type Campaign,
   type ChannelKind,
   CHANNEL_LABEL,
+  CHANNEL_ORDER,
   CHANNEL_STATUS_FLOW,
   type ChannelStatus,
+  channelApproved,
 } from '../../types'
 import { formatDate, SCHEDULE_OPTIONS } from '../../lib/date'
 import { MicroLabel } from '../MicroLabel'
 import { StatusChip } from '../StatusChip'
+import { StatusDot } from '../StatusDot'
+import { Button } from '../Button'
 import { Menu, MenuItem } from '../Menu'
-import { IconCalendar } from '../icons'
+import { IconCalendar, IconCheck } from '../icons'
 
 const SETTABLE_STATUSES: ChannelStatus[] = CHANNEL_STATUS_FLOW.filter((s) => s !== 'Scheduled')
 
@@ -25,7 +29,14 @@ interface PreviewShellProps {
 export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellProps) {
   const setChannelStatus = useStore((s) => s.setChannelStatus)
   const scheduleChannel = useStore((s) => s.scheduleChannel)
+  const approveChannel = useStore((s) => s.approveChannel)
+  const approveCampaign = useStore((s) => s.approveCampaign)
   const ch = campaign[kind]
+  const approved = channelApproved(ch)
+  // Show "Approve all" only when another channel is also still awaiting review.
+  const otherNeedsReview = CHANNEL_ORDER.some(
+    (k) => k !== kind && campaign[k].approved === false,
+  )
 
   return (
     <div className="animate-fade-up">
@@ -51,65 +62,86 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
       {/* The rendered preview */}
       <div>{children}</div>
 
-      {/* Minimal actions: status and schedule */}
-      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.07)] pt-5">
-        <Menu
-          trigger={
-            <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
-              <MicroLabel className="text-text-dim">Status</MicroLabel>
-              <StatusChip status={ch.status} />
+      {/* Actions — approve while awaiting review, else status + schedule */}
+      <div className="mt-5 border-t border-[rgba(255,255,255,0.07)] pt-5">
+        {!approved ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-2">
+              <StatusDot tone="amber" size={7} />
+              <MicroLabel className="text-amber">Awaiting review</MicroLabel>
             </span>
-          }
-        >
-          {(close) => (
-            <>
-              {SETTABLE_STATUSES.map((s) => (
-                <MenuItem
-                  key={s}
-                  active={s === ch.status}
-                  onClick={() => {
-                    setChannelStatus(campaign.id, kind, s)
-                    close()
-                  }}
-                >
-                  <StatusChip status={s} />
-                </MenuItem>
-              ))}
-            </>
-          )}
-        </Menu>
+            <div className="ml-auto flex items-center gap-2">
+              {otherNeedsReview && (
+                <Button variant="ghost" size="sm" onClick={() => approveCampaign(campaign.id)}>
+                  Approve all
+                </Button>
+              )}
+              <Button variant="primary" size="sm" onClick={() => approveChannel(campaign.id, kind)}>
+                <IconCheck size={14} /> Approve {CHANNEL_LABEL[kind]}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Menu
+              trigger={
+                <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
+                  <MicroLabel className="text-text-dim">Status</MicroLabel>
+                  <StatusChip status={ch.status} />
+                </span>
+              }
+            >
+              {(close) => (
+                <>
+                  {SETTABLE_STATUSES.map((s) => (
+                    <MenuItem
+                      key={s}
+                      active={s === ch.status}
+                      onClick={() => {
+                        setChannelStatus(campaign.id, kind, s)
+                        close()
+                      }}
+                    >
+                      <StatusChip status={s} />
+                    </MenuItem>
+                  ))}
+                </>
+              )}
+            </Menu>
 
-        <Menu
-          trigger={
-            <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
-              <IconCalendar size={14} className="text-violet-dim" />
-              {ch.scheduledDate ? formatDate(ch.scheduledDate) : 'Schedule'}
-            </span>
-          }
-        >
-          {(close) => (
-            <>
-              {SCHEDULE_OPTIONS.map((opt) => {
-                const date = opt.date()
-                return (
-                  <MenuItem
-                    key={opt.label}
-                    active={ch.scheduledDate === date}
-                    onClick={() => {
-                      scheduleChannel(campaign.id, kind, date)
-                      close()
-                    }}
-                  >
-                    <span className="flex w-full items-center justify-between gap-4">
-                      <span>{opt.label}</span>
-                      <span className="micro text-text-dim">{formatDate(date)}</span>
-                    </span>
-                  </MenuItem>
-                )
-              })}
-            </>
-          )}
-        </Menu>
+            <Menu
+              trigger={
+                <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
+                  <IconCalendar size={14} className="text-violet-dim" />
+                  {ch.scheduledDate ? formatDate(ch.scheduledDate) : 'Schedule'}
+                </span>
+              }
+            >
+              {(close) => (
+                <>
+                  {SCHEDULE_OPTIONS.map((opt) => {
+                    const date = opt.date()
+                    return (
+                      <MenuItem
+                        key={opt.label}
+                        active={ch.scheduledDate === date}
+                        onClick={() => {
+                          scheduleChannel(campaign.id, kind, date)
+                          close()
+                        }}
+                      >
+                        <span className="flex w-full items-center justify-between gap-4">
+                          <span>{opt.label}</span>
+                          <span className="micro text-text-dim">{formatDate(date)}</span>
+                        </span>
+                      </MenuItem>
+                    )
+                  })}
+                </>
+              )}
+            </Menu>
+          </div>
+        )}
       </div>
     </div>
   )

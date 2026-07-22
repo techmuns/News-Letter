@@ -1,13 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { ROUTES } from '../lib/routes'
-import {
-  IconWorkspace,
-  IconEye,
-  IconCalendar,
-  IconReports,
-  IconCampaigns,
-} from './icons'
+import { IconWorkspace, IconEye, IconCalendar } from './icons'
 
 export interface NavItem {
   n: string
@@ -21,8 +15,6 @@ export const NAV_ITEMS: NavItem[] = [
   { n: '01', label: 'Workspace', to: ROUTES.workspace, end: true, Icon: IconWorkspace },
   { n: '02', label: 'Preview', to: ROUTES.preview, Icon: IconEye },
   { n: '03', label: 'Scheduling', to: ROUTES.scheduling, Icon: IconCalendar },
-  { n: '04', label: 'Reports', to: ROUTES.reports, Icon: IconReports },
-  { n: '05', label: 'Campaigns', to: ROUTES.campaigns, Icon: IconCampaigns },
 ]
 
 /** Desktop left-rail nav item — active item gets the muted-violet glow chip. */

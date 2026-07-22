@@ -4,8 +4,6 @@ export const ROUTES = {
   workspace: '/',
   preview: '/preview',
   scheduling: '/scheduling',
-  reports: '/reports',
-  campaigns: '/campaigns',
 } as const
 
 /** Path to a campaign's preview, optionally deep-linked to one channel's tab. */

@@ -76,7 +76,7 @@ export function Workspace() {
     const ids = items.filter((it) => selected.has(it.id)).map((it) => it.id)
     turnIntoContent(ids, brief)
     setSelected(new Set())
-    setFeedback({ text: 'Draft campaign created — review it in Campaigns.', ok: true })
+    setFeedback({ text: 'Draft campaign created — review it in Preview.', ok: true })
     window.setTimeout(() => setFeedback(null), 6000)
   }
 
