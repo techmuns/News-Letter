@@ -73,7 +73,7 @@ export function PublishBar({ campaign }: { campaign: Campaign }) {
               className={cn(
                 'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] transition-colors',
                 on
-                  ? 'border-[rgba(145,71,245,0.5)] bg-purple-soft text-violet'
+                  ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
                   : 'border-border text-text-muted hover:border-border-strong hover:text-text-2',
               )}
             >
@@ -82,7 +82,7 @@ export function PublishBar({ campaign }: { campaign: Campaign }) {
               <span
                 className={cn(
                   'grid h-4 w-4 place-items-center rounded border transition-colors',
-                  on ? 'border-transparent bg-violet text-[#160c26]' : 'border-border text-transparent',
+                  on ? 'border-transparent bg-violet text-on-accent' : 'border-border text-transparent',
                 )}
               >
                 <IconCheck size={10} />

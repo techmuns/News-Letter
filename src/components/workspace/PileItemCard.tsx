@@ -51,7 +51,7 @@ export function PileItemCard({ item, selected, onToggle }: PileItemCardProps) {
       <span
         className={cn(
           'grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-all duration-200',
-          selected ? 'border-violet bg-violet text-[#211a33]' : 'border-border text-transparent',
+          selected ? 'border-violet bg-violet text-on-accent' : 'border-border text-transparent',
         )}
       >
         <IconCheck size={13} />

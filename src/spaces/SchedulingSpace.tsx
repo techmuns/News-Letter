@@ -93,8 +93,8 @@ function ScheduledRow({ entry, onOpen }: { entry: ScheduleEntry; onOpen: () => v
 
   return (
     <Card className="flex items-stretch gap-0 p-0">
-      <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-[rgba(255,255,255,0.07)] py-4">
-        <span className="micro text-[10px] text-violet">{wday}</span>
+      <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-border-soft py-4">
+        <span className="micro text-[10px] text-sky">{wday}</span>
         <span className="font-display text-[16px] font-bold leading-none text-text">
           {new Date(`${date}T12:00:00`).getDate()}
         </span>

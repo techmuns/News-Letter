@@ -3,6 +3,7 @@ import { ProductMark } from './ProductMark'
 import { NAV_ITEMS, RailItem, BottomNavItem } from './nav'
 import { MicroLabel } from './MicroLabel'
 import { IconBell, IconCrown, IconChevronDown } from './icons'
+import { ThemeToggle } from './ThemeToggle'
 
 /** Display name of the current user (mock shell — a single seeded user). */
 const USER_NAME = 'Neha'
@@ -21,7 +22,7 @@ function Avatar({ size = 'md' }: { size?: 'sm' | 'md' }) {
   return (
     <span
       className={
-        'grid shrink-0 place-items-center rounded-full border border-[rgba(145,71,245,0.4)] bg-purple-soft font-display font-bold text-violet ' +
+        'grid shrink-0 place-items-center rounded-full border border-[color:var(--glow)] bg-purple-soft font-display font-bold text-violet ' +
         (size === 'sm' ? 'h-8 w-8 text-[12px]' : 'h-9 w-9 text-[13px]')
       }
     >
@@ -34,9 +35,9 @@ function UpgradeButton() {
   return (
     <button
       type="button"
-      className="hidden items-center gap-2 rounded-full border border-[rgba(217,145,77,0.35)] bg-[rgba(217,145,77,0.08)] px-3.5 py-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-[rgba(217,145,77,0.14)] hover:text-text focus-violet sm:inline-flex"
+      className="hidden items-center gap-2 rounded-full border border-sky-border bg-sky-soft px-3.5 py-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-sky-soft hover:text-text focus-violet sm:inline-flex"
     >
-      <IconCrown size={15} className="text-orange" />
+      <IconCrown size={15} className="text-sky" />
       Upgrade Plan
     </button>
   )
@@ -55,6 +56,7 @@ function TopBar({ title }: { title: string }) {
       </div>
       <div className="flex items-center gap-2.5 md:gap-3">
         <UpgradeButton />
+        <ThemeToggle />
         <button
           type="button"
           aria-label="Notifications"

@@ -13,7 +13,7 @@ export function WorkspaceIllustration() {
         className="absolute right-4 top-6 h-40 w-52"
         style={{
           background:
-            'radial-gradient(60% 60% at 60% 45%, rgba(145,71,245,0.28), rgba(145,71,245,0) 70%)',
+            'radial-gradient(60% 60% at 60% 45%, rgba(186,39,74,0.28), rgba(186,39,74,0) 70%)',
           filter: 'blur(8px)',
         }}
       />
@@ -25,12 +25,12 @@ export function WorkspaceIllustration() {
       >
         <defs>
           <linearGradient id="ws-folder" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#9147f5" />
-            <stop offset="1" stopColor="#5b2ea8" />
+            <stop offset="0" stopColor="#ba274a" />
+            <stop offset="1" stopColor="#7a1834" />
           </linearGradient>
           <linearGradient id="ws-flap" x1="0" y1="0" x2="0.4" y2="1">
-            <stop offset="0" stopColor="#a557ff" />
-            <stop offset="1" stopColor="#7a3fd6" />
+            <stop offset="0" stopColor="#e35a77" />
+            <stop offset="1" stopColor="#ba274a" />
           </linearGradient>
           <linearGradient id="ws-card" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#2a1f1a" />
@@ -45,9 +45,9 @@ export function WorkspaceIllustration() {
           {/* floating document cards */}
           <g transform="rotate(-11 60 60)">
             <rect x="18" y="20" width="78" height="98" rx="10" fill="url(#ws-card)" stroke="#3a2b23" />
-            <rect x="30" y="34" width="40" height="26" rx="5" fill="#3a2b57" opacity="0.6" />
-            <path d="M32 56l9-8 7 6 6-5 8 9" stroke="#a557ff" strokeWidth="1.6" opacity="0.7" fill="none" />
-            <circle cx="60" cy="42" r="3.4" fill="#c9a3f5" opacity="0.8" />
+            <rect x="30" y="34" width="40" height="26" rx="5" fill="#5db7de" opacity="0.35" />
+            <path d="M32 56l9-8 7 6 6-5 8 9" stroke="#e35a77" strokeWidth="1.6" opacity="0.7" fill="none" />
+            <circle cx="60" cy="42" r="3.4" fill="#5db7de" opacity="0.8" />
             <rect x="30" y="70" width="52" height="4" rx="2" fill="#4a3a32" />
             <rect x="30" y="80" width="40" height="4" rx="2" fill="#3f312a" />
           </g>
@@ -71,7 +71,7 @@ export function WorkspaceIllustration() {
               fontFamily="Satoshi, sans-serif"
               fontSize="22"
               fontWeight="800"
-              fill="#c9a3f5"
+              fill="#5db7de"
               opacity="0.85"
             >
               AB
@@ -85,7 +85,7 @@ export function WorkspaceIllustration() {
           />
           <path
             d="M12 96h162a8 8 0 0 1 8 8v6H4v-2.7A12 12 0 0 1 12 96Z"
-            fill="#b892ff"
+            fill="#e35a77"
             opacity="0.5"
           />
         </g>

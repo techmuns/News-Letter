@@ -139,7 +139,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
                 className={cn(
                   'rounded-md border px-2 py-0.5 text-[11px] transition-colors',
                   date === d
-                    ? 'border-[rgba(145,71,245,0.5)] bg-purple-soft text-violet'
+                    ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
                     : 'border-border text-text-muted hover:text-text-2',
                 )}
               >
@@ -155,7 +155,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
               className={cn(
                 'rounded-md border px-2 py-0.5 text-[11px] transition-colors',
                 time === t
-                  ? 'border-[rgba(145,71,245,0.5)] bg-purple-soft text-violet'
+                  ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
                   : 'border-border text-text-muted hover:text-text-2',
               )}
             >
@@ -180,7 +180,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
                 className={cn(
                   'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] transition-colors',
                   on
-                    ? 'border-[rgba(145,71,245,0.5)] bg-purple-soft text-violet'
+                    ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
                     : 'border-border text-text-muted hover:border-border-strong hover:text-text-2',
                 )}
               >
@@ -189,7 +189,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
                 <span
                   className={cn(
                     'grid h-4 w-4 place-items-center rounded border',
-                    on ? 'border-transparent bg-violet text-[#160c26]' : 'border-border text-transparent',
+                    on ? 'border-transparent bg-violet text-on-accent' : 'border-border text-transparent',
                   )}
                 >
                   <IconCheck size={10} />

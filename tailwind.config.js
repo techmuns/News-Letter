@@ -22,7 +22,14 @@ export default {
         purple: 'var(--purple)',
         'purple-bright': 'var(--purple-bright)',
         'purple-soft': 'var(--purple-soft)',
+        'on-accent': 'var(--on-accent)',
+        cream: 'var(--cream)',
+        // secondary — Sky Surge (orange kept as alias)
         orange: 'var(--orange)',
+        sky: 'var(--sky)',
+        'sky-soft': 'var(--sky-soft)',
+        'sky-border': 'var(--sky-border)',
+        'bg-translucent': 'var(--bg-translucent)',
         // status
         green: 'var(--green)',
         amber: 'var(--amber)',
@@ -46,8 +53,10 @@ export default {
       },
       boxShadow: {
         glow: 'var(--glow-shadow)',
-        'glow-soft': '0 0 16px rgba(145,71,245,0.14)',
-        panel: '0 1px 2px rgba(0,0,0,0.4), 0 8px 30px -18px rgba(0,0,0,0.7)',
+        'glow-soft': '0 0 16px var(--purple-soft)',
+        panel: 'var(--shadow-card)',
+        card: 'var(--shadow-card)',
+        modal: 'var(--shadow-modal)',
       },
       backdropBlur: {
         glass: '20px',

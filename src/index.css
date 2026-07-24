@@ -4,48 +4,137 @@
 
 /* ============================================================
    Design tokens — Munshot Content System
-   Warm near-black / brown base · soft off-white text · violet accent.
-   Calm, premium, restrained — no glass, no neon, no full-page gradients.
+   Palette: Rosewood #BA274A · Cream Deluxe #FFFECB · Sky Surge #5DB7DE
+
+   Two themes, both derived from the three brand colours:
+     • Dark  (default)          — deep rosewood-charcoal base, brightened
+                                   Rosewood accent, Sky-Surge secondary.
+     • Light ([data-theme=light]) — Cream Deluxe canvas, true Rosewood accent,
+                                   Sky-Surge secondary, deep-rosewood ink.
+
+   Legacy token names are kept as ALIASES so existing utility classes retheme
+   for free:
+     --violet / --purple*  → Rosewood (primary action / brand)
+     --orange              → Sky Surge (secondary / wayfinding)
+   --on-accent is readable text on a Rosewood fill.
    ============================================================ */
-:root {
+
+/* ---- Dark theme (default) ---- */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
   /* base */
-  --bg: #0d0908; /* warm page background — near-black */
-  --rail: #0b0807; /* sidebar — a touch deeper than the page */
-  --surface: #211713; /* warm dark-brown panel (upload / settings cards) */
-  --surface-soft: #1a1210; /* recessed surface */
-  --surface-hover: #291c18; /* row / control hover */
-  --surface-solid: #241a15; /* elevated surface — menus, modal */
+  --bg: #170f12; /* deep rosewood-charcoal */
+  --rail: #120b0e; /* sidebar — a touch deeper */
+  --bg-translucent: rgba(23, 15, 18, 0.72);
+  --surface: #241820; /* rosewood-tinted panel */
+  --surface-soft: #1d1218; /* recessed surface */
+  --surface-hover: #2e1f27; /* row / control hover */
+  --surface-solid: #281a22; /* elevated surface — menus, modal */
   --glass-blur: 0px;
 
   /* borders */
-  --border: #382820; /* fine warm-brown hairline */
-  --border-soft: #2b201b;
-  --border-strong: #4a352a;
-  --glow: rgba(145, 71, 245, 0.55); /* active violet border */
-  --glow-shadow: 0 0 22px rgba(145, 71, 245, 0.2);
+  --border: #3a2830;
+  --border-soft: #2c1e24;
+  --border-strong: #4d3540;
+  --glow: rgba(227, 90, 119, 0.55); /* active accent border */
+  --glow-shadow: 0 0 22px rgba(227, 90, 119, 0.2);
 
-  /* primary — violet */
-  --violet: #a557ff; /* bright accent for text / icons on dark */
-  --violet-dim: #9147f5;
-  --purple: #9147f5; /* solid button fill */
-  --purple-bright: #a557ff;
-  --purple-soft: rgba(145, 71, 245, 0.18);
-  --orange: #d9914d;
+  /* primary — Rosewood (brightened for dark) */
+  --violet: #e35a77; /* text / icon accent */
+  --violet-dim: #c8455f;
+  --purple: #ba274a; /* solid button fill (true Rosewood) */
+  --purple-bright: #e35a77;
+  --purple-soft: rgba(227, 90, 119, 0.18);
+  --on-accent: #fffecb; /* cream text on rosewood fills */
+
+  /* secondary — Sky Surge (was --orange) */
+  --orange: #5db7de;
+  --sky: #5db7de;
+  --sky-soft: rgba(93, 183, 222, 0.16);
+  --sky-border: rgba(93, 183, 222, 0.4);
+
+  /* cream highlight */
+  --cream: #fffecb;
 
   /* status */
   --green: #47d6a1;
   --amber: #f2c566;
-  --grey-dot: #5a4a40;
+  --grey-dot: #6a4f59;
   --pink: #fb6e92;
   --red: #e2685a;
 
-  /* text — warm off-white, high contrast on brown-black */
-  --text: #f5f1ee;
-  --text-2: #c4b6ac;
-  --text-muted: #93837a;
-  --text-dim: #6d5f57;
+  /* text — warm off-white, cream-tinted */
+  --text: #fbf1ee;
+  --text-2: #d8c2c7;
+  --text-muted: #a98a92;
+  --text-dim: #7d5c66;
 
-  color-scheme: dark;
+  /* body ambient */
+  --ambient-1: rgba(227, 90, 119, 0.1);
+  --ambient-2: rgba(93, 183, 222, 0.06);
+
+  /* elevation shadows */
+  --shadow-card: 0 2px 12px -6px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 18px 60px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* ---- Light theme ---- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* base — Cream Deluxe canvas */
+  --bg: #fffecb;
+  --rail: #fffdf0;
+  --bg-translucent: rgba(255, 254, 203, 0.82);
+  --surface: #fffef0; /* soft cream panel */
+  --surface-soft: #fbf6dc;
+  --surface-hover: #fbf1d8;
+  --surface-solid: #fffffa; /* elevated surface — menus, modal */
+  --glass-blur: 0px;
+
+  /* borders — rosewood-tinted hairlines */
+  --border: rgba(58, 20, 30, 0.15);
+  --border-soft: rgba(58, 20, 30, 0.1);
+  --border-strong: rgba(58, 20, 30, 0.3);
+  --glow: rgba(186, 39, 74, 0.42);
+  --glow-shadow: 0 0 20px rgba(186, 39, 74, 0.14);
+
+  /* primary — true Rosewood */
+  --violet: #ba274a;
+  --violet-dim: #a01f3e;
+  --purple: #ba274a;
+  --purple-bright: #d13358;
+  --purple-soft: rgba(186, 39, 74, 0.1);
+  --on-accent: #fffecb;
+
+  /* secondary — Sky Surge (deepened for cream canvas) */
+  --orange: #2f9bc6;
+  --sky: #2f9bc6;
+  --sky-soft: rgba(47, 155, 198, 0.12);
+  --sky-border: rgba(47, 155, 198, 0.36);
+
+  --cream: #fffecb;
+
+  /* status — deepened so they read on cream */
+  --green: #12976a;
+  --amber: #b0820f;
+  --grey-dot: #cabf98;
+  --pink: #d6456a;
+  --red: #c8442f;
+
+  /* text — deep rosewood ink */
+  --text: #2a1319;
+  --text-2: #5a3b43;
+  --text-muted: #8a6b72;
+  --text-dim: #ab8f95;
+
+  --ambient-1: rgba(186, 39, 74, 0.06);
+  --ambient-2: rgba(47, 155, 198, 0.07);
+
+  --shadow-card: 0 2px 14px -8px rgba(58, 20, 30, 0.22);
+  --shadow-modal: 0 24px 70px -20px rgba(58, 20, 30, 0.3);
 }
 
 @layer base {
@@ -62,27 +151,26 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    /* very soft warm/violet lift in the top-right — never a full-page wash */
+    /* soft ambient lift — retinted per theme */
     background-image: radial-gradient(
         900px 620px at 100% -8%,
-        rgba(145, 71, 245, 0.08),
-        rgba(145, 71, 245, 0) 60%
+        var(--ambient-1),
+        transparent 60%
       ),
-      radial-gradient(
-        720px 520px at 0% 108%,
-        rgba(217, 145, 77, 0.04),
-        rgba(217, 145, 77, 0) 60%
-      );
+      radial-gradient(720px 520px at 0% 108%, var(--ambient-2), transparent 60%);
     background-attachment: fixed;
     color: var(--text);
     font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
     font-feature-settings: 'ss01';
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    transition:
+      background-color 0.4s ease,
+      color 0.4s ease;
   }
 
   ::selection {
-    background: rgba(145, 71, 245, 0.32);
+    background: var(--purple-soft);
     color: var(--text);
   }
 
@@ -95,29 +183,36 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--border);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(145, 71, 245, 0.3);
+    background: var(--purple-soft);
     background-clip: padding-box;
   }
 }
 
 @layer components {
-  /* Workhorse surface — solid warm-brown panel, hairline border. No glass. */
+  /* Workhorse surface — solid panel, hairline border. No glass. */
   .glass {
     background-color: var(--surface);
     border: 1px solid var(--border);
   }
 
-  /* Active / focused surface — gentle violet glow. Used sparingly. */
+  /* Active / focused surface — gentle accent glow. Used sparingly. */
   .glow-active {
     border: 1px solid var(--glow);
     box-shadow: var(--glow-shadow);
     background-color: var(--purple-soft);
+  }
+
+  /* Sky variant — wayfinding surfaces (active nav, scheduling) */
+  .glow-sky {
+    border: 1px solid var(--sky-border);
+    box-shadow: 0 0 22px var(--sky-soft);
+    background-color: var(--sky-soft);
   }
 
   /* Uppercase, letter-spaced micro-label — section headers, ids, eyebrows */
@@ -135,6 +230,11 @@
     color: var(--violet);
   }
 
+  /* Sky Surge micro-label — wayfinding / structural accent */
+  .micro-sky {
+    color: var(--sky);
+  }
+
   .divider {
     border-top: 1px solid var(--border-soft);
   }
@@ -143,22 +243,22 @@
   .shimmer {
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.03) 25%,
-      rgba(145, 71, 245, 0.14) 50%,
-      rgba(255, 255, 255, 0.03) 75%
+      var(--surface) 25%,
+      var(--purple-soft) 50%,
+      var(--surface) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 1.8s linear infinite;
   }
 
-  /* Focus ring consistent with the violet system */
+  /* Focus ring consistent with the accent system */
   .focus-violet:focus-visible {
     outline: none;
     border-color: var(--glow);
     box-shadow: var(--glow-shadow);
   }
 
-  /* Themed range slider — violet fill up to the thumb, quiet track after. */
+  /* Themed range slider — accent fill up to the thumb, quiet track after. */
   .range-violet {
     -webkit-appearance: none;
     appearance: none;
@@ -176,19 +276,19 @@
     height: 15px;
     border-radius: 999px;
     background: var(--purple-bright);
-    border: 2px solid #1a1210;
-    box-shadow: 0 0 0 3px rgba(145, 71, 245, 0.22);
+    border: 2px solid var(--surface-soft);
+    box-shadow: 0 0 0 3px var(--purple-soft);
     transition: box-shadow 0.2s ease;
   }
   .range-violet::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 0 5px rgba(145, 71, 245, 0.26);
+    box-shadow: 0 0 0 5px var(--purple-soft);
   }
   .range-violet::-moz-range-thumb {
     width: 15px;
     height: 15px;
     border-radius: 999px;
     background: var(--purple-bright);
-    border: 2px solid #1a1210;
-    box-shadow: 0 0 0 3px rgba(145, 71, 245, 0.22);
+    border: 2px solid var(--surface-soft);
+    box-shadow: 0 0 0 3px var(--purple-soft);
   }
 }

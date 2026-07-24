@@ -22,6 +22,19 @@
       rel="stylesheet"
     />
     <title>Munshot · Content System</title>
+    <!-- No-flash theme init: set data-theme before first paint -->
+    <script>
+      (function () {
+        var t;
+        try {
+          t = localStorage.getItem('munshot-theme');
+        } catch (e) {}
+        if (t !== 'light' && t !== 'dark') t = 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t === 'light' ? '#FFFECB' : '#170F12');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

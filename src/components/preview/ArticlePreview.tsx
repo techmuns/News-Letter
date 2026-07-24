@@ -19,16 +19,16 @@ export function ArticlePreview({
         <MicroLabel>Article preview</MicroLabel>
       </div>
 
-      <article className="mx-auto max-w-[660px] overflow-hidden rounded-panel border border-border bg-[rgba(255,255,255,0.02)]">
+      <article className="mx-auto max-w-[660px] overflow-hidden rounded-panel border border-border bg-surface-soft">
         {/* hero band */}
         <div className="relative flex h-32 items-end overflow-hidden border-b border-border px-6 py-4 sm:px-9">
           {image ? (
             <>
               <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1c1926] via-[#1c1926]/45 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/45 to-transparent" />
             </>
           ) : (
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(170,152,248,0.2),rgba(170,152,248,0.03)_60%,transparent)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--purple-soft),transparent_60%)]" />
           )}
           <MicroLabel className="relative micro-violet">{content.hero}</MicroLabel>
         </div>
@@ -40,8 +40,8 @@ export function ArticlePreview({
           <p className="mt-3 text-[15.5px] leading-relaxed text-text-2">{content.deck}</p>
 
           {/* byline */}
-          <div className="mt-5 flex items-center gap-2.5 border-b border-[rgba(255,255,255,0.06)] pb-6">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-[rgba(157,140,245,0.14)] border border-[rgba(157,140,245,0.3)] font-display text-[12px] font-bold text-violet">
+          <div className="mt-5 flex items-center gap-2.5 border-b border-border-soft pb-6">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-purple-soft border border-[color:var(--glow)] font-display text-[12px] font-bold text-violet">
               M
             </span>
             <div className="leading-tight">
@@ -71,13 +71,13 @@ export function ArticlePreview({
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-2">{content.ctaBody}</p>
             <button
               type="button"
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-[13px] font-semibold text-[#12101e] transition-all hover:brightness-110"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-[13px] font-semibold text-on-accent transition-all hover:brightness-110"
             >
               {content.ctaLabel}
               <IconArrowRight size={15} />
             </button>
             {promo && (
-              <p className="mt-3 border-t border-[rgba(255,255,255,0.06)] pt-3 text-[11.5px] text-text-muted">
+              <p className="mt-3 border-t border-border-soft pt-3 text-[11.5px] text-text-muted">
                 {promo.name} — {promo.benefit}
               </p>
             )}

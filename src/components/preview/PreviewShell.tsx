@@ -63,7 +63,7 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
       <div>{children}</div>
 
       {/* Actions — approve while awaiting review, else status + schedule */}
-      <div className="mt-5 border-t border-[rgba(255,255,255,0.07)] pt-5">
+      <div className="mt-5 border-t border-border-soft pt-5">
         {!approved ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-2">

@@ -12,7 +12,7 @@ export function PageHeader({ eyebrow, title, subtitle, right }: PageHeaderProps)
   return (
     <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <MicroLabel tone="violet">{eyebrow}</MicroLabel>
+        <MicroLabel tone="sky">{eyebrow}</MicroLabel>
         <h1 className="mt-2 font-display text-[26px] font-bold leading-tight tracking-tight text-text md:text-[30px]">
           {title}
         </h1>

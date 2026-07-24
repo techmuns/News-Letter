@@ -41,7 +41,7 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
         role="dialog"
         aria-modal="true"
         className={cn(
-          'relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-panel border border-border-strong bg-surface-solid shadow-[0_18px_60px_-12px_rgba(0,0,0,0.7)] sm:rounded-panel',
+          'relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-panel border border-border-strong bg-surface-solid shadow-modal sm:rounded-panel',
           'sm:max-w-[560px]',
           className,
         )}

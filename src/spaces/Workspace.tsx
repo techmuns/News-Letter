@@ -270,7 +270,7 @@ export function Workspace() {
                               'relative grid h-[34px] w-[34px] place-items-center rounded-lg border bg-surface transition-colors ' +
                               (filter === 'all'
                                 ? 'border-border text-text-muted hover:border-border-strong hover:text-text'
-                                : 'border-[rgba(145,71,245,0.45)] text-violet')
+                                : 'border-[color:var(--glow)] text-violet')
                             }
                           >
                             <IconFilter size={15} />

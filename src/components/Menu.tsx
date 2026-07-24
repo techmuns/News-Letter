@@ -97,7 +97,7 @@ export function MenuItem({
       className={cn(
         'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px]',
         'transition-colors duration-200',
-        active ? 'text-violet bg-[rgba(157,140,245,0.08)]' : 'text-text-2 hover:bg-[rgba(255,255,255,0.04)] hover:text-text',
+        active ? 'text-violet bg-purple-soft' : 'text-text-2 hover:bg-surface-hover hover:text-text',
       )}
     >
       {children}

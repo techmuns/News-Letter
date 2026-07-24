@@ -29,7 +29,7 @@ export function RailItem({ item }: { item: NavItem }) {
           'group relative flex items-center gap-3 rounded-xl px-3 py-2.5',
           'transition-all duration-[350ms] ease-premium',
           isActive
-            ? 'glow-active text-text'
+            ? 'glow-sky text-text'
             : 'border border-transparent text-text-muted hover:text-text-2 hover:bg-surface-hover',
         )
       }
@@ -39,14 +39,14 @@ export function RailItem({ item }: { item: NavItem }) {
           <span
             className={cn(
               'micro w-5 shrink-0 text-center text-[10px]',
-              isActive ? 'text-violet' : 'text-text-dim group-hover:text-text-muted',
+              isActive ? 'text-sky' : 'text-text-dim group-hover:text-text-muted',
             )}
           >
             {item.n}
           </span>
           <Icon
             size={18}
-            className={cn(isActive ? 'text-violet' : 'text-text-muted group-hover:text-text-2')}
+            className={cn(isActive ? 'text-sky' : 'text-text-muted group-hover:text-text-2')}
           />
           <span className="text-[14px] font-medium">{item.label}</span>
         </>
@@ -65,13 +65,13 @@ export function BottomNavItem({ item }: { item: NavItem }) {
       className={({ isActive }) =>
         cn(
           'flex flex-1 flex-col items-center gap-1 py-2 transition-colors duration-200',
-          isActive ? 'text-violet' : 'text-text-muted',
+          isActive ? 'text-sky' : 'text-text-muted',
         )
       }
     >
       {({ isActive }) => (
         <>
-          <Icon size={19} className={isActive ? 'text-violet' : 'text-text-muted'} />
+          <Icon size={19} className={isActive ? 'text-sky' : 'text-text-muted'} />
           <span className="micro text-[9px]">{item.label}</span>
         </>
       )}

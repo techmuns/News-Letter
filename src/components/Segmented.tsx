@@ -28,7 +28,7 @@ export function Segmented<T extends string | number>({
   return (
     <div
       className={cn(
-        'inline-flex flex-wrap gap-1 rounded-lg border border-border bg-[rgba(255,255,255,0.02)] p-1',
+        'inline-flex flex-wrap gap-1 rounded-lg border border-border bg-surface-soft p-1',
         className,
       )}
     >
@@ -44,7 +44,7 @@ export function Segmented<T extends string | number>({
               'rounded-md border text-[12px] transition-all duration-200 focus-violet',
               dense ? 'px-2 py-0.5' : 'px-2.5 py-1',
               active
-                ? 'border-[rgba(170,152,248,0.45)] bg-[rgba(170,152,248,0.16)] text-violet'
+                ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
                 : 'border-transparent text-text-muted hover:text-text',
             )}
           >

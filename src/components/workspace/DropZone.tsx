@@ -93,7 +93,7 @@ export function DropZone() {
           'transition-all duration-[350ms] ease-premium focus-violet',
           dragging
             ? 'border-glow bg-purple-soft'
-            : 'border-border-strong bg-surface-soft hover:border-[rgba(145,71,245,0.4)] hover:bg-surface-hover',
+            : 'border-border-strong bg-surface-soft hover:border-[color:var(--glow)] hover:bg-surface-hover',
         )}
       >
         <IconUploadCloud size={30} className="text-violet" strokeWidth={1.5} />
@@ -162,7 +162,7 @@ export function DropZone() {
 
       {/* drag overlay hint */}
       {dragging && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-panel bg-[rgba(145,71,245,0.05)]">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-panel bg-purple-soft">
           <MicroLabel className="micro-violet text-[12px]">Release to add to the pile</MicroLabel>
         </div>
       )}

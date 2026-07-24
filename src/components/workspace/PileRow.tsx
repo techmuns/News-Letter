@@ -123,7 +123,7 @@ export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
 
       {/* selection check (only when selected — clean by default) */}
       {selected && (
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-violet text-[#160c26] md:hidden">
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-violet text-on-accent md:hidden">
           <IconCheck size={12} />
         </span>
       )}

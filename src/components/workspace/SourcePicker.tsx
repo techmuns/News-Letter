@@ -52,14 +52,14 @@ function SourceRow({
       className={cn(
         'flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors duration-200',
         selected
-          ? 'border-[rgba(145,71,245,0.5)] bg-purple-soft'
+          ? 'border-[color:var(--glow)] bg-purple-soft'
           : 'border-border bg-surface-soft hover:border-border-strong hover:bg-surface-hover',
       )}
     >
       <span
         className={cn(
           'grid h-9 w-9 shrink-0 place-items-center rounded-lg font-display text-[12px] font-bold',
-          selected ? 'bg-[rgba(145,71,245,0.25)] text-violet' : 'bg-surface text-text-muted',
+          selected ? 'bg-purple-soft text-violet' : 'bg-surface text-text-muted',
         )}
       >
         {source.avatar}
@@ -74,7 +74,7 @@ function SourceRow({
       <span
         className={cn(
           'grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors',
-          selected ? 'border-transparent bg-violet text-[#160c26]' : 'border-border text-transparent',
+          selected ? 'border-transparent bg-violet text-on-accent' : 'border-border text-transparent',
         )}
       >
         <IconCheck size={12} />

@@ -194,6 +194,23 @@ export function IconBell({ size = 18, className, strokeWidth = 1.6 }: IconProps)
   )
 }
 
+export function IconSun({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+    </svg>
+  )
+}
+
+export function IconMoon({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M20 13.5A8 8 0 1 1 10.5 4a6.2 6.2 0 0 0 9.5 9.5Z" />
+    </svg>
+  )
+}
+
 export function IconCrown({ size = 18, className, strokeWidth = 1.5 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

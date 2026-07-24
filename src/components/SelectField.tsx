@@ -33,7 +33,7 @@ export function SelectField<T extends string>({
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
         className={cn(
-          'w-full cursor-pointer appearance-none rounded-lg border border-border bg-[rgba(255,255,255,0.03)]',
+          'w-full cursor-pointer appearance-none rounded-lg border border-border bg-surface-soft',
           'px-3 py-2 pr-8 text-[13px] text-text transition-colors duration-200',
           'hover:border-border-strong focus-violet',
         )}

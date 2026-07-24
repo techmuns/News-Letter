@@ -3,7 +3,7 @@ import { cn } from '../lib/cn'
 interface MicroLabelProps {
   children: React.ReactNode
   className?: string
-  tone?: 'muted' | 'violet'
+  tone?: 'muted' | 'violet' | 'sky'
   as?: 'span' | 'div' | 'p'
 }
 
@@ -15,7 +15,14 @@ export function MicroLabel({
   as: Tag = 'span',
 }: MicroLabelProps) {
   return (
-    <Tag className={cn('micro', tone === 'violet' && 'micro-violet', className)}>
+    <Tag
+      className={cn(
+        'micro',
+        tone === 'violet' && 'micro-violet',
+        tone === 'sky' && 'micro-sky',
+        className,
+      )}
+    >
       {children}
     </Tag>
   )

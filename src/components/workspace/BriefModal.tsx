@@ -121,10 +121,10 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
         role="dialog"
         aria-modal="true"
         aria-label="Content brief"
-        className="relative my-auto w-full max-w-[680px] rounded-panel border border-border-strong bg-surface-solid shadow-[0_24px_80px_-24px_rgba(0,0,0,0.7)] animate-fade-up"
+        className="relative my-auto w-full max-w-[680px] rounded-panel border border-border-strong bg-surface-solid shadow-modal animate-fade-up"
       >
         {/* header */}
-        <div className="flex items-start justify-between gap-4 border-b border-[rgba(255,255,255,0.08)] px-5 py-4 sm:px-6">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <IconSparkle size={15} className="text-violet" />
@@ -157,7 +157,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
                 {items.map((it) => (
                   <span
                     key={it.id}
-                    className="max-w-[220px] truncate rounded-md border border-border bg-[rgba(255,255,255,0.03)] px-2 py-1 text-[11.5px] text-text-2"
+                    className="max-w-[220px] truncate rounded-md border border-border bg-surface-soft px-2 py-1 text-[11.5px] text-text-2"
                     title={it.title}
                   >
                     {it.title}
@@ -182,7 +182,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
                     className={cn(
                       'rounded-lg border px-2.5 py-1 text-[12px] transition-all duration-200 focus-violet',
                       active
-                        ? 'border-[rgba(170,152,248,0.5)] bg-[rgba(170,152,248,0.16)] text-violet'
+                        ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
                         : 'border-border text-text-2 hover:border-border-strong hover:text-text',
                     )}
                   >
@@ -222,7 +222,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
           </div>
 
           {/* advanced */}
-          <div className="mt-5 border-t border-[rgba(255,255,255,0.07)] pt-4">
+          <div className="mt-5 border-t border-border-soft pt-4">
             <button
               type="button"
               onClick={() => setAdvanced((a) => !a)}
@@ -250,7 +250,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
                 </div>
 
                 {/* governance sub-group */}
-                <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] p-4">
+                <div className="rounded-xl border border-border bg-surface-soft p-4">
                   <GroupLabel>Governance</GroupLabel>
                   <div className="mt-3 flex flex-col gap-4">
                     <Field label="Insight-to-promotion">
@@ -274,14 +274,14 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
           </div>
 
           {/* live summary */}
-          <div className="mt-5 rounded-xl border border-[rgba(170,152,248,0.28)] bg-[rgba(170,152,248,0.06)] p-4">
+          <div className="mt-5 rounded-xl border border-[color:var(--glow)] bg-purple-soft p-4">
             <MicroLabel className="micro-violet">This brief</MicroLabel>
             <p className="mt-2 text-[13px] leading-relaxed text-text">{briefSentence(effective.brief)}</p>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {briefChips(effective.brief).map((c) => (
                 <span
                   key={c}
-                  className="rounded-md border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-2 py-0.5 text-[11px] text-text-2"
+                  className="rounded-md border border-border bg-surface-soft px-2 py-0.5 text-[11px] text-text-2"
                 >
                   {c}
                 </span>
@@ -289,7 +289,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
             </div>
 
             {effective.notes.length > 0 && (
-              <ul className="mt-3 flex flex-col gap-1.5 border-t border-[rgba(255,255,255,0.08)] pt-3">
+              <ul className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
                 {effective.notes.map((n) => (
                   <li key={n} className="flex items-start gap-2 text-[11.5px] leading-relaxed text-amber">
                     <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber" />
@@ -302,7 +302,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
         </div>
 
         {/* footer */}
-        <div className="flex flex-col gap-3 border-t border-[rgba(255,255,255,0.08)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-2">
             <MicroLabel className="text-text-dim">Drafts</MicroLabel>
             <div className="flex items-center gap-2">
