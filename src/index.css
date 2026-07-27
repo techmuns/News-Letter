@@ -74,6 +74,7 @@
   /* body ambient */
   --ambient-1: rgba(227, 90, 119, 0.1);
   --ambient-2: rgba(93, 183, 222, 0.06);
+  --ambient-3: rgba(255, 254, 203, 0.04);
 
   /* elevation shadows */
   --shadow-card: 0 2px 12px -6px rgba(0, 0, 0, 0.45);
@@ -84,21 +85,23 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* base — Cream Deluxe canvas */
-  --bg: #fffecb;
-  --rail: #fffdf0;
-  --bg-translucent: rgba(255, 254, 203, 0.82);
-  --surface: #fffef0; /* soft cream panel */
-  --surface-soft: #fbf6dc;
-  --surface-hover: #fbf1d8;
-  --surface-solid: #fffffa; /* elevated surface — menus, modal */
+  /* base — soft neutral paper. Cream Deluxe now lives as a low-opacity
+     ambient wash + accent tint (below), not a flat full-bleed fill —
+     the saturated version was fatiguing to read against for long. */
+  --bg: #faf8f2;
+  --rail: #f4f1e7;
+  --bg-translucent: rgba(250, 248, 242, 0.85);
+  --surface: #ffffff; /* clean white panel, pops off the paper canvas */
+  --surface-soft: #f6f3e9;
+  --surface-hover: #efeade;
+  --surface-solid: #ffffff; /* elevated surface — menus, modal */
   --glass-blur: 0px;
 
   /* borders — rosewood-tinted hairlines */
-  --border: rgba(58, 20, 30, 0.15);
-  --border-soft: rgba(58, 20, 30, 0.1);
-  --border-strong: rgba(58, 20, 30, 0.3);
-  --glow: rgba(186, 39, 74, 0.42);
+  --border: rgba(58, 20, 30, 0.13);
+  --border-soft: rgba(58, 20, 30, 0.09);
+  --border-strong: rgba(58, 20, 30, 0.28);
+  --glow: rgba(186, 39, 74, 0.4);
   --glow-shadow: 0 0 20px rgba(186, 39, 74, 0.14);
 
   /* primary — true Rosewood */
@@ -109,15 +112,16 @@
   --purple-soft: rgba(186, 39, 74, 0.1);
   --on-accent: #fffecb;
 
-  /* secondary — Sky Surge (deepened for cream canvas) */
+  /* secondary — Sky Surge (deepened for the light canvas) */
   --orange: #2f9bc6;
   --sky: #2f9bc6;
   --sky-soft: rgba(47, 155, 198, 0.12);
   --sky-border: rgba(47, 155, 198, 0.36);
 
   --cream: #fffecb;
+  --cream-soft: rgba(255, 214, 92, 0.32); /* the brand cream, as a tint */
 
-  /* status — deepened so they read on cream */
+  /* status — deepened so they read on the light canvas */
   --green: #12976a;
   --amber: #b0820f;
   --grey-dot: #cabf98;
@@ -130,11 +134,14 @@
   --text-muted: #8a6b72;
   --text-dim: #ab8f95;
 
-  --ambient-1: rgba(186, 39, 74, 0.06);
-  --ambient-2: rgba(47, 155, 198, 0.07);
+  /* ambient overlays — brand colour lives here, as soft radial tints
+     washing over the neutral canvas, instead of saturating the whole page */
+  --ambient-1: rgba(186, 39, 74, 0.05);
+  --ambient-2: rgba(47, 155, 198, 0.06);
+  --ambient-3: var(--cream-soft);
 
-  --shadow-card: 0 2px 14px -8px rgba(58, 20, 30, 0.22);
-  --shadow-modal: 0 24px 70px -20px rgba(58, 20, 30, 0.3);
+  --shadow-card: 0 2px 14px -8px rgba(58, 20, 30, 0.18);
+  --shadow-modal: 0 24px 70px -20px rgba(58, 20, 30, 0.28);
 }
 
 @layer base {
@@ -151,13 +158,15 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    /* soft ambient lift — retinted per theme */
+    /* soft ambient lift — retinted per theme. Brand colour washes over a
+       neutral canvas rather than filling it solid. */
     background-image: radial-gradient(
         900px 620px at 100% -8%,
         var(--ambient-1),
         transparent 60%
       ),
-      radial-gradient(720px 520px at 0% 108%, var(--ambient-2), transparent 60%);
+      radial-gradient(720px 520px at 0% 108%, var(--ambient-2), transparent 60%),
+      radial-gradient(680px 480px at 22% 0%, var(--ambient-3), transparent 55%);
     background-attachment: fixed;
     color: var(--text);
     font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
