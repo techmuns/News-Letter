@@ -82,6 +82,23 @@ export function sourceById(id: string): MonitoredSource | undefined {
   return ALL_SOURCES.find((s) => s.id === id)
 }
 
+/** Initials for a user-added source's avatar tile ("Aarti Menon" → "AM"). */
+export function initialsFor(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (!words.length) return '·'
+  const letters = words.slice(0, 2).map((w) => w[0].toUpperCase())
+  return letters.join('')
+}
+
+/** Normalise a pasted LinkedIn URL or handle into a short display detail. */
+export function normaliseHandle(input: string): string {
+  const raw = input.trim()
+  if (!raw) return 'Added by you'
+  const url = raw.match(/linkedin\.com\/(?:in|company)\/([^/?#]+)/i)
+  if (url) return `@${url[1]}`
+  return raw.startsWith('@') ? raw : `@${raw}`
+}
+
 /* ---- Input-mix presets — the quick "what to pull from" chooser ---- */
 export interface InputMix {
   id: string
@@ -92,26 +109,62 @@ export interface InputMix {
 }
 
 export const INPUT_MIXES: InputMix[] = [
-  { id: 'linkedin', label: 'LinkedIn posts', kinds: ['creator', 'page', 'post'], hint: 'Creators, pages and trending posts' },
-  { id: 'news', label: 'News only', kinds: ['news'], hint: 'Current developments by category' },
-  { id: 'linkedin-news', label: 'LinkedIn + News', kinds: ['creator', 'page', 'post', 'news'], hint: 'Social signal blended with the news cycle' },
-  { id: 'creator-industry', label: 'Creator insights + Industry', kinds: ['creator', 'conversation'], hint: 'Voices plus ongoing discussions' },
-  { id: 'custom', label: 'Custom mix', kinds: [], hint: 'Pick any combination of sources' },
+  { id: 'linkedin', label: 'LinkedIn', kinds: ['creator', 'page', 'post'], hint: 'Creators, pages and trending posts' },
+  { id: 'news', label: 'News', kinds: ['news'], hint: 'Current developments by category' },
+  { id: 'custom', label: 'Custom', kinds: [], hint: 'Pick any combination of sources' },
 ]
 
 export function mixById(id: string): InputMix {
   return INPUT_MIXES.find((m) => m.id === id) ?? INPUT_MIXES[0]
 }
 
-/** Sensible default selection when a preset mix is chosen (custom starts empty). */
-export function defaultSelectionForMix(id: string): string[] {
-  const mix = mixById(id)
-  if (mix.kinds.length === 0) return []
-  return ALL_SOURCES.filter((s) => mix.kinds.includes(s.kind)).map((s) => s.id)
+/** Human-readable labels for a set of selected source ids. */
+export function sourceLabels(ids: Iterable<string>, custom: MonitoredSource[] = []): string[] {
+  const set = new Set(ids)
+  return [...custom, ...ALL_SOURCES].filter((s) => set.has(s.id)).map((s) => s.name)
 }
 
-/** Human-readable labels for a set of selected source ids. */
-export function sourceLabels(ids: Iterable<string>): string[] {
-  const set = new Set(ids)
-  return ALL_SOURCES.filter((s) => set.has(s.id)).map((s) => s.name)
+/**
+ * The catalog as the user has shaped it: their own additions folded in and any
+ * removed catalog entries filtered out. Groups that end up empty are dropped.
+ */
+export function visibleGroups(
+  custom: MonitoredSource[] = [],
+  hidden: Iterable<string> = [],
+): { kind: SourceKind; sources: MonitoredSource[] }[] {
+  const gone = new Set(hidden)
+  return SOURCE_GROUPS.map((g) => ({
+    ...g,
+    sources: [
+      ...custom.filter((c) => c.kind === g.kind),
+      ...g.sources.filter((s) => !gone.has(s.id)),
+    ],
+  })).filter((g) => g.sources.length > 0)
+}
+
+/** Every source the user can currently see, catalog + their own, minus removals. */
+export function activeSources(
+  custom: MonitoredSource[] = [],
+  hidden: Iterable<string> = [],
+): MonitoredSource[] {
+  return visibleGroups(custom, hidden).flatMap((g) => g.sources)
+}
+
+/** Default selection for a mix, over the sources that are actually present. */
+export function defaultSelectionWithCustom(
+  id: string,
+  custom: MonitoredSource[],
+  hidden: Iterable<string> = [],
+): string[] {
+  const mix = mixById(id)
+  if (mix.kinds.length === 0) return []
+  return activeSources(custom, hidden)
+    .filter((s) => mix.kinds.includes(s.kind))
+    .map((s) => s.id)
+}
+
+/** How many catalog entries are currently removed (for the restore affordance). */
+export function hiddenCount(hidden: Iterable<string>): number {
+  const gone = new Set(hidden)
+  return ALL_SOURCES.filter((s) => gone.has(s.id)).length
 }

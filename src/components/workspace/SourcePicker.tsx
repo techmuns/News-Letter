@@ -2,13 +2,15 @@ import { cn } from '../../lib/cn'
 import {
   type SourceKind,
   type MonitoredSource,
-  SOURCE_GROUPS,
   SOURCE_KIND_LABEL,
   INPUT_MIXES,
   mixById,
+  visibleGroups as buildGroups,
+  hiddenCount,
 } from '../../data/sources'
 import { MicroLabel } from '../MicroLabel'
 import { Segmented } from '../Segmented'
+import { AddSourceForm } from './AddSourceForm'
 import {
   IconUsers,
   IconBuilding,
@@ -17,6 +19,8 @@ import {
   IconMessage,
   IconCheck,
   IconSparkle,
+  IconClose,
+  IconRefresh,
 } from '../icons'
 
 const KIND_ICON: Record<SourceKind, (p: { size?: number; className?: string }) => JSX.Element> = {
@@ -33,24 +37,43 @@ interface SourcePickerProps {
   selected: Set<string>
   onToggle: (id: string) => void
   onGroupSet: (ids: string[], select: boolean) => void
+  /** profiles the user added themselves */
+  custom: MonitoredSource[]
+  /** ids of built-in sources the user removed */
+  hidden: string[]
+  onAdd: (input: { name: string; handle: string; kind: SourceKind }) => string | null
+  onRemove: (id: string) => void
+  onRestore: () => void
 }
+
+/** The kinds a user can add their own entries to. */
+const ADDABLE: SourceKind[] = ['creator', 'page']
 
 function SourceRow({
   source,
   selected,
   onToggle,
+  onRemove,
 }: {
   source: MonitoredSource
   selected: boolean
   onToggle: () => void
+  onRemove: () => void
 }) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle()
+        }
+      }}
       aria-pressed={selected}
       className={cn(
-        'flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors duration-200',
+        'group flex cursor-pointer items-center gap-3 rounded-xl border p-2.5 text-left transition-colors duration-200',
         selected
           ? 'border-[color:var(--glow)] bg-purple-soft'
           : 'border-border bg-surface-soft hover:border-border-strong hover:bg-surface-hover',
@@ -71,6 +94,20 @@ function SourceRow({
           {source.signal ? ` · ${source.signal}` : ''}
         </p>
       </div>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove()
+        }}
+        aria-label={`Remove ${source.name}`}
+        title="Remove from monitored sources"
+        className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-text-dim opacity-0 transition-all hover:bg-surface-hover hover:text-red focus-visible:opacity-100 group-hover:opacity-100 focus-violet"
+      >
+        <IconClose size={13} />
+      </button>
+
       <span
         className={cn(
           'grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors',
@@ -79,7 +116,7 @@ function SourceRow({
       >
         <IconCheck size={12} />
       </span>
-    </button>
+    </div>
   )
 }
 
@@ -89,26 +126,35 @@ function SourceRow({
  * conversations to feed the generator. Progressive — only the groups the
  * chosen mix draws from are shown (custom shows everything).
  */
-export function SourcePicker({ mix, onMix, selected, onToggle, onGroupSet }: SourcePickerProps) {
+export function SourcePicker({
+  mix,
+  onMix,
+  selected,
+  onToggle,
+  onGroupSet,
+  custom,
+  hidden,
+  onAdd,
+  onRemove,
+  onRestore,
+}: SourcePickerProps) {
   const activeMix = mixById(mix)
-  const visibleGroups =
+  const allGroups = buildGroups(custom, hidden)
+  const groups =
     activeMix.kinds.length === 0
-      ? SOURCE_GROUPS
-      : SOURCE_GROUPS.filter((g) => activeMix.kinds.includes(g.kind))
+      ? allGroups
+      : allGroups.filter((g) => activeMix.kinds.includes(g.kind))
+  const removedCount = hiddenCount(hidden)
 
   return (
     <div className="rounded-panel border border-border bg-surface p-4 shadow-panel md:p-5">
-      <div className="flex items-center gap-2.5 px-1">
-        <IconSparkle size={14} className="text-violet" />
-        <MicroLabel className="text-text-muted">
-          Automatic generator — build content from monitored sources
-        </MicroLabel>
-      </div>
-
-      {/* input mix */}
-      <div className="mt-4 px-1">
-        <MicroLabel className="text-text-dim">Input mix</MicroLabel>
-        <div className="mt-2">
+      {/* input mix — the header doubles as the section label */}
+      <div className="px-1">
+        <div className="flex items-center gap-2.5">
+          <IconSparkle size={14} className="text-sky" />
+          <MicroLabel tone="sky">Pull from</MicroLabel>
+        </div>
+        <div className="mt-2.5">
           <Segmented
             value={mix}
             onChange={onMix}
@@ -120,7 +166,7 @@ export function SourcePicker({ mix, onMix, selected, onToggle, onGroupSet }: Sou
 
       {/* source groups */}
       <div className="mt-4 flex flex-col gap-5">
-        {visibleGroups.map((group) => {
+        {groups.map((group) => {
           const Icon = KIND_ICON[group.kind]
           const ids = group.sources.map((s) => s.id)
           const selCount = ids.filter((id) => selected.has(id)).length
@@ -152,12 +198,35 @@ export function SourcePicker({ mix, onMix, selected, onToggle, onGroupSet }: Sou
                     source={s}
                     selected={selected.has(s.id)}
                     onToggle={() => onToggle(s.id)}
+                    onRemove={() => onRemove(s.id)}
                   />
                 ))}
               </div>
             </div>
           )
         })}
+
+        {groups.length === 0 && (
+          <p className="px-1 py-6 text-center text-[12.5px] text-text-muted">
+            No sources left in this mix. Add one below or restore the defaults.
+          </p>
+        )}
+
+        {/* people & company pages are the only kinds you can add by hand */}
+        {(groups.length === 0 || groups.some((g) => ADDABLE.includes(g.kind))) && (
+          <AddSourceForm onAdd={onAdd} />
+        )}
+
+        {removedCount > 0 && (
+          <button
+            type="button"
+            onClick={onRestore}
+            className="flex items-center justify-center gap-1.5 rounded-lg py-1 text-[11.5px] text-text-muted transition-colors hover:text-sky focus-violet"
+          >
+            <IconRefresh size={12} />
+            Restore {removedCount} removed source{removedCount === 1 ? '' : 's'}
+          </button>
+        )}
       </div>
     </div>
   )

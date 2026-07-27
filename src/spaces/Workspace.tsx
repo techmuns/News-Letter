@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { type WorkspaceItemType } from '../types'
+import { type SourceKind } from '../data/sources'
 import { previewPath } from '../lib/routes'
 import { cn } from '../lib/cn'
 import {
-  defaultSelectionForMix,
+  defaultSelectionWithCustom,
   sourceLabels,
   mixById,
 } from '../data/sources'
@@ -48,6 +49,11 @@ export function Workspace() {
   const discardDraft = useStore((s) => s.discardDraft)
   const draftId = useStore((s) => s.draftId)
   const draft = useStore((s) => s.campaigns.find((c) => c.id === s.draftId) ?? null)
+  const customSources = useStore((s) => s.customSources)
+  const hiddenSourceIds = useStore((s) => s.hiddenSourceIds)
+  const addSource = useStore((s) => s.addSource)
+  const removeSource = useStore((s) => s.removeSource)
+  const restoreSources = useStore((s) => s.restoreSources)
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('manual')
@@ -58,8 +64,9 @@ export function Workspace() {
   const [showAll, setShowAll] = useState(false)
   // automatic generator selection
   const [mix, setMix] = useState('linkedin')
+  // seeded from the persisted catalog so removed sources don't come back selected
   const [autoSelected, setAutoSelected] = useState<Set<string>>(
-    () => new Set(defaultSelectionForMix('linkedin')),
+    () => new Set(defaultSelectionWithCustom('linkedin', customSources, hiddenSourceIds)),
   )
   // when a draft exists, inputs collapse — this reopens them to change sources
   const [inputsOpen, setInputsOpen] = useState(false)
@@ -120,7 +127,30 @@ export function Workspace() {
 
   function changeMix(id: string) {
     setMix(id)
-    setAutoSelected(new Set(defaultSelectionForMix(id)))
+    setAutoSelected(new Set(defaultSelectionWithCustom(id, customSources, hiddenSourceIds)))
+  }
+
+  /** Adding a source selects it immediately — that's why you added it. */
+  function handleAddSource(input: { name: string; handle: string; kind: SourceKind }) {
+    const id = addSource(input)
+    if (id) setAutoSelected((prev) => new Set(prev).add(id))
+    return id
+  }
+
+  function handleRemoveSource(id: string) {
+    removeSource(id)
+    setAutoSelected((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+
+  /** Restoring re-selects the defaults so the returned sources are actually used. */
+  function handleRestoreSources() {
+    restoreSources()
+    setAutoSelected(new Set(defaultSelectionWithCustom(mix, customSources)))
   }
 
   // The generation input for the current mode.
@@ -130,7 +160,10 @@ export function Workspace() {
       const labels = items.filter((it) => selected.has(it.id)).map((it) => it.title)
       return { sourceMode: 'manual' as const, sourceItemIds: ids, sourceLabels: labels }
     }
-    return { sourceMode: 'auto' as const, sourceLabels: sourceLabels(autoSelected) }
+    return {
+      sourceMode: 'auto' as const,
+      sourceLabels: sourceLabels(autoSelected, customSources),
+    }
   }
 
   const canGenerate = mode === 'manual' ? selected.size > 0 : autoSelected.size > 0
@@ -349,6 +382,11 @@ export function Workspace() {
                   selected={autoSelected}
                   onToggle={toggleSource}
                   onGroupSet={setGroup}
+                  custom={customSources}
+                  hidden={hiddenSourceIds}
+                  onAdd={handleAddSource}
+                  onRemove={handleRemoveSource}
+                  onRestore={handleRestoreSources}
                 />
               </div>
             )}

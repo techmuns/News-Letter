@@ -17,6 +17,12 @@ import {
   GENERATABLE,
   PROMOTIONS,
 } from '../data/mockData'
+import {
+  type MonitoredSource,
+  type SourceKind,
+  initialsFor,
+  normaliseHandle,
+} from '../data/sources'
 import { DEFAULT_BRIEF } from '../lib/brief'
 import { composeDraft } from '../lib/generate'
 
@@ -54,6 +60,18 @@ interface StoreState {
   draftId: string | null
   /** the persisted content-settings brief applied to every generation */
   brief: GenerationBrief
+  /** LinkedIn profiles/pages the user added themselves, on top of the catalog */
+  customSources: MonitoredSource[]
+  /** ids of built-in catalog sources the user removed */
+  hiddenSourceIds: string[]
+
+  // --- Monitored source actions ---
+  /** Add a LinkedIn profile or company page to the monitored catalog. */
+  addSource: (input: { name: string; handle: string; kind: SourceKind }) => string | null
+  /** Remove any source — deletes user-added ones, hides catalog ones. */
+  removeSource: (id: string) => void
+  /** Bring every removed catalog source back. */
+  restoreSources: () => void
 
   // --- Workspace actions ---
   /** patch one or more fields of the persisted content-settings brief */
@@ -111,6 +129,42 @@ export const useStore = create<StoreState>()(
       lastGeneratedId: null,
       draftId: null,
       brief: DEFAULT_BRIEF,
+      customSources: [],
+      hiddenSourceIds: [],
+
+      addSource: ({ name, handle, kind }) => {
+        const trimmed = name.trim()
+        if (!trimmed) return null
+        const detail = normaliseHandle(handle)
+        // Don't add the same profile twice.
+        const existing = get().customSources.find(
+          (s) => s.name.toLowerCase() === trimmed.toLowerCase() || s.detail === detail,
+        )
+        if (existing) return existing.id
+        const source: MonitoredSource = {
+          id: uid('src'),
+          kind,
+          name: trimmed,
+          detail,
+          avatar: initialsFor(trimmed),
+          signal: 'Added by you',
+        }
+        set((s) => ({ customSources: [source, ...s.customSources] }))
+        return source.id
+      },
+
+      // A user-added source is deleted outright; a built-in one is remembered as
+      // hidden so "Restore" can bring the catalog back.
+      removeSource: (id) =>
+        set((s) =>
+          s.customSources.some((c) => c.id === id)
+            ? { customSources: s.customSources.filter((c) => c.id !== id) }
+            : s.hiddenSourceIds.includes(id)
+              ? s
+              : { hiddenSourceIds: [...s.hiddenSourceIds, id] },
+        ),
+
+      restoreSources: () => set({ hiddenSourceIds: [] }),
 
       updateBrief: (patch) => set((s) => ({ brief: { ...s.brief, ...patch } })),
 
@@ -445,21 +499,31 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 6,
+      version: 7,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
         brief: s.brief,
+        customSources: s.customSources,
+        hiddenSourceIds: s.hiddenSourceIds,
       }),
       // Schema changed (images, headlines, approval, briefs, settings, drafts) —
       // reset older stores to the fresh seed rather than backfilling fields.
-      migrate: () => ({
-        items: SEED_ITEMS,
-        campaigns: SEED_CAMPAIGNS,
-        genIndex: 0,
-        brief: DEFAULT_BRIEF,
-      }),
+      // Schema changed — reset seeded content, but keep the user's source edits.
+      migrate: (persisted) => {
+        const prev = persisted as
+          | { customSources?: MonitoredSource[]; hiddenSourceIds?: string[] }
+          | undefined
+        return {
+          items: SEED_ITEMS,
+          campaigns: SEED_CAMPAIGNS,
+          genIndex: 0,
+          brief: DEFAULT_BRIEF,
+          customSources: prev?.customSources ?? [],
+          hiddenSourceIds: prev?.hiddenSourceIds ?? [],
+        }
+      },
       // Drop any half-composed drafts and clear in-flight processing flags that
       // were persisted mid-action.
       onRehydrateStorage: () => (state) => {
