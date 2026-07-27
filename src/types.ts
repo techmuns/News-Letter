@@ -59,6 +59,14 @@ export function statusTone(status: ChannelStatus): StatusTone {
 
 export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note'
 
+/** A supporting file bundled onto a pile item (used by notes to carry references). */
+export interface WorkspaceAttachment {
+  id: string
+  name: string
+  sizeLabel?: string
+  imageUrl?: string
+}
+
 export interface WorkspaceItem {
   id: string
   type: WorkspaceItemType
@@ -69,6 +77,8 @@ export interface WorkspaceItem {
   imageUrl?: string
   addedBy: string
   createdAt: string // ISO
+  /** files attached after the fact — e.g. adding source docs to a note */
+  attachments?: WorkspaceAttachment[]
 }
 
 /* ---- Channel-specific content shapes ---- */

@@ -8,6 +8,7 @@ import {
   type ChannelVersion,
   type GenerationBrief,
   type SourceMode,
+  type WorkspaceAttachment,
   type WorkspaceItem,
   type WorkspaceItemType,
 } from '../types'
@@ -81,6 +82,8 @@ interface StoreState {
     files: { name: string; sizeLabel?: string; imageUrl?: string }[],
     addedBy?: string,
   ) => void
+  /** attach one or more files onto an existing pile item (e.g. a note) */
+  addAttachments: (itemId: string, files: { name: string; sizeLabel?: string; imageUrl?: string }[]) => void
   removeItem: (id: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
@@ -203,6 +206,23 @@ export const useStore = create<StoreState>()(
           }
         })
         if (newItems.length) set((s) => ({ items: [...newItems, ...s.items] }))
+      },
+
+      addAttachments: (itemId, files) => {
+        if (!files.length) return
+        const newAttachments: WorkspaceAttachment[] = files.map((f) => ({
+          id: uid('att'),
+          name: f.name,
+          sizeLabel: f.sizeLabel,
+          imageUrl: f.imageUrl,
+        }))
+        set((s) => ({
+          items: s.items.map((it) =>
+            it.id === itemId
+              ? { ...it, attachments: [...(it.attachments ?? []), ...newAttachments] }
+              : it,
+          ),
+        }))
       },
 
       removeItem: (id) =>

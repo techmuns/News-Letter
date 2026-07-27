@@ -83,6 +83,14 @@ export function IconNote({ size = 18, className, strokeWidth = 1.6 }: IconProps)
   )
 }
 
+export function IconPaperclip({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M8 12.5 15.5 5a3 3 0 0 1 4.24 4.24l-8.2 8.2a1.7 1.7 0 0 1-2.4-2.4l7.5-7.5" />
+    </svg>
+  )
+}
+
 export function IconPlus({ size = 18, className, strokeWidth = 1.8 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

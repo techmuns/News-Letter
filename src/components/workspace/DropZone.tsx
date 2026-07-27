@@ -1,16 +1,10 @@
 import { useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
+import { readFileList } from '../../lib/files'
 import { useStore } from '../../store/useStore'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
 import { IconPlus, IconUpload, IconUploadCloud, IconClose } from '../icons'
-
-function formatBytes(n: number): string {
-  if (!n) return ''
-  const kb = n / 1024
-  if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`
-  return `${(kb / 1024).toFixed(1)} MB`
-}
 
 /**
  * The upload card at the top of the Workspace: mocked file drop + a quick
@@ -30,25 +24,9 @@ export function DropZone() {
     window.setTimeout(() => setFlash(null), 2200)
   }
 
-  function readImage(file: File): Promise<string | undefined> {
-    if (!file.type.startsWith('image/')) return Promise.resolve(undefined)
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : undefined)
-      reader.onerror = () => resolve(undefined)
-      reader.readAsDataURL(file)
-    })
-  }
-
   async function ingest(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return
-    const files = await Promise.all(
-      Array.from(fileList).map(async (f) => ({
-        name: f.name,
-        sizeLabel: formatBytes(f.size),
-        imageUrl: await readImage(f),
-      })),
-    )
+    const files = await readFileList(fileList)
+    if (!files.length) return
     addFiles(files)
     flashMsg(`Added ${files.length} item${files.length > 1 ? 's' : ''} to the pile`)
   }

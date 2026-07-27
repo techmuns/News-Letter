@@ -1,5 +1,8 @@
+import { useRef } from 'react'
 import { cn } from '../../lib/cn'
 import { relativeTime, formatAbsolute } from '../../lib/date'
+import { readFileList } from '../../lib/files'
+import { useStore } from '../../store/useStore'
 import { type WorkspaceItem, type WorkspaceItemType } from '../../types'
 import { Menu, MenuItem } from '../Menu'
 import {
@@ -8,6 +11,7 @@ import {
   IconNote,
   IconDots,
   IconCheck,
+  IconPaperclip,
 } from '../icons'
 
 interface TypeMeta {
@@ -57,6 +61,14 @@ interface PileRowProps {
 export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
   const meta = TYPE_META[item.type]
   const { Icon } = meta
+  const addAttachments = useStore((s) => s.addAttachments)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachments = item.attachments ?? []
+
+  async function handleFilesPicked(fileList: FileList | null) {
+    const files = await readFileList(fileList)
+    if (files.length) addAttachments(item.id, files)
+  }
 
   return (
     <div
@@ -102,6 +114,23 @@ export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
             {item.preview}
           </p>
         )}
+        {attachments.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <IconPaperclip size={11} className="shrink-0 text-text-dim" />
+            {attachments.slice(0, 3).map((a) => (
+              <span
+                key={a.id}
+                title={a.name}
+                className="max-w-[140px] truncate rounded-md border border-border-soft bg-surface-soft px-1.5 py-0.5 text-[10.5px] text-text-muted"
+              >
+                {a.name}
+              </span>
+            ))}
+            {attachments.length > 3 && (
+              <span className="text-[10.5px] text-text-dim">+{attachments.length - 3} more</span>
+            )}
+          </div>
+        )}
         <p className="mt-1.5 text-[11px] text-text-dim">Added &middot; {relativeTime(item.createdAt)}</p>
       </div>
 
@@ -130,6 +159,18 @@ export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
 
       {/* row menu — stops propagation so it doesn't toggle selection */}
       <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+        {item.type === 'note' && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              handleFilesPicked(e.target.files)
+              e.target.value = ''
+            }}
+          />
+        )}
         <Menu
           align="right"
           trigger={
@@ -140,6 +181,16 @@ export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
         >
           {(close) => (
             <>
+              {item.type === 'note' && (
+                <MenuItem
+                  onClick={() => {
+                    fileInputRef.current?.click()
+                    close()
+                  }}
+                >
+                  Add files…
+                </MenuItem>
+              )}
               <MenuItem
                 onClick={() => {
                   onToggle()
