@@ -74,7 +74,7 @@
   /* body ambient */
   --ambient-1: rgba(227, 90, 119, 0.1);
   --ambient-2: rgba(93, 183, 222, 0.06);
-  --ambient-3: rgba(255, 254, 203, 0.04);
+  --ambient-3: transparent; /* dark theme keeps its original purple/brown look, unchanged */
 
   /* elevation shadows */
   --shadow-card: 0 2px 12px -6px rgba(0, 0, 0, 0.45);
