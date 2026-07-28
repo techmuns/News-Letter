@@ -13,6 +13,7 @@ import { MicroLabel } from '../components/MicroLabel'
 import { Segmented } from '../components/Segmented'
 import { MaterialPanel } from '../components/workspace/MaterialPanel'
 import { MaterialGroupCard } from '../components/workspace/MaterialGroupCard'
+import { OutlineCard } from '../components/workspace/OutlineCard'
 import { SourcePicker } from '../components/workspace/SourcePicker'
 import { DraftEditor } from '../components/workspace/DraftEditor'
 import { ContentSettingsPanel } from '../components/workspace/ContentSettingsPanel'
@@ -21,6 +22,7 @@ import {
   IconChevronDown,
   IconUpload,
   IconSparkle,
+  IconPlus,
 } from '../components/icons'
 
 type Mode = 'manual' | 'auto'
@@ -53,6 +55,9 @@ export function Workspace() {
   const [autoSelected, setAutoSelected] = useState<Set<string>>(
     () => new Set(defaultSelectionWithCustom('linkedin', customSources, hiddenSourceIds)),
   )
+  /** true while deliberately collecting a fresh post, so the newest finished
+      group doesn't pull its write-up back onto the screen */
+  const [startingNew, setStartingNew] = useState(false)
   // when a draft exists, inputs collapse — this reopens them to change sources
   const [inputsOpen, setInputsOpen] = useState(false)
   const [feedback, setFeedback] = useState<{ text: string; ok: boolean } | null>(null)
@@ -62,21 +67,40 @@ export function Workspace() {
   const activeGroup =
     closedGroups.find((g) => g.id === activeGroupId) ?? closedGroups[0] ?? null
   const openGroup = groups.find((g) => g.id === openGroupId) ?? null
+  // Step one is done once the active group has a write-up and nothing is being
+  // collected — that write-up then replaces the collector as the next step.
+  const collecting = !!openGroup || startingNew
+  const outlineGroup = !collecting && activeGroup?.outline ? activeGroup : null
+  const otherGroups = closedGroups.filter((g) => g.id !== outlineGroup?.id)
 
   function flash(text: string, ok: boolean) {
     setFeedback({ text, ok })
     window.setTimeout(() => setFeedback(null), 5000)
   }
 
-  /** Done — close the group so the next material starts a new post. */
+  /** Done — closes the group, which composes its write-up (step one). */
   function handleDone() {
     if (openGroup) setActiveGroupId(openGroup.id)
+    setStartingNew(false)
     finishGroup()
+  }
+
+  /** Puts the empty collector back so a second post can be started. */
+  function startNewGroup() {
+    setActiveGroupId(null)
+    setStartingNew(true)
   }
 
   /** Edit reopens the group, so the panel above fills with its materials again. */
   function handleEditGroup(id: string) {
+    setStartingNew(false)
     reopenGroup(id)
+  }
+
+  /** Picking another post brings its write-up up, so it can't stay "starting new". */
+  function handleSelectGroup(id: string) {
+    setStartingNew(false)
+    setActiveGroupId(id)
   }
 
   function handleDiscardGroup(id: string) {
@@ -132,11 +156,16 @@ export function Workspace() {
   // in the active group goes in together — one group is one post.
   function currentInput() {
     if (mode === 'manual') {
-      const items = activeGroup?.items ?? []
+      const group = outlineGroup ?? activeGroup
+      const items = group?.items ?? []
       return {
         sourceMode: 'manual' as const,
         sourceItemIds: items.map((it) => it.id),
         sourceLabels: items.map((it) => it.title),
+        // the approved write-up is the text the post is built from
+        outline: group?.outline
+          ? { headline: group.outline.headline, body: group.outline.body }
+          : undefined,
       }
     }
     return {
@@ -145,20 +174,22 @@ export function Workspace() {
     }
   }
 
-  const groupCount = activeGroup?.items.length ?? 0
-  const canGenerate = mode === 'manual' ? groupCount > 0 : autoSelected.size > 0
+  const groupCount = (outlineGroup ?? activeGroup)?.items.length ?? 0
+  // In manual mode the write-up is the gate: no step one, nothing to generate.
+  const canGenerate = mode === 'manual' ? !!outlineGroup : autoSelected.size > 0
 
   function handleGenerate() {
     if (!canGenerate) {
       flash(
         mode === 'manual'
-          ? 'Add your material first, then click Done.'
+          ? 'Add your material and click Done — you write up the post first.'
           : 'Select at least one source to generate from.',
         false,
       )
       return
     }
     generateDraft(currentInput())
+    setStartingNew(false)
     setInputsOpen(false)
     setFeedback(null)
   }
@@ -242,25 +273,47 @@ export function Workspace() {
           <div className={cn(draftId && 'mt-4')}>
             {mode === 'manual' ? (
               <>
-                {/* the collection panel itself, front and centre */}
-                <div className="mt-6">
-                  <MaterialPanel group={openGroup ?? activeGroup} onDone={handleDone} />
-                </div>
+                {/* Collecting, or reviewing the write-up the materials produced.
+                    One or the other — never both, so there's a single next step. */}
+                {outlineGroup ? (
+                  <div className="mt-6">
+                    <OutlineCard
+                      group={outlineGroup}
+                      onGenerate={handleGenerate}
+                      onEditMaterials={() => handleEditGroup(outlineGroup.id)}
+                      onDiscard={() => handleDiscardGroup(outlineGroup.id)}
+                    />
+                    <button
+                      type="button"
+                      onClick={startNewGroup}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border-strong py-2.5 text-[12.5px] font-medium text-text-muted transition-colors hover:border-[color:var(--violet-dim)] hover:text-violet focus-violet"
+                    >
+                      <IconPlus size={14} /> Start another post
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-6">
+                    <MaterialPanel
+                      group={openGroup ?? (startingNew ? null : activeGroup)}
+                      onDone={handleDone}
+                    />
+                  </div>
+                )}
 
-                {/* finished groups — one group per post, kept compact */}
-                {closedGroups.length > 0 && (
+                {/* other finished groups — one group per post, kept compact */}
+                {otherGroups.length > 0 && (
                   <section className="mt-6 flex flex-col gap-2.5">
                     <MicroLabel className="text-text-dim">
-                      {closedGroups.length === 1
-                        ? 'Finished material'
-                        : `${closedGroups.length} material groups · pick one to generate from`}
+                      {otherGroups.length === 1
+                        ? 'Another post in progress'
+                        : `${otherGroups.length} other posts · pick one to work on`}
                     </MicroLabel>
-                    {closedGroups.map((g) => (
+                    {otherGroups.map((g) => (
                       <MaterialGroupCard
                         key={g.id}
                         group={g}
-                        selected={activeGroup?.id === g.id}
-                        onSelect={() => setActiveGroupId(g.id)}
+                        selected={false}
+                        onSelect={() => handleSelectGroup(g.id)}
                         onEdit={() => handleEditGroup(g.id)}
                         onDiscard={() => handleDiscardGroup(g.id)}
                       />
@@ -313,10 +366,10 @@ export function Workspace() {
               ? 'Regenerate applies your latest settings & sources to this draft.'
               : canGenerate
                 ? mode === 'manual'
-                  ? `All ${selCount} item${selCount === 1 ? '' : 's'} in this group become one post.`
+                  ? `Builds the post from your write-up + ${selCount} material${selCount === 1 ? '' : 's'}.`
                   : `${selCount} selected — these settings apply to every generation.`
                 : mode === 'manual'
-                  ? 'Add your material, then generate.'
+                  ? 'Add your material and click Done — a write-up comes first.'
                   : 'Select sources, then generate.'
           }
         />

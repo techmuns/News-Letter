@@ -27,6 +27,8 @@ export interface DraftInput {
   sourceMode: SourceMode
   /** human-readable labels of the selected inputs */
   sourceLabels: string[]
+  /** the author's step-one write-up — when present it IS the source text */
+  outline?: { headline: string; body: string }
   /** bump to force a fresh variation (regenerate) */
   seed: number
 }
@@ -70,22 +72,33 @@ const FILLER = [
 function composeBody(input: DraftInput, baseBody: string): string {
   const { brief, sourceMode, sourceLabels, seed } = input
   const paras: string[] = []
+  const authored = !!input.outline
+  const baseParas = baseBody.split('\n\n').filter(Boolean)
 
-  // 1) tone-flavoured hook
-  paras.push(TONE_HOOK[brief.tone])
+  if (authored) {
+    // The author's write-up is kept whole. Padding it with generic filler or
+    // trimming it to hit a length target would throw away the one part of the
+    // draft that came from a person, so length only shapes template copy.
+    paras.push(...baseParas)
+  } else {
+    // 1) tone-flavoured hook
+    paras.push(TONE_HOOK[brief.tone])
 
-  // 2) base paragraphs, count driven by the length target
-  const basParas = baseBody.split('\n\n').filter(Boolean)
-  const want = LENGTH_PARAS[brief.length]
-  for (let i = 0; i < want; i++) {
-    if (i < basParas.length) paras.push(basParas[i])
-    else paras.push(FILLER[(seed + i) % FILLER.length])
+    // 2) base paragraphs, count driven by the length target
+    const want = LENGTH_PARAS[brief.length]
+    for (let i = 0; i < want; i++) {
+      if (i < baseParas.length) paras.push(baseParas[i])
+      else paras.push(FILLER[(seed + i) % FILLER.length])
+    }
   }
 
-  // 3) audience + market-lens framing
-  const audience = labelOf(AUDIENCE_OPTS, brief.audience).toLowerCase()
-  const lens = labelOf(MARKET_OPTS, brief.marketLens)
-  paras.push(`Written for ${audience}${brief.marketLens === 'global' ? '' : `, ${lens} lens`}.`)
+  // 3) audience + market-lens framing — the write-up already carries its own
+  //    framing line, so it isn't restated here
+  if (!authored) {
+    const audience = labelOf(AUDIENCE_OPTS, brief.audience).toLowerCase()
+    const lens = labelOf(MARKET_OPTS, brief.marketLens)
+    paras.push(`Written for ${audience}${brief.marketLens === 'global' ? '' : `, ${lens} lens`}.`)
+  }
 
   // 4) provenance line — where this came from
   if (sourceMode === 'auto' && sourceLabels.length) {
@@ -99,6 +112,8 @@ function composeBody(input: DraftInput, baseBody: string): string {
 
 /** Compose a headline that nods to the content type. */
 function composeTitle(input: DraftInput, baseHeadline: string): string {
+  // An authored headline is used verbatim — it's what they chose to call it.
+  if (input.outline) return baseHeadline
   const type = labelOf(CONTENT_TYPE_OPTS, input.brief.contentType).replace(/ \/.*$/, '')
   // Rotate a light prefix by seed so regeneration visibly changes the title.
   const prefixes = ['', `${type}: `, 'Signal — ', 'What the data says: ']
@@ -113,8 +128,12 @@ function composeTitle(input: DraftInput, baseHeadline: string): string {
  */
 export function composeDraft(input: DraftInput): GeneratedDraft {
   const tpl = GENERATABLE[input.seed % GENERATABLE.length]
-  const title = composeTitle(input, tpl.linkedin.headline)
-  const body = composeBody(input, tpl.linkedin.body)
+  // The author's own write-up outranks the template: they wrote it after
+  // reading their material, so it's the truer starting text.
+  const baseHeadline = input.outline?.headline?.trim() || tpl.linkedin.headline
+  const baseBody = input.outline?.body?.trim() || tpl.linkedin.body
+  const title = composeTitle(input, baseHeadline)
+  const body = composeBody(input, baseBody)
 
   const sourceNote =
     input.sourceMode === 'auto' && input.sourceLabels.length
@@ -129,10 +148,12 @@ export function composeDraft(input: DraftInput): GeneratedDraft {
     linkedin: { ...tpl.linkedin, headline: title, body },
     email: {
       ...tpl.email,
+      subject: input.outline ? baseHeadline : tpl.email.subject,
       preheader: sourceNote ? `${sourceNote} ${tpl.email.preheader}` : tpl.email.preheader,
     },
     article: {
       ...tpl.article,
+      title: input.outline ? baseHeadline : tpl.article.title,
       deck: sourceNote ? `${tpl.article.deck} ${sourceNote}` : tpl.article.deck,
     },
   }

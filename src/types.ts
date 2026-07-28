@@ -84,6 +84,17 @@ export interface WorkspaceItem {
 }
 
 /**
+ * The step-one write-up: a basic draft composed from the group's materials
+ * that the author reads and rewrites before the post is generated.
+ */
+export interface MaterialOutline {
+  headline: string
+  body: string
+  /** true once the author has changed it — protects it from being recomposed */
+  edited: boolean
+}
+
+/**
  * A set of materials gathered for one post. The group is the unit of
  * generation — one group produces one post, and materials never mix across
  * groups.
@@ -93,6 +104,8 @@ export interface MaterialGroup {
   /** the materials collected for this post, newest last (authoring order) */
   items: WorkspaceItem[]
   createdAt: string // ISO
+  /** the editable write-up this group produced when it was finished */
+  outline?: MaterialOutline
   /** set once this group has produced a campaign */
   campaignId?: string
 }

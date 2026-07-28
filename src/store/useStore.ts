@@ -8,6 +8,7 @@ import {
   type ChannelVersion,
   type GenerationBrief,
   type MaterialGroup,
+  type MaterialOutline,
   type SourceMode,
   type WorkspaceAttachment,
   type WorkspaceItem,
@@ -27,6 +28,7 @@ import {
 } from '../data/sources'
 import { DEFAULT_BRIEF } from '../lib/brief'
 import { composeDraft } from '../lib/generate'
+import { composeOutline } from '../lib/outline'
 
 /** Input the Workspace hands to the draft generator. */
 export interface GenerateInput {
@@ -35,6 +37,8 @@ export interface GenerateInput {
   sourceItemIds?: string[]
   /** human-readable labels of the inputs (material titles or monitored sources) */
   sourceLabels?: string[]
+  /** the step-one write-up the author approved, when generating from materials */
+  outline?: { headline: string; body: string }
 }
 
 function uid(prefix: string): string {
@@ -126,8 +130,12 @@ interface StoreState {
   updateGroupItem: (groupId: string, itemId: string, patch: Partial<WorkspaceItem>) => void
   /** Drop a material out of a group. */
   removeGroupItem: (groupId: string, itemId: string) => void
-  /** Close the open group so the next material starts a fresh post. */
+  /** Close the open group and compose its step-one write-up. */
   finishGroup: () => void
+  /** Edit the group's write-up by hand. */
+  updateOutline: (groupId: string, patch: Partial<Pick<MaterialOutline, 'headline' | 'body'>>) => void
+  /** Throw the author's edits away and recompose from the materials. */
+  recomposeOutline: (groupId: string) => void
   /** Reopen a finished group to add or edit its materials. */
   reopenGroup: (groupId: string) => void
   /** Throw a whole group away. */
@@ -349,7 +357,40 @@ export const useStore = create<StoreState>()(
           }
         }),
 
-      finishGroup: () => set({ openGroupId: null }),
+      // Closing a group is step one of generating: the materials are in, so a
+      // basic write-up is composed for the author to correct. An outline they
+      // already edited is left alone — reopening to add a file must not wipe
+      // their words.
+      finishGroup: () =>
+        set((s) => {
+          const brief = s.brief
+          return {
+            openGroupId: null,
+            groups: s.groups.map((g) =>
+              g.id === s.openGroupId && g.items.length > 0 && !g.outline?.edited
+                ? { ...g, outline: { ...composeOutline(g, brief), edited: false } }
+                : g,
+            ),
+          }
+        }),
+
+      updateOutline: (groupId, patch) =>
+        set((s) => ({
+          groups: s.groups.map((g) =>
+            g.id === groupId && g.outline
+              ? { ...g, outline: { ...g.outline, ...patch, edited: true } }
+              : g,
+          ),
+        })),
+
+      recomposeOutline: (groupId) =>
+        set((s) => ({
+          groups: s.groups.map((g) =>
+            g.id === groupId
+              ? { ...g, outline: { ...composeOutline(g, s.brief), edited: false } }
+              : g,
+          ),
+        })),
 
       reopenGroup: (groupId) => set({ openGroupId: groupId }),
 
@@ -399,10 +440,10 @@ export const useStore = create<StoreState>()(
         return id
       },
 
-      generateDraft: ({ sourceMode, sourceItemIds = [], sourceLabels = [] }) => {
+      generateDraft: ({ sourceMode, sourceItemIds = [], sourceLabels = [], outline }) => {
         const seed = get().genIndex
         const brief = get().brief
-        const d = composeDraft({ brief, sourceMode, sourceLabels, seed })
+        const d = composeDraft({ brief, sourceMode, sourceLabels, seed, outline })
         const id = uid('camp')
         const items = get().items
         const heroFromSelection = sourceItemIds
@@ -440,10 +481,10 @@ export const useStore = create<StoreState>()(
         return id
       },
 
-      regenerateDraft: ({ sourceMode, sourceLabels = [] }) => {
+      regenerateDraft: ({ sourceMode, sourceLabels = [], outline }) => {
         const { draftId, genIndex, brief } = get()
         if (!draftId) return
-        const d = composeDraft({ brief, sourceMode, sourceLabels, seed: genIndex })
+        const d = composeDraft({ brief, sourceMode, sourceLabels, seed: genIndex, outline })
         set((s) => ({
           genIndex: s.genIndex + 1,
           campaigns: s.campaigns.map((c) =>
@@ -650,7 +691,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 8,
+      version: 9,
       partialize: (s) => ({
         items: s.items,
         groups: s.groups,
