@@ -162,9 +162,15 @@ export function Workspace() {
         sourceMode: 'manual' as const,
         sourceItemIds: items.map((it) => it.id),
         sourceLabels: items.map((it) => it.title),
-        // the approved write-up is the text the post is built from
+        // the approved write-up is the text the post is built from — its
+        // playbook pattern rides along so each channel keeps the same shape
         outline: group?.outline
-          ? { headline: group.outline.headline, body: group.outline.body }
+          ? {
+              headline: group.outline.headline,
+              body: group.outline.body,
+              pattern: group.outline.pattern,
+              dashboard: group.outline.dashboard,
+            }
           : undefined,
       }
     }

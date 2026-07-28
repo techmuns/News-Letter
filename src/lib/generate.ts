@@ -3,18 +3,31 @@ import {
   type LinkedInContent,
   type EmailContent,
   type ArticleContent,
+  type ArticleSection,
   type SourceMode,
   type Tone,
   type LengthTarget,
 } from '../types'
 import { GENERATABLE } from '../data/mockData'
 import { CONTENT_TYPE_OPTS, labelOf } from './brief'
+import { type PatternId, PATTERNS, composeCta, pickDashboard } from './playbook'
 
 /* ============================================================
-   Mock content generator. No model call — this deterministically
-   composes a draft whose text visibly reflects the brief (tone,
-   length, audience, market lens) and the selected sources, so that
-   changing settings + regenerating produces a visibly different draft.
+   Deterministic content generator. No model call — it composes a
+   draft from the author's step-one write-up plus the playbook
+   (finance_linkedin_creator_strategy_kb.md), so the three channel
+   versions carry the same intelligence in each channel's shape:
+
+   · LinkedIn — §11 skeleton: hook → signal → sourced data →
+     implication → one CTA. Signal above the fold (§10).
+   · Email    — §8: one idea · one story · one takeaway · one CTA.
+   · Article  — §11 long-form: consensus view → the data that
+     complicates it → the mechanism → what it means → how to
+     monitor it.
+
+   Where the author hasn't supplied a figure, the write-up's
+   bracketed gaps are carried through untouched. §6 is explicit:
+   never fabricate figures.
    ============================================================ */
 
 export interface DraftInput {
@@ -23,7 +36,7 @@ export interface DraftInput {
   /** human-readable labels of the selected inputs */
   sourceLabels: string[]
   /** the author's step-one write-up — when present it IS the source text */
-  outline?: { headline: string; body: string }
+  outline?: { headline: string; body: string; pattern?: string; dashboard?: string }
   /** bump to force a fresh variation (regenerate) */
   seed: number
 }
@@ -63,6 +76,12 @@ const FILLER = [
   'The tell is in what management chose not to restate.',
 ]
 
+/** The playbook pattern this draft is shaped on (falls back to the strongest). */
+function patternOf(input: DraftInput) {
+  const id = input.outline?.pattern as PatternId | undefined
+  return (id && PATTERNS[id]) || PATTERNS.divergence
+}
+
 /** Compose a LinkedIn post body that reflects the brief + sources. */
 function composeBody(input: DraftInput, baseBody: string): string {
   const { brief, sourceMode, sourceLabels, seed } = input
@@ -85,12 +104,17 @@ function composeBody(input: DraftInput, baseBody: string): string {
       if (i < baseParas.length) paras.push(baseParas[i])
       else paras.push(FILLER[(seed + i) % FILLER.length])
     }
+
+    // 3) §3 value flow — the pointer closes the post, once, and only when the
+    // insight ratio leaves room for it.
+    const cta = composeCta(paras.join('\n'), brief)
+    if (cta && !paras.some((p) => p.includes(cta))) paras.push(cta)
   }
 
   // The brief shapes the copy; it is never restated inside it. "Written for
   // buy-side analysts, analytical in tone" is a settings readout, not a post.
 
-  // 3) provenance line — where this came from
+  // 4) provenance line — where this came from
   if (sourceMode === 'auto' && sourceLabels.length) {
     const shown = sourceLabels.slice(0, 3).join(', ')
     const more = sourceLabels.length > 3 ? ` +${sourceLabels.length - 3} more` : ''
@@ -111,10 +135,87 @@ function composeTitle(input: DraftInput, baseHeadline: string): string {
 }
 
 /**
+ * §8 — the newsletter, from the same material: one idea, one story, one
+ * takeaway, one CTA. The write-up's paragraphs map onto those four slots in
+ * order, because that is the order the pattern skeleton already put them in.
+ */
+function composeEmail(input: DraftInput, tplEmail: EmailContent, headline: string, body: string): EmailContent {
+  if (!input.outline) return tplEmail
+  const paras = body.split('\n\n').filter(Boolean)
+  const dash = input.outline.dashboard ?? pickDashboard(body, input.brief).name
+  const cta = composeCta(body, input.brief)
+  // The CTA is already the last paragraph of the post — it isn't body copy here.
+  const content = cta ? paras.filter((p) => p !== cta) : paras
+  const [idea, ...rest] = content
+  // The takeaway is the pattern's closing step, so it's the last paragraph —
+  // but only when there is more than one left, or the story would be empty.
+  const takeaway = rest.length > 1 ? rest[rest.length - 1] : ''
+  const story = (takeaway ? rest.slice(0, -1) : rest).join('\n\n')
+
+  return {
+    ...tplEmail,
+    subject: headline,
+    // §8's preheader is the idea in one line — the hook already is one.
+    preheader: idea ? idea.replace(/\s+/g, ' ').slice(0, 120) : tplEmail.preheader,
+    idea: idea ?? tplEmail.idea,
+    story: story || tplEmail.story,
+    takeaway: takeaway || '[What the reader should watch or do next — one concrete line.]',
+    ctaLabel: cta ? `Open ${dash}` : tplEmail.ctaLabel,
+  }
+}
+
+/**
+ * §11 — the long-form article: the commonly-held view, the data that
+ * complicates it, the mechanism, what it means, how to monitor it. Each of the
+ * pattern's steps becomes a section, keeping the write-up's own paragraphs as
+ * the body under the heading the playbook gives them.
+ */
+function composeArticle(input: DraftInput, tplArticle: ArticleContent, headline: string, body: string): ArticleContent {
+  if (!input.outline) return tplArticle
+  const pattern = patternOf(input)
+  const dash = input.outline.dashboard ?? pickDashboard(body, input.brief).name
+  const cta = composeCta(body, input.brief)
+  const paras = body.split('\n\n').filter(Boolean)
+  const content = cta ? paras.filter((p) => p !== cta) : paras
+
+  // First paragraph is the hook — it becomes the standfirst, not a section.
+  const [lead, ...restParas] = content
+  const sections: ArticleSection[] = []
+
+  // Each paragraph gets the heading of the step it came from. A gap paragraph
+  // names its own step (the bracket text is unique to it); everything else is
+  // the author's material, which belongs under the step that consumes it.
+  // Slicing paragraphs evenly across the steps instead would file the evidence
+  // under whichever heading the arithmetic landed on.
+  const materialHead =
+    pattern.steps.find((s) => s.fillsFromMaterial)?.heading ?? pattern.steps[0].heading
+  for (const para of restParas) {
+    const step = pattern.steps.find((s) => s.gap && s.gap === para.trim())
+    const heading = step?.heading ?? materialHead
+    const last = sections[sections.length - 1]
+    if (last && last.heading === heading) last.body = `${last.body}\n\n${para}`
+    else sections.push({ heading, body: para })
+  }
+  if (!sections.length && lead) sections.push({ body: lead })
+  // §11 closes on how to monitor it — that is what the dashboard is for.
+  if (cta) sections.push({ heading: 'How to monitor it', body: cta })
+
+  return {
+    ...tplArticle,
+    title: headline,
+    deck: lead ?? tplArticle.deck,
+    sections,
+    ctaTitle: `Follow this in ${dash}`,
+    ctaBody: cta ?? tplArticle.ctaBody,
+    ctaLabel: `Open ${dash}`,
+  }
+}
+
+/**
  * Produce a full multi-channel draft. LinkedIn is fully composed from the
- * brief (the primary editable draft); Email and Article keep their richer
- * template structure but pick up the composed title + a source note so the
- * three channel previews stay coherent.
+ * brief (the primary editable draft); Email and Article are recomposed from
+ * the same write-up into their own playbook structure, so the three channel
+ * previews carry one argument in three shapes.
  */
 export function composeDraft(input: DraftInput): GeneratedDraft {
   const tpl = GENERATABLE[input.seed % GENERATABLE.length]
@@ -130,21 +231,26 @@ export function composeDraft(input: DraftInput): GeneratedDraft {
       ? `Generated from ${input.sourceLabels.length} monitored source${input.sourceLabels.length > 1 ? 's' : ''}.`
       : undefined
 
+  const email = composeEmail(input, tpl.email, baseHeadline, body)
+  const article = composeArticle(input, tpl.article, baseHeadline, body)
+  // The promoted product follows the subject too, so it can't contradict the CTA.
+  const dash = input.outline ? pickDashboard(body, input.brief) : null
+
   return {
-    name: tpl.name,
-    topic: tpl.topic,
+    name: input.outline ? baseHeadline : tpl.name,
+    // The topic is the subject area the material sits in, not the pattern name —
+    // "Insurance / Sector" is what a campaign list needs to read.
+    topic: dash ? dash.topic : tpl.topic,
     heroImage: tpl.heroImage,
-    promoId: tpl.promoId,
+    promoId: dash ? dash.promoId : tpl.promoId,
     linkedin: { ...tpl.linkedin, headline: title, body },
     email: {
-      ...tpl.email,
-      subject: input.outline ? baseHeadline : tpl.email.subject,
-      preheader: sourceNote ? `${sourceNote} ${tpl.email.preheader}` : tpl.email.preheader,
+      ...email,
+      preheader: sourceNote ? `${sourceNote} ${email.preheader}` : email.preheader,
     },
     article: {
-      ...tpl.article,
-      title: input.outline ? baseHeadline : tpl.article.title,
-      deck: sourceNote ? `${tpl.article.deck} ${sourceNote}` : tpl.article.deck,
+      ...article,
+      deck: sourceNote ? `${article.deck} ${sourceNote}` : article.deck,
     },
   }
 }

@@ -28,7 +28,18 @@ import {
 } from '../data/sources'
 import { DEFAULT_BRIEF } from '../lib/brief'
 import { composeDraft } from '../lib/generate'
-import { composeOutline } from '../lib/outline'
+import { type ComposedOutline, composeOutline } from '../lib/outline'
+
+/** A freshly composed write-up as it's stored: unedited, provenance kept. */
+function asOutline(c: ComposedOutline): MaterialOutline {
+  return {
+    headline: c.headline,
+    body: c.body,
+    edited: false,
+    pattern: c.pattern,
+    ...(c.dashboard ? { dashboard: c.dashboard } : {}),
+  }
+}
 
 /** Input the Workspace hands to the draft generator. */
 export interface GenerateInput {
@@ -38,7 +49,7 @@ export interface GenerateInput {
   /** human-readable labels of the inputs (material titles or monitored sources) */
   sourceLabels?: string[]
   /** the step-one write-up the author approved, when generating from materials */
-  outline?: { headline: string; body: string }
+  outline?: { headline: string; body: string; pattern?: string; dashboard?: string }
 }
 
 function uid(prefix: string): string {
@@ -368,7 +379,7 @@ export const useStore = create<StoreState>()(
             openGroupId: null,
             groups: s.groups.map((g) =>
               g.id === s.openGroupId && g.items.length > 0 && !g.outline?.edited
-                ? { ...g, outline: { ...composeOutline(g, brief), edited: false } }
+                ? { ...g, outline: asOutline(composeOutline(g, brief)) }
                 : g,
             ),
           }
@@ -386,9 +397,7 @@ export const useStore = create<StoreState>()(
       recomposeOutline: (groupId) =>
         set((s) => ({
           groups: s.groups.map((g) =>
-            g.id === groupId
-              ? { ...g, outline: { ...composeOutline(g, s.brief), edited: false } }
-              : g,
+            g.id === groupId ? { ...g, outline: asOutline(composeOutline(g, s.brief)) } : g,
           ),
         })),
 

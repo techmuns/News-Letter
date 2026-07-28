@@ -92,6 +92,10 @@ export interface MaterialOutline {
   body: string
   /** true once the author has changed it — protects it from being recomposed */
   edited: boolean
+  /** the playbook content pattern (§5) this write-up is shaped on */
+  pattern?: string
+  /** the Munshot dashboard (§6) its CTA points at — undefined at 100/0 */
+  dashboard?: string
 }
 
 /**
