@@ -47,14 +47,14 @@ const TYPE_META: Record<WorkspaceItemType, TypeMeta> = {
   },
 }
 
-interface PileRowProps {
+interface MaterialRowProps {
   item: WorkspaceItem
   selected: boolean
   onToggle: () => void
   onRemove: () => void
 }
 
-export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
+export function MaterialRow({ item, selected, onToggle, onRemove }: MaterialRowProps) {
   const meta = TYPE_META[item.type]
   const { Icon } = meta
 
@@ -154,7 +154,7 @@ export function PileRow({ item, selected, onToggle, onRemove }: PileRowProps) {
                   close()
                 }}
               >
-                Remove from pile
+                Remove material
               </MenuItem>
             </>
           )}

@@ -13,8 +13,9 @@ function formatBytes(n: number): string {
 }
 
 /**
- * The upload card at the top of the Workspace: mocked file drop + a quick
- * text-note input. No tagging, no structure required (§3.1).
+ * The upload card at the top of the Workspace: mocked multi-file drop + a
+ * quick text-note input. Everything lands in Materials — no tagging, no
+ * structure required (§3.1).
  */
 export function DropZone() {
   const addFiles = useStore((s) => s.addFiles)
@@ -50,7 +51,7 @@ export function DropZone() {
       })),
     )
     addFiles(files)
-    flashMsg(`Added ${files.length} item${files.length > 1 ? 's' : ''} to the pile`)
+    flashMsg(`Added ${files.length} material${files.length > 1 ? 's' : ''}`)
   }
 
   function submitNote() {
@@ -59,7 +60,7 @@ export function DropZone() {
     addNote(text)
     setNote('')
     setNoteOpen(false)
-    flashMsg('Note dropped into the pile')
+    flashMsg('Note added to materials')
   }
 
   return (
@@ -80,7 +81,7 @@ export function DropZone() {
       <div className="flex items-center gap-2.5 px-1 pb-3.5">
         <IconUpload size={14} className="text-violet-dim" />
         <MicroLabel className="text-text-muted">
-          Drop PDFs, screenshots or notes — we&rsquo;ll handle the rest
+          Upload everything at once — PDFs, screenshots and notes
         </MicroLabel>
       </div>
 
@@ -97,8 +98,12 @@ export function DropZone() {
         )}
       >
         <IconUploadCloud size={30} className="text-violet" strokeWidth={1.5} />
-        <span className="mt-1 text-[14px] font-medium text-text-2">Drag &amp; drop files here</span>
-        <span className="text-[12.5px] text-text-muted">or click to browse</span>
+        <span className="mt-1 text-[14px] font-medium text-text-2">
+          Drag &amp; drop your files here
+        </span>
+        <span className="text-[12.5px] text-text-muted">
+          or click to browse — select as many as you like
+        </span>
       </button>
 
       {/* actions */}
@@ -143,7 +148,7 @@ export function DropZone() {
               Cancel
             </Button>
             <Button variant="subtle" size="sm" onClick={submitNote} disabled={!note.trim()}>
-              <IconPlus size={14} /> Add to pile
+              <IconPlus size={14} /> Add material
             </Button>
           </div>
         </div>
@@ -163,7 +168,9 @@ export function DropZone() {
       {/* drag overlay hint */}
       {dragging && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-panel bg-purple-soft">
-          <MicroLabel className="micro-violet text-[12px]">Release to add to the pile</MicroLabel>
+          <MicroLabel className="micro-violet text-[12px]">
+            Release to add your materials
+          </MicroLabel>
         </div>
       )}
 

@@ -74,7 +74,7 @@ export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: D
             <IconUpload size={13} className="text-violet" />
           )}
           <MicroLabel className="text-text-dim">
-            {auto ? 'Automatic generator' : 'Manual upload'} · sources
+            {auto ? 'Automatic generator' : 'My materials'} · sources
           </MicroLabel>
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">

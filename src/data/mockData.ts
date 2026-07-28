@@ -68,7 +68,7 @@ export const IMG_INSURANCE = chartImg('#2f7d5b', '#47d6a1')
 export const IMG_FRAMEWORK = chartImg('#7d5bb8', '#c9a3f5')
 
 /* ============================================================
-   Workspace pile — raw ingredients the team dropped in.
+   Workspace materials — raw ingredients the team uploaded.
    ============================================================ */
 export const SEED_ITEMS: WorkspaceItem[] = [
   {

@@ -14,7 +14,7 @@ import { MicroLabel } from '../components/MicroLabel'
 import { Segmented } from '../components/Segmented'
 import { Menu, MenuItem } from '../components/Menu'
 import { DropZone } from '../components/workspace/DropZone'
-import { PileRow } from '../components/workspace/PileRow'
+import { MaterialRow } from '../components/workspace/MaterialRow'
 import { SourcePicker } from '../components/workspace/SourcePicker'
 import { DraftEditor } from '../components/workspace/DraftEditor'
 import { ContentSettingsPanel } from '../components/workspace/ContentSettingsPanel'
@@ -57,7 +57,7 @@ export function Workspace() {
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('manual')
-  // manual pile selection
+  // manual material selection
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<SortMode>('recent')
   const [filter, setFilter] = useState<FilterMode>('all')
@@ -85,6 +85,7 @@ export function Workspace() {
 
   const visible = showAll ? filtered : filtered.slice(0, PAGE)
   const hasMore = filtered.length > PAGE
+  const allVisibleSelected = filtered.length > 0 && filtered.every((it) => selected.has(it.id))
 
   function flash(text: string, ok: boolean) {
     setFeedback({ text, ok })
@@ -95,6 +96,15 @@ export function Workspace() {
     setSelected((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  /** Select (or clear) every material currently passing the filter. */
+  function selectAllVisible(select: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      filtered.forEach((it) => (select ? next.add(it.id) : next.delete(it.id)))
       return next
     })
   }
@@ -172,7 +182,7 @@ export function Workspace() {
     if (!canGenerate) {
       flash(
         mode === 'manual'
-          ? 'Select one or more items from the pile first.'
+          ? 'Select one or more of your materials first.'
           : 'Select at least one source to generate from.',
         false,
       )
@@ -212,7 +222,7 @@ export function Workspace() {
           Workspace
         </h1>
         <p className="mt-3 max-w-[33rem] text-[15px] leading-relaxed text-text-2">
-          Start from your own material or from continuously monitored sources — then generate,
+          Start from your own materials or from continuously monitored sources — then generate,
           refine and preview content without leaving this page.
         </p>
 
@@ -222,7 +232,7 @@ export function Workspace() {
             value={mode}
             onChange={(m) => setMode(m)}
             options={[
-              { value: 'manual', label: 'Upload / Manual' },
+              { value: 'manual', label: 'My materials' },
               { value: 'auto', label: 'Automatic Generator' },
             ]}
           />
@@ -244,7 +254,7 @@ export function Workspace() {
               <span className="text-[13px] text-text-2">
                 {mode === 'auto'
                   ? `${autoCount} source${autoCount === 1 ? '' : 's'} · ${mixById(mix).label}`
-                  : `${selected.size} item${selected.size === 1 ? '' : 's'} selected`}
+                  : `${selected.size} material${selected.size === 1 ? '' : 's'} selected`}
               </span>
             </span>
             <span className="flex items-center gap-1.5 text-[12px] font-medium text-violet">
@@ -268,8 +278,24 @@ export function Workspace() {
 
                 <section className="mt-8">
                   <div className="flex items-center justify-between gap-3">
-                    <MicroLabel>The pile</MicroLabel>
+                    <span className="flex items-center gap-2">
+                      <MicroLabel>Your materials</MicroLabel>
+                      {selected.size > 0 && (
+                        <span className="rounded-full bg-purple-soft px-1.5 py-0.5 text-[10px] font-medium text-violet">
+                          {selected.size}
+                        </span>
+                      )}
+                    </span>
                     <div className="flex items-center gap-2">
+                      {filtered.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => selectAllVisible(!allVisibleSelected)}
+                          className="text-[11.5px] font-medium text-violet transition-opacity hover:opacity-80 focus-violet"
+                        >
+                          {allVisibleSelected ? 'Clear' : 'Select all'}
+                        </button>
+                      )}
                       <Menu
                         align="right"
                         trigger={
@@ -336,21 +362,21 @@ export function Workspace() {
                     {items.length === 0 ? (
                       <div className="px-6 py-14 text-center">
                         <p className="mx-auto max-w-[38ch] text-[13px] leading-relaxed text-text-muted">
-                          Nothing here yet. Drop a PDF, a screenshot or a thought above to start the
-                          pile.
+                          Nothing here yet. Upload your PDFs, screenshots and notes above — all
+                          together is fine.
                         </p>
                       </div>
                     ) : filtered.length === 0 ? (
                       <div className="px-6 py-12 text-center">
                         <p className="text-[13px] text-text-muted">
-                          No {FILTER_LABEL[filter].toLowerCase()} in the pile yet.
+                          No {FILTER_LABEL[filter].toLowerCase()} in your materials yet.
                         </p>
                       </div>
                     ) : (
                       <>
                         <div className="divide-y divide-border-soft">
                           {visible.map((item) => (
-                            <PileRow
+                            <MaterialRow
                               key={item.id}
                               item={item}
                               selected={selected.has(item.id)}
@@ -420,7 +446,7 @@ export function Workspace() {
               : canGenerate
                 ? `${selCount} selected — these settings apply to every generation.`
                 : mode === 'manual'
-                  ? 'Select items from the pile, then generate.'
+                  ? 'Select your materials, then generate.'
                   : 'Select sources, then generate.'
           }
         />

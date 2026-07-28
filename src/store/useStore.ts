@@ -29,9 +29,9 @@ import { composeDraft } from '../lib/generate'
 /** Input the Workspace hands to the draft generator. */
 export interface GenerateInput {
   sourceMode: SourceMode
-  /** pile item ids (manual) — used to carry a hero image through */
+  /** material ids (manual) — used to carry a hero image through */
   sourceItemIds?: string[]
-  /** human-readable labels of the inputs (pile titles or monitored sources) */
+  /** human-readable labels of the inputs (material titles or monitored sources) */
   sourceLabels?: string[]
 }
 
@@ -54,7 +54,7 @@ interface StoreState {
   campaigns: Campaign[]
   /** rotates through generatable templates for the mocked action */
   genIndex: number
-  /** the last campaign generated from the pile (for surfacing/scroll) */
+  /** the last campaign generated from your materials (for surfacing/scroll) */
   lastGeneratedId: string | null
   /** the campaign currently being composed & edited in the Workspace */
   draftId: string | null
