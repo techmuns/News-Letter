@@ -66,30 +66,28 @@ src/
 
 ---
 
-## Deployment — configure once, automated forever
+## Deployment — already automated
 
-Every push to **`main`** builds and deploys to **Cloudflare Pages** via
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Build command is
-`npm run build`; output directory is `dist/`.
+Every push to **`main`** builds and deploys to **Cloudflare Pages** automatically.
+Cloudflare watches this repo directly through its Git integration — there is no
+GitHub Action and no API token to manage.
 
-### One-time setup (≈ 3 minutes, then hands-off)
+Live: **https://news-letter-7jx.pages.dev**
 
-1. **Create the Cloudflare Pages project** (once):
-   - Cloudflare dashboard → **Workers & Pages → Create → Pages → Create using direct upload**.
-   - Name it exactly **`munshot-content-system`** (must match `--project-name` in the workflow).
-   - You can skip uploading anything now — the GitHub Action will push the first real build.
-2. **Create a Cloudflare API token**: dashboard → **My Profile → API Tokens → Create Token**
-   → use the **"Edit Cloudflare Workers"** template (it includes Pages), scoped to your account.
-3. **Add two GitHub repository secrets** (repo → **Settings → Secrets and variables → Actions**):
-   - `CLOUDFLARE_API_TOKEN` — the token from step 2
-   - `CLOUDFLARE_ACCOUNT_ID` — from the Cloudflare dashboard URL or the Pages project overview
+The settings live in the Cloudflare dashboard (**Workers & Pages →
+`news-letter-7jx` → Settings → Build**) and are already configured:
 
-That's it. From then on, every push to `main` deploys automatically — no manual steps.
+| Setting               | Value                |
+| --------------------- | -------------------- |
+| Git repository        | `techmuns/News-Letter` |
+| Production branch     | `main`               |
+| Automatic deployments | Enabled              |
+| Build command         | `npm run build`      |
+| Build output          | `dist`               |
 
-> **Simpler alternative (no secrets):** instead of the GitHub Action, connect the repo
-> directly in Cloudflare Pages (**Create → Pages → Connect to Git**), set build command
-> `npm run build` and output directory `dist`. Then delete `.github/workflows/deploy.yml`.
-> Both approaches are "configure once."
+Pushing to `main` is the whole workflow. Other branches get their own preview
+URLs. Build status and per-commit logs are under the project's **Deployments**
+tab — that's the place to look if a deploy doesn't land, not GitHub Actions.
 
 Client-side routes are handled by [`public/_redirects`](public/_redirects)
 (`/* /index.html 200`).
