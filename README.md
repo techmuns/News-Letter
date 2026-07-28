@@ -56,7 +56,7 @@ npm run preview  # preview the production build
 ```
 src/
   components/          reusable primitives (Card, StatusDot, ChannelChips, Menu…)
-    workspace/         Workspace pieces (DropZone, PileItemCard, CampaignsRail)
+    workspace/         Workspace pieces (DropZone, MaterialRow, SourcePicker)
     preview/           channel renderers (LinkedInPost, EmailPreview, ArticlePreview)
   spaces/              the four routed spaces
   store/useStore.ts    shared Zustand store + mocked actions

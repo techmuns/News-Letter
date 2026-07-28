@@ -1,16 +1,10 @@
 import { useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
+import { readFileList, type ReadFile } from '../../lib/files'
 import { useStore } from '../../store/useStore'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
-import { IconPlus, IconUpload, IconUploadCloud, IconClose } from '../icons'
-
-function formatBytes(n: number): string {
-  if (!n) return ''
-  const kb = n / 1024
-  if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`
-  return `${(kb / 1024).toFixed(1)} MB`
-}
+import { IconPlus, IconUpload, IconUploadCloud, IconClose, IconPaperclip } from '../icons'
 
 /**
  * The upload card at the top of the Workspace: mocked multi-file drop + a
@@ -23,44 +17,51 @@ export function DropZone() {
   const [dragging, setDragging] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
+  const [noteFiles, setNoteFiles] = useState<ReadFile[]>([])
   const [flash, setFlash] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const noteFileInputRef = useRef<HTMLInputElement>(null)
 
   function flashMsg(msg: string) {
     setFlash(msg)
     window.setTimeout(() => setFlash(null), 2200)
   }
 
-  function readImage(file: File): Promise<string | undefined> {
-    if (!file.type.startsWith('image/')) return Promise.resolve(undefined)
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : undefined)
-      reader.onerror = () => resolve(undefined)
-      reader.readAsDataURL(file)
-    })
-  }
-
   async function ingest(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return
-    const files = await Promise.all(
-      Array.from(fileList).map(async (f) => ({
-        name: f.name,
-        sizeLabel: formatBytes(f.size),
-        imageUrl: await readImage(f),
-      })),
-    )
+    const files = await readFileList(fileList)
+    if (!files.length) return
     addFiles(files)
     flashMsg(`Added ${files.length} material${files.length > 1 ? 's' : ''}`)
+  }
+
+  async function attachToNote(fileList: FileList | null) {
+    const files = await readFileList(fileList)
+    if (files.length) setNoteFiles((prev) => [...prev, ...files])
+  }
+
+  function removeNoteFile(index: number) {
+    setNoteFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function closeNoteComposer() {
+    setNoteOpen(false)
+    setNote('')
+    setNoteFiles([])
   }
 
   function submitNote() {
     const text = note.trim()
     if (!text) return
-    addNote(text)
+    const fileCount = noteFiles.length
+    addNote(text, { attachments: noteFiles })
     setNote('')
+    setNoteFiles([])
     setNoteOpen(false)
-    flashMsg('Note added to materials')
+    flashMsg(
+      fileCount
+        ? `Note + ${fileCount} file${fileCount > 1 ? 's' : ''} added to materials`
+        : 'Note added to materials',
+    )
   }
 
   return (
@@ -133,7 +134,7 @@ export function DropZone() {
                 e.preventDefault()
                 submitNote()
               }
-              if (e.key === 'Escape') setNoteOpen(false)
+              if (e.key === 'Escape') closeNoteComposer()
             }}
             rows={3}
             placeholder="Paste a thought, a link, or a stray observation…"
@@ -143,14 +144,56 @@ export function DropZone() {
               'focus-violet transition-all duration-[350ms] ease-premium',
             )}
           />
-          <div className="mt-2.5 flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setNoteOpen(false)}>
-              Cancel
+
+          {/* files attached to this note, staged alongside the text */}
+          {noteFiles.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {noteFiles.map((f, i) => (
+                <span
+                  key={`${f.name}-${i}`}
+                  className="flex max-w-[220px] items-center gap-1.5 rounded-md border border-border bg-bg py-1 pl-2 pr-1 text-[12px] text-text-2"
+                >
+                  <IconPaperclip size={11} className="shrink-0 text-text-dim" />
+                  <span className="truncate" title={f.name}>
+                    {f.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeNoteFile(i)}
+                    aria-label={`Remove ${f.name}`}
+                    className="grid h-4 w-4 shrink-0 place-items-center rounded-full text-text-dim hover:text-text"
+                  >
+                    <IconClose size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-2.5 flex items-center justify-between gap-2">
+            <Button variant="ghost" size="sm" onClick={() => noteFileInputRef.current?.click()}>
+              <IconPaperclip size={13} /> Attach files
             </Button>
-            <Button variant="subtle" size="sm" onClick={submitNote} disabled={!note.trim()}>
-              <IconPlus size={14} /> Add material
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={closeNoteComposer}>
+                Cancel
+              </Button>
+              <Button variant="subtle" size="sm" onClick={submitNote} disabled={!note.trim()}>
+                <IconPlus size={14} /> Add material
+              </Button>
+            </div>
           </div>
+
+          <input
+            ref={noteFileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              attachToNote(e.target.files)
+              e.target.value = ''
+            }}
+          />
         </div>
       )}
 

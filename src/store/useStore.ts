@@ -8,6 +8,7 @@ import {
   type ChannelVersion,
   type GenerationBrief,
   type SourceMode,
+  type WorkspaceAttachment,
   type WorkspaceItem,
   type WorkspaceItemType,
 } from '../types'
@@ -76,11 +77,16 @@ interface StoreState {
   // --- Workspace actions ---
   /** patch one or more fields of the persisted content-settings brief */
   updateBrief: (patch: Partial<GenerationBrief>) => void
-  addNote: (text: string, addedBy?: string) => void
+  addNote: (
+    text: string,
+    opts?: { addedBy?: string; attachments?: { name: string; sizeLabel?: string; imageUrl?: string }[] },
+  ) => void
   addFiles: (
     files: { name: string; sizeLabel?: string; imageUrl?: string }[],
     addedBy?: string,
   ) => void
+  /** attach one or more files onto an existing material (e.g. a note) */
+  addAttachments: (itemId: string, files: { name: string; sizeLabel?: string; imageUrl?: string }[]) => void
   removeItem: (id: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
@@ -168,17 +174,24 @@ export const useStore = create<StoreState>()(
 
       updateBrief: (patch) => set((s) => ({ brief: { ...s.brief, ...patch } })),
 
-      addNote: (text, addedBy = 'You') => {
+      addNote: (text, opts = {}) => {
         const trimmed = text.trim()
         if (!trimmed) return
         const firstLine = trimmed.split('\n')[0]
+        const attachments: WorkspaceAttachment[] = (opts.attachments ?? []).map((f) => ({
+          id: uid('att'),
+          name: f.name,
+          sizeLabel: f.sizeLabel,
+          imageUrl: f.imageUrl,
+        }))
         const item: WorkspaceItem = {
           id: uid('item'),
           type: 'note',
           title: firstLine.length > 60 ? `${firstLine.slice(0, 57)}…` : firstLine,
           preview: trimmed,
-          addedBy,
+          addedBy: opts.addedBy ?? 'You',
           createdAt: new Date().toISOString(),
+          ...(attachments.length ? { attachments } : {}),
         }
         set((s) => ({ items: [item, ...s.items] }))
       },
@@ -203,6 +216,23 @@ export const useStore = create<StoreState>()(
           }
         })
         if (newItems.length) set((s) => ({ items: [...newItems, ...s.items] }))
+      },
+
+      addAttachments: (itemId, files) => {
+        if (!files.length) return
+        const newAttachments: WorkspaceAttachment[] = files.map((f) => ({
+          id: uid('att'),
+          name: f.name,
+          sizeLabel: f.sizeLabel,
+          imageUrl: f.imageUrl,
+        }))
+        set((s) => ({
+          items: s.items.map((it) =>
+            it.id === itemId
+              ? { ...it, attachments: [...(it.attachments ?? []), ...newAttachments] }
+              : it,
+          ),
+        }))
       },
 
       removeItem: (id) =>
