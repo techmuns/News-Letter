@@ -151,6 +151,23 @@ export function IconCheck({ size = 18, className, strokeWidth = 2 }: IconProps) 
   )
 }
 
+export function IconAlert({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5M12 16.2v.6" />
+    </svg>
+  )
+}
+
+export function IconQuote({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M9 7H6a2 2 0 0 0-2 2v3h4a1 1 0 0 1 1 1v1a3 3 0 0 1-3 3M20 7h-3a2 2 0 0 0-2 2v3h4a1 1 0 0 1 1 1v1a3 3 0 0 1-3 3" />
+    </svg>
+  )
+}
+
 export function IconChevronRight({ size = 18, className, strokeWidth = 1.8 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

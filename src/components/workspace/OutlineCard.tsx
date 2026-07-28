@@ -2,7 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
 import { type MaterialGroup, type WorkspaceItemType } from '../../types'
-import { PATTERNS, type PatternId, GAP_RE, scorePiece } from '../../lib/playbook'
+import { PATTERNS, type PatternId, DASHBOARDS, GAP_RE, scorePiece } from '../../lib/playbook'
+import { quoteLineOf, sourceDigest } from '../../lib/outline'
+import { type Excerpt } from '../../lib/readSource'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
 import { StatusDot } from '../StatusDot'
@@ -18,7 +20,11 @@ import {
   IconArrowRight,
   IconClose,
   IconChevronDown,
+  IconQuote,
 } from '../icons'
+
+/** The §6 dashboard names, used to find the CTA paragraph a quote goes above. */
+const DASHBOARD_NAMES = DASHBOARDS.map((d) => d.name)
 
 const TYPE_ICON: Record<WorkspaceItemType, { Icon: typeof IconPdf; icon: string }> = {
   pdf: { Icon: IconPdf, icon: 'text-red' },
@@ -83,7 +89,12 @@ export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: O
   const brief = useStore((s) => s.brief)
   const [editing, setEditing] = useState(false)
   const [showScore, setShowScore] = useState(false)
+  const [showSources, setShowSources] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
+
+  // What was actually read out of the material — recomputed when the materials
+  // change, which includes a link's text arriving after its fetch settles.
+  const sources = useMemo(() => sourceDigest(group.items), [group.items])
 
   // §9 of the playbook — the pre-publish rubric, run live on the write-up so
   // the author sees what would be rejected before the post is generated.
@@ -98,6 +109,24 @@ export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: O
   if (!outline || !score) return null
 
   const { items } = group
+  const readWords = sources.reduce((n, s) => n + s.words, 0)
+  const anyReading = sources.some((s) => s.reading)
+  // Lines we found and didn't use — offered rather than discarded, since the
+  // author knows which figure carries their argument better than the ranking does.
+  const unusedQuotes = sources.flatMap((s) =>
+    s.quotes.filter((q) => !outline.body.includes(q.text)),
+  )
+
+  /** Drops a sourced line into the write-up, before the closing CTA. */
+  function appendQuote(quote: Excerpt) {
+    const line = quoteLineOf(quote)
+    const paras = outline!.body.split('\n\n')
+    // The CTA closes the post (§3), so an added quote goes above it.
+    const ctaAt = paras.findIndex((p) => DASHBOARD_NAMES.some((n) => p.includes(n)))
+    const at = ctaAt >= 0 ? ctaAt : paras.length
+    paras.splice(at, 0, line)
+    updateOutline(group.id, { body: paras.join('\n\n') })
+  }
   const pattern = outline.pattern ? PATTERNS[outline.pattern as PatternId] : undefined
   const counts = items.reduce<Partial<Record<WorkspaceItemType, number>>>((acc, it) => {
     acc[it.type] = (acc[it.type] ?? 0) + 1
@@ -215,6 +244,100 @@ export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: O
         )}
       </div>
 
+      {/* what we read — the document's own lines, and the ones not used yet */}
+      {sources.length > 0 && (
+        <div className="border-t border-border px-5 py-3.5">
+          <button
+            type="button"
+            onClick={() => setShowSources((v) => !v)}
+            className="flex w-full items-center gap-2.5 text-left focus-violet"
+          >
+            <StatusDot tone={readWords > 0 ? 'green' : anyReading ? 'amber' : 'red'} />
+            <span className="text-[12.5px] font-medium text-text">
+              {anyReading
+                ? 'Reading your material…'
+                : readWords > 0
+                  ? `Read from your material · ${readWords.toLocaleString('en-IN')} words`
+                  : 'Nothing could be read from your material'}
+            </span>
+            <span className="text-[11.5px] text-text-dim">
+              {unusedQuotes.length > 0
+                ? `${unusedQuotes.length} more sourced line${unusedQuotes.length > 1 ? 's' : ''} available`
+                : readWords > 0
+                  ? 'quoted with its page or source'
+                  : 'type what it says, or drop a text PDF'}
+            </span>
+            <IconChevronDown
+              size={14}
+              className={cn(
+                'ml-auto text-text-dim transition-transform',
+                showSources && 'rotate-180',
+              )}
+            />
+          </button>
+
+          {showSources && (
+            <div className="mt-3 flex flex-col gap-3">
+              {sources.map((src) => (
+                <div key={src.itemId}>
+                  <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-2">
+                    <IconQuote size={12} className="shrink-0 text-violet" />
+                    {src.label}
+                    <span className="font-normal text-text-dim">
+                      {src.reading
+                        ? '· reading…'
+                        : src.error
+                          ? `· ${src.error}`
+                          : src.pages
+                            ? `· ${src.pages} pages · ${src.quotes.length} sourced line${src.quotes.length === 1 ? '' : 's'}`
+                            : `· ${src.quotes.length} sourced line${src.quotes.length === 1 ? '' : 's'}`}
+                    </span>
+                  </p>
+                  {src.quotes.length > 0 && (
+                    <ul className="mt-1.5 flex flex-col gap-1.5">
+                      {src.quotes.map((q) => {
+                        const used = outline.body.includes(q.text)
+                        return (
+                          <li key={q.text} className="flex items-start gap-2">
+                            <span
+                              className={cn(
+                                'mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full',
+                                used ? 'bg-green' : 'bg-border-strong',
+                              )}
+                              title={used ? 'in the write-up' : 'not used yet'}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => used || appendQuote(q)}
+                              disabled={used}
+                              title={used ? 'Already in the write-up' : 'Add this line to the write-up'}
+                              className={cn(
+                                'min-w-0 text-left text-[12px] leading-relaxed focus-violet',
+                                used
+                                  ? 'cursor-default text-text-dim'
+                                  : 'text-text-2 transition-colors hover:text-violet',
+                              )}
+                            >
+                              {q.text}{' '}
+                              <span className="text-text-dim">— {q.locator}</span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              ))}
+              <p className="text-[11px] leading-relaxed text-text-dim">
+                Every line above is quoted exactly as it appears in your material, with the page
+                or site it came from. Nothing is paraphrased and no figure is added — the
+                playbook's rule is that a claim carries its source.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* the playbook check — §9's rubric, plus what it still wants */}
       <div className="border-t border-border px-5 py-3.5">
         <button
@@ -306,8 +429,16 @@ export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: O
           <span className="text-[11.5px] text-text-dim">
             {words} word{words === 1 ? '' : 's'}
           </span>
-          <Button variant="primary" size="md" onClick={onGenerate} disabled={words === 0}>
-            <IconSparkle size={15} /> Generate the post <IconArrowRight size={15} />
+          {/* Generating while a link is still being fetched would build the post
+              without the text that is seconds away from arriving. */}
+          <Button
+            variant="primary"
+            size="md"
+            onClick={onGenerate}
+            disabled={words === 0 || anyReading}
+          >
+            <IconSparkle size={15} /> {anyReading ? 'Reading…' : 'Generate the post'}{' '}
+            <IconArrowRight size={15} />
           </Button>
         </span>
       </div>

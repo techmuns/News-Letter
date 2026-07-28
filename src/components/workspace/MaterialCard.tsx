@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
 import { type WorkspaceItem, type WorkspaceItemType } from '../../types'
-import { IconPdf, IconScreenshot, IconNote, IconLink, IconClose, IconEdit } from '../icons'
+import {
+  IconPdf,
+  IconScreenshot,
+  IconNote,
+  IconLink,
+  IconClose,
+  IconEdit,
+  IconCheck,
+  IconSpinner,
+  IconAlert,
+} from '../icons'
 
 const TYPE_META: Record<WorkspaceItemType, { Icon: typeof IconPdf; icon: string; tile: string }> = {
   pdf: { Icon: IconPdf, icon: 'text-red', tile: 'bg-red-soft' },
@@ -14,10 +24,63 @@ interface MaterialCardProps {
   item: WorkspaceItem
   onRename: (title: string) => void
   onRemove: () => void
+  /** re-run reading on a link whose fetch failed */
+  onRetryRead?: () => void
+}
+
+/** Rough word count of extracted text — how much the post has to work from. */
+function wordsIn(text: string): number {
+  return text.trim() ? text.trim().split(/\s+/).length : 0
+}
+
+/**
+ * What we managed to read out of this material, in one line.
+ *
+ * Worth showing on every card: the difference between a post built on a
+ * document's figures and one built on its filename is exactly this, and the
+ * author needs to know which they are about to get.
+ */
+function ReadStatus({ item, onRetry }: { item: WorkspaceItem; onRetry?: () => void }) {
+  if (item.readState === 'reading') {
+    return (
+      <span className="flex shrink-0 items-center gap-1 text-[11px] text-violet">
+        <IconSpinner size={11} className="animate-spin" /> reading…
+      </span>
+    )
+  }
+  if (item.readState === 'failed') {
+    return (
+      <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-amber" title={item.readError}>
+        <IconAlert size={11} /> not read
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="underline decoration-dotted transition-colors hover:text-text focus-violet"
+          >
+            retry
+          </button>
+        )}
+      </span>
+    )
+  }
+  if (item.extracted) {
+    const words = wordsIn(item.extracted)
+    return (
+      <span
+        className="flex shrink-0 items-center gap-1 text-[11px] text-green"
+        title={`${words.toLocaleString('en-IN')} words read — the post is written from this text`}
+      >
+        <IconCheck size={11} />
+        {item.pages ? `${item.pages} page${item.pages > 1 ? 's' : ''} read` : 'text read'}
+      </span>
+    )
+  }
+  return null
 }
 
 /** One collected material, compact: thumbnail/icon, name, short preview, actions. */
-export function MaterialCard({ item, onRename, onRemove }: MaterialCardProps) {
+export function MaterialCard({ item, onRename, onRemove, onRetryRead }: MaterialCardProps) {
   const { Icon, icon, tile } = TYPE_META[item.type]
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(item.title)
@@ -71,10 +134,14 @@ export function MaterialCard({ item, onRename, onRemove }: MaterialCardProps) {
         )}
         {(item.preview || item.url) && !editing && (
           <p className="mt-0.5 line-clamp-1 text-[11.5px] text-text-muted">
-            {item.url ?? item.preview}
+            {/* Once read, the document's own opening line is the useful preview
+                — it shows the author we opened the thing, not just filed it. */}
+            {item.extracted ? item.preview : (item.url ?? item.preview)}
           </p>
         )}
       </div>
+
+      <ReadStatus item={item} onRetry={item.url ? onRetryRead : undefined} />
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         <button

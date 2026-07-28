@@ -8,10 +8,12 @@ import {
   pickDashboard,
   pickPattern,
 } from './playbook'
+import { type Excerpt, SELF_VOICE_RE, excerptsFrom, subjectFrom } from './readSource'
 
 /* ============================================================
    Step one of generating a post: a basic write-up composed from
-   the materials the author actually added.
+   the materials the author actually added — and, when a document
+   or an article was provided, from what it says.
 
    The shape is not invented here — it comes from the playbook
    (finance_linkedin_creator_strategy_kb.md §5): a pattern
@@ -19,11 +21,15 @@ import {
    dropped into the steps it can fill, and the steps it can't are
    left as visible bracketed gaps.
 
-   That bracketing is the point. The playbook's hardest rule is
-   "never fabricate figures" — so where a number or a mechanism
-   belongs and we don't have one, the write-up asks for it rather
-   than writing something plausible. The author fills the gaps;
-   whatever survives here is what the full generation runs on.
+   Two rules govern what the material becomes:
+
+   · NEVER FABRICATE FIGURES (§6). Where a number or a mechanism
+     belongs and we don't have one, the write-up asks for it in
+     brackets rather than writing something plausible.
+   · NEVER PARAPHRASE A SOURCE. A PDF or an article contributes
+     verbatim sentences with their page or host attached, because
+     a paraphrase of a filing is a claim nobody can audit. The
+     selection is ours; the wording is the document's.
    ============================================================ */
 
 /** Strip a filename down to something readable as a title. */
@@ -46,7 +52,17 @@ function firstSentence(text: string, max = 88): string {
   const clean = text.replace(/\s+/g, ' ').trim()
   const sentence = clean.match(/^.{16,140}?[.!?](?:\s|$)/)
   const picked = (sentence ? sentence[0] : clean).replace(/[.!?]\s*$/, '').trim()
-  return picked.length > max ? `${picked.slice(0, max - 1).trimEnd()}…` : picked
+  if (picked.length <= max) return picked
+  // Cut on a word boundary — "₹3,591 cror…" is worse than stopping a word
+  // early — then drop any trailing filler word, because "well below the…"
+  // dangles where "well below…" reads as a deliberate trim.
+  const cut = picked.slice(0, max)
+  const space = cut.lastIndexOf(' ')
+  const trimmed = space > max * 0.6 ? cut.slice(0, space) : cut
+  return `${trimmed
+    .replace(/\s+\b(the|a|an|of|in|on|to|for|and|or|with|from|at|by|its|their|that|which|as)\b$/i, '')
+    .replace(/[,;:—-]+$/, '')
+    .trimEnd()}…`
 }
 
 /** Collapses a note to one line, for use as a numbered list item. */
@@ -63,31 +79,94 @@ function noteText(item: WorkspaceItem): string {
 /** Everything the author gave us as one searchable blob (used to route the CTA). */
 function materialText(items: WorkspaceItem[]): string {
   return items
-    .map((it) => [it.title, it.preview, it.url].filter(Boolean).join(' '))
+    .map((it) => [it.title, it.preview, it.url, it.extracted].filter(Boolean).join(' '))
     .join('\n')
+}
+
+/* ---- what was read ------------------------------------------ */
+
+/** Materials whose text we actually have. */
+function readItems(items: WorkspaceItem[]): WorkspaceItem[] {
+  return items.filter((it) => (it.extracted ?? '').trim().length > 0)
+}
+
+/** How to cite a read material: its document name, or the site it came from. */
+function citeLabel(item: WorkspaceItem): string {
+  if (item.url) return hostOf(item.url)
+  return titleFromFileName(item.title)
+}
+
+/**
+ * The quotable evidence across every document and article provided.
+ *
+ * Each source contributes its best lines rather than the first N overall, so a
+ * single long prospectus can't crowd out the article that was dropped beside it.
+ *
+ * Cached per item: scanning forty pages of a prospectus for its most quotable
+ * sentences is the one genuinely expensive thing here, and the headline, the
+ * check count and the body each need the same answer.
+ */
+const EXCERPT_CACHE = new WeakMap<WorkspaceItem, Excerpt[]>()
+
+function excerptsOf(item: WorkspaceItem): Excerpt[] {
+  const hit = EXCERPT_CACHE.get(item)
+  if (hit) return hit
+  const found = excerptsFrom(
+    { text: item.extracted ?? '', label: citeLabel(item), paged: item.type === 'pdf' },
+    6,
+  )
+  EXCERPT_CACHE.set(item, found)
+  return found
+}
+
+function readExcerpts(items: WorkspaceItem[], perSource = 3): Excerpt[] {
+  const sources = readItems(items)
+  const share = sources.length > 2 ? 2 : perSource
+  return sources
+    .flatMap((it) => excerptsOf(it).slice(0, share))
+    .sort((a, b) => b.weight - a.weight)
+}
+
+/** A quote, formatted as the post carries it: the line, then where it's from. */
+function quoteLine(e: Excerpt): string {
+  const text = /[.!?]$/.test(e.text) ? e.text : `${e.text}.`
+  return `"${text}" — ${e.locator}`
 }
 
 /**
  * A noun phrase for what the post is about, used inside the pattern's hook —
  * or an empty string when the material doesn't name anything.
  *
- * Only a document or a link gives a real name. Truncating the author's note to
- * seven words does not: "whether mix is shifting to entry-level, not premium
- * holds up" is a sentence sawn in half. Every hook reads correctly with no
- * subject, so an empty string is the honest answer.
+ * A read document names itself: its own opening line is a better subject than
+ * its filename, and it is the document's wording rather than ours. Failing
+ * that, a filename or a host. What is never used is the author's note truncated
+ * to seven words — "whether mix is shifting to entry-level, not premium holds
+ * up" is a sentence sawn in half. Every hook reads correctly with no subject,
+ * so an empty string is the honest answer.
  */
 function subjectOf(items: WorkspaceItem[]): string {
+  const read = readItems(items)[0]
+  if (read?.extracted) {
+    const named = subjectFrom({
+      text: read.extracted,
+      label: citeLabel(read),
+      paged: read.type === 'pdf',
+    })
+    if (named) return named
+  }
   const doc = items.find((it) => it.type === 'pdf')
-  if (doc) return titleFromFileName(doc.title)
+  if (doc) return `the ${titleFromFileName(doc.title)}`
+  // Never "the livemint.com filing" — a news site does not file anything, and
+  // calling its report a filing is the sort of small false claim §9 rejects.
   const link = items.find((it) => it.url)
-  if (link?.url) return `the ${hostOf(link.url)} filing`
+  if (link?.url) return `the ${hostOf(link.url)} report`
   return ''
 }
 
 /**
- * Names the post. A note the author wrote is the best signal, then a document
- * name, then the source they linked — so the headline always points at
- * something they recognise rather than at boilerplate.
+ * Names the post. The author's own note wins — they wrote it after reading the
+ * material. Then the strongest sourced line out of the documents we read, then
+ * a document name, then the site linked.
  */
 function composeHeadline(items: WorkspaceItem[], brief: GenerationBrief): string {
   // Anything the author typed beats anything derived — even a few words.
@@ -98,10 +177,27 @@ function composeHeadline(items: WorkspaceItem[], brief: GenerationBrief): string
     .sort((a, b) => b.length - a.length)[0]
   if (longest) return firstSentence(longest)
 
+  // The best evidence line out of what was read — a real finding, in the
+  // document's own words, rather than a filename dressed up as a title. A
+  // first-person line is skipped where possible: "Our revenue increased 34%" as
+  // a headline reads as our revenue, not the issuer's.
+  const quotes = readExcerpts(items, 4)
+  // The line itself is never reworded, even here — where only the issuer's own
+  // voice is available it is used as it was written, and the author retitles it.
+  const best =
+    quotes.find((e) => e.hasFigure && !SELF_VOICE_RE.test(e.text)) ??
+    quotes.find((e) => e.hasFigure) ??
+    quotes[0]
+  if (best) return firstSentence(best.text)
+
   // A document name is usable; a screenshot filename ("Screenshot 2026-07-28
   // at 11.02") tells the reader nothing, so it's skipped.
   const doc = items.find((it) => it.type === 'pdf')
-  if (doc) return titleFromFileName(doc.title)
+  if (doc) {
+    // "scanned-annual-report.pdf" becomes a title, so it gets a title's capital.
+    const name = titleFromFileName(doc.title)
+    return name ? `${name[0].toUpperCase()}${name.slice(1)}` : name
+  }
 
   const link = items.find((it) => it.url)
   if (link?.url) return `What ${hostOf(link.url)} is reporting`
@@ -113,18 +209,37 @@ function composeHeadline(items: WorkspaceItem[], brief: GenerationBrief): string
 /** How many notes get quoted in full before the rest are just counted. */
 const NOTES_SHOWN = 4
 
-/** How many checks a checklist will actually have — §5 states the count up front. */
+/**
+ * The evidence lines this material yields, in order: the author's own notes
+ * first, then the strongest sourced sentences out of what was read.
+ *
+ * One function, because §5's hook states the count ("Three checks tell you…")
+ * and the body prints the list — if they were counted separately the post would
+ * promise one number and show another.
+ */
+function evidenceLines(items: WorkspaceItem[]): { notes: string[]; quotes: Excerpt[] } {
+  const notes = items.filter((it) => it.type === 'note').slice(0, NOTES_SHOWN)
+  // Room left over after the author's own notes — their words lead.
+  const room = Math.max(1, NOTES_SHOWN - notes.length)
+  return { notes: notes.map(noteText), quotes: readExcerpts(items).slice(0, room) }
+}
+
+/** How many checks a checklist will have — §5 states the count up front. */
 function countChecks(items: WorkspaceItem[]): number {
-  return Math.min(items.filter((it) => it.type === 'note').length, NOTES_SHOWN)
+  const { notes, quotes } = evidenceLines(items)
+  return notes.length + quotes.length
 }
 
 /**
  * The author's material, as the paragraphs it can legitimately become.
- * Notes go in verbatim — they're the argument. Files and links are listed,
- * never summarised: nothing here claims to know what's inside a document it
- * hasn't read.
  *
- * On a checklist pattern the notes are numbered instead of paragraphed, which
+ * Notes go in verbatim — they're the argument. A document or article that was
+ * read contributes its own strongest sentences, quoted with the page or the site
+ * they came from, so every figure in the post is traceable to the source that
+ * printed it. Nothing here summarises: a summary of a filing is a claim we
+ * can't attribute, and §9 hard-rejects an unsourced claim.
+ *
+ * On a checklist pattern the lines are numbered instead of paragraphed, which
  * is what §5's framework and data-list skeletons actually describe — and it's
  * why picking "Framework / checklist" changes the post you can see, not just
  * the headings underneath it.
@@ -132,23 +247,45 @@ function countChecks(items: WorkspaceItem[]): number {
 function materialParas(items: WorkspaceItem[], enumerate = false): string[] {
   const paras: string[] = []
 
-  const notes = items.filter((it) => it.type === 'note')
-  const shown = notes.slice(0, NOTES_SHOWN)
-  if (enumerate && shown.length > 1) {
+  const { notes, quotes } = evidenceLines(items)
+
+  if (enumerate && notes.length + quotes.length > 1) {
     // One check per line, numbered — a checklist reads as a block, not as
     // separate paragraphs. A single item is not a list, so it stays prose.
-    paras.push(shown.map((it, i) => `${i + 1}. ${firstLine(noteText(it))}`).join('\n'))
+    const lines = [...notes.map(firstLine), ...quotes.map(quoteLine)]
+    paras.push(lines.map((l, i) => `${i + 1}. ${l}`).join('\n'))
   } else {
-    shown.forEach((it) => paras.push(noteText(it)))
+    notes.forEach((n) => paras.push(n))
+    quotes.forEach((q) => paras.push(quoteLine(q)))
   }
-  if (notes.length > NOTES_SHOWN) {
-    const rest = notes.length - NOTES_SHOWN
+
+  const totalNotes = items.filter((it) => it.type === 'note').length
+  if (totalNotes > notes.length) {
+    const rest = totalNotes - notes.length
     paras.push(`(${rest} more note${rest > 1 ? 's' : ''} to work in.)`)
   }
 
-  const docs = items.filter((it) => it.type === 'pdf' || it.type === 'screenshot')
-  if (docs.length) {
-    paras.push(`Source: ${docs.map((d) => titleFromFileName(d.title)).join(', ')}.`)
+  // Provenance. A read document is cited by what was read out of it; one we
+  // couldn't read is named honestly as a file we haven't opened.
+  const read = readItems(items)
+  if (read.length) {
+    paras.push(
+      `Working from: ${read
+        .map((it) => {
+          const name = citeLabel(it)
+          return it.pages ? `${name} (${it.pages} pages)` : name
+        })
+        .join(', ')}.`,
+    )
+  }
+
+  const unread = items.filter(
+    (it) => (it.type === 'pdf' || it.type === 'screenshot') && !(it.extracted ?? '').trim(),
+  )
+  if (unread.length) {
+    paras.push(
+      `Source: ${unread.map((d) => titleFromFileName(d.title)).join(', ')} — not read, quote from it yourself.`,
+    )
   }
 
   const links = items.filter((it) => it.url)
@@ -200,6 +337,52 @@ function composeBody(
   // already chose — writing them back as a line of the post is filler, and it
   // is the first thing they would delete.
   return paras.join('\n\n')
+}
+
+/* ---- what the author can see we read ------------------------ */
+
+export interface SourceDigest {
+  itemId: string
+  /** how it is cited in the post */
+  label: string
+  pages?: number
+  /** words of text we hold for it */
+  words: number
+  /** every quotable line found, best first — the write-up uses the top few */
+  quotes: Excerpt[]
+  /** set when reading failed, with the reason */
+  error?: string
+  reading: boolean
+}
+
+/**
+ * Per-material account of what was read.
+ *
+ * Shown beside the write-up so the author can see the post is built on the
+ * document's own sentences, check the ones that were picked, and pull in a line
+ * that was passed over. Without this the reading is invisible and they have to
+ * take our word for it.
+ */
+export function sourceDigest(items: WorkspaceItem[]): SourceDigest[] {
+  return items
+    .filter((it) => it.type === 'pdf' || it.type === 'link' || it.extracted)
+    .map((it) => {
+      const text = (it.extracted ?? '').trim()
+      return {
+        itemId: it.id,
+        label: citeLabel(it),
+        ...(it.pages ? { pages: it.pages } : {}),
+        words: text ? text.split(/\s+/).length : 0,
+        quotes: text ? excerptsOf(it) : [],
+        ...(it.readError ? { error: it.readError } : {}),
+        reading: it.readState === 'reading',
+      }
+    })
+}
+
+/** The quote lines the write-up currently carries, so the rest can be offered. */
+export function quoteLineOf(e: Excerpt): string {
+  return quoteLine(e)
 }
 
 export interface ComposedOutline {

@@ -81,6 +81,18 @@ export interface WorkspaceItem {
   createdAt: string // ISO
   /** files attached after the fact — e.g. adding source docs to a note */
   attachments?: WorkspaceAttachment[]
+  /**
+   * The material's actual text, once it has been read: a PDF parsed to text, or
+   * an article fetched from its URL. This is what the post is written from —
+   * without it the generator only knows a filename.
+   */
+  extracted?: string
+  /** page count of a read PDF, shown so the author knows how much was read */
+  pages?: number
+  /** 'reading' while extraction is in flight, then how it ended */
+  readState?: 'reading' | 'read' | 'failed' | 'none'
+  /** why nothing could be read — a scanned PDF, a page that blocks fetching */
+  readError?: string
 }
 
 /**

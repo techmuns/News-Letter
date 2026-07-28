@@ -22,6 +22,7 @@ interface MaterialPanelProps {
 export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
   const addGroupNote = useStore((s) => s.addGroupNote)
   const addGroupFiles = useStore((s) => s.addGroupFiles)
+  const readGroupLink = useStore((s) => s.readGroupLink)
   const updateGroupItem = useStore((s) => s.updateGroupItem)
   const removeGroupItem = useStore((s) => s.removeGroupItem)
 
@@ -33,6 +34,7 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
   const textRef = useRef<HTMLTextAreaElement>(null)
 
   const items = group?.items ?? []
+  const stillReading = items.filter((it) => it.readState === 'reading').length
 
   function flashAdded(msg: string) {
     setJustAdded(msg)
@@ -47,7 +49,14 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
       const files = await readFileList(fileList)
       if (files.length) {
         addGroupFiles(files)
-        flashAdded(`${files.length} file${files.length > 1 ? 's' : ''} added`)
+        // Say what was actually read — pages parsed is the thing that matters,
+        // because that text is what the post gets written from.
+        const pages = files.reduce((n, f) => n + (f.pages ?? 0), 0)
+        flashAdded(
+          pages
+            ? `${files.length} file${files.length > 1 ? 's' : ''} read · ${pages} page${pages > 1 ? 's' : ''}`
+            : `${files.length} file${files.length > 1 ? 's' : ''} added`,
+        )
       }
     } finally {
       setReading((n) => Math.max(0, n - incoming))
@@ -64,7 +73,13 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
   function addCurrent() {
     if (!canAdd) return
 
-    foundUrls.forEach((href) => addGroupNote({ type: 'link', text: href, url: href }))
+    // Each link is read as soon as it lands, so the write-up is composed from
+    // what the article says and not from its address. The fetch is fired and
+    // not awaited — the material is already on screen with a reading state.
+    foundUrls.forEach((href) => {
+      const added = addGroupNote({ type: 'link', text: href, url: href })
+      if (added) void readGroupLink(added.groupId, added.itemId)
+    })
     if (noteRemainder) addGroupNote({ type: 'note', text: noteRemainder })
 
     const parts: string[] = []
@@ -113,6 +128,9 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
               <IconSpinner size={30} className="animate-spin text-violet" />
               <span className="mt-1 text-[15px] font-semibold text-text">
                 Reading {reading} file{reading > 1 ? 's' : ''}…
+              </span>
+              <span className="text-[12px] text-text-muted">
+                Pulling the text out, so the post is written from what it says
               </span>
             </>
           ) : (
@@ -218,6 +236,7 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
                 item={item}
                 onRename={(title) => group && updateGroupItem(group.id, item.id, { title })}
                 onRemove={() => group && removeGroupItem(group.id, item.id)}
+                onRetryRead={() => group && void readGroupLink(group.id, item.id)}
               />
             ))}
           </div>
@@ -227,12 +246,29 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
       {/* footer — Done closes the group */}
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
         <span className="text-[12px] text-text-muted">
-          {items.length > 0
-            ? `${items.length} item${items.length === 1 ? '' : 's'} will become one post`
-            : 'Nothing added yet — drop a file, write a note or paste a link.'}
+          {stillReading > 0
+            ? `Reading ${stillReading} link${stillReading > 1 ? 's' : ''} — the write-up waits for the text`
+            : items.length > 0
+              ? `${items.length} item${items.length === 1 ? '' : 's'} will become one post`
+              : 'Nothing added yet — drop a file, write a note or paste a link.'}
         </span>
-        <Button variant="primary" size="md" onClick={onDone} disabled={items.length === 0}>
-          <IconCheck size={15} /> Done
+        {/* Closing the group composes the write-up, so it waits for material
+            still in flight rather than composing around a URL. */}
+        <Button
+          variant="primary"
+          size="md"
+          onClick={onDone}
+          disabled={items.length === 0 || stillReading > 0}
+        >
+          {stillReading > 0 ? (
+            <>
+              <IconSpinner size={15} className="animate-spin" /> Reading…
+            </>
+          ) : (
+            <>
+              <IconCheck size={15} /> Done
+            </>
+          )}
         </Button>
       </div>
     </section>

@@ -380,7 +380,8 @@ const HAS_GAP = /\[[^\]\n]{4,}\]/
     No trailing \b after the unit — "18% in Q1" has a space there, so requiring
     a word boundary would reject the most common way a figure is written. */
 const NUMBER_RE = /(₹\s?\d|[$€£]\s?\d|\b\d+(\.\d+)?\s?(%|bps|x\b|cr\b|crore|lakh|bn\b|mn\b|million|billion)|\bQ[1-4](\s?FY)?\b|\bFY\s?\d{2})/i
-const SOURCE_RE = /(https?:\/\/|\bsource\b|\bfiling|\bdisclos|\bDRHP\b|\bshareholding pattern\b|↳|working from:)/i
+/** A quotation's own attribution counts: `"…" — p. 14` is a sourced figure. */
+const SOURCE_RE = /(https?:\/\/|\bsource\b|\bfiling|\bdisclos|\bDRHP\b|\bshareholding pattern\b|↳|working from:|—\s*p\.\s?\d|"\s*—\s*\S)/i
 
 export type ScoreDim =
   | 'investorValue'

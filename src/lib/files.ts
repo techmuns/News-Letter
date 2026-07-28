@@ -1,5 +1,7 @@
 /* Shared file-ingestion helpers — reading dropped/picked files into the
-   plain { name, sizeLabel, imageUrl } shape the store expects. */
+   plain { name, sizeLabel, imageUrl, extracted } shape the store expects. */
+
+import { extractFile } from './extract'
 
 /** Matches bare or protocol-prefixed URLs anywhere in a block of text. */
 const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"')]+/gi
@@ -44,15 +46,32 @@ export interface ReadFile {
   name: string
   sizeLabel: string
   imageUrl?: string
+  /** the file's text, for the formats we can read (PDF, plain text) */
+  extracted?: string
+  /** page count, for a PDF */
+  pages?: number
+  /** why there is no text — an image has none, a scan has no text layer */
+  readError?: string
 }
 
+/**
+ * Reads dropped files properly: an image becomes a thumbnail, and a PDF or text
+ * file is parsed to its actual text so the post can be written from what the
+ * document says rather than from its filename.
+ */
 export async function readFileList(fileList: FileList | null): Promise<ReadFile[]> {
   if (!fileList || fileList.length === 0) return []
   return Promise.all(
-    Array.from(fileList).map(async (f) => ({
-      name: f.name,
-      sizeLabel: formatBytes(f.size),
-      imageUrl: await readImageDataUrl(f),
-    })),
+    Array.from(fileList).map(async (f) => {
+      const [imageUrl, extraction] = await Promise.all([readImageDataUrl(f), extractFile(f)])
+      return {
+        name: f.name,
+        sizeLabel: formatBytes(f.size),
+        imageUrl,
+        ...(extraction.text ? { extracted: extraction.text } : {}),
+        ...(extraction.pages ? { pages: extraction.pages } : {}),
+        ...(extraction.error ? { readError: extraction.error } : {}),
+      }
+    }),
   )
 }

@@ -27,8 +27,38 @@ import {
   normaliseHandle,
 } from '../data/sources'
 import { DEFAULT_BRIEF } from '../lib/brief'
+import { extractUrl } from '../lib/extract'
 import { composeDraft } from '../lib/generate'
 import { type ComposedOutline, composeOutline } from '../lib/outline'
+
+/** The opening line of a read document — used as its on-card preview. */
+function firstLineOf(text: string, max = 120): string {
+  const line = text.replace(/\f/g, ' ').replace(/\s+/g, ' ').trim()
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line
+}
+
+/**
+ * How much extracted text is kept per material when the store is written to
+ * localStorage. Forty pages of a prospectus is ~100 KB of text, and a browser
+ * gives the whole origin about 5 MB — a handful of documents would blow the
+ * quota, and a failed write loses the author's write-up along with it.
+ *
+ * The quotes the post uses come from the front of the document, so keeping the
+ * opening is what preserves the write-up across a reload.
+ */
+const PERSIST_TEXT_LIMIT = 24_000
+
+function trimGroupForStorage(g: MaterialGroup): MaterialGroup {
+  if (!g.items.some((it) => (it.extracted?.length ?? 0) > PERSIST_TEXT_LIMIT)) return g
+  return {
+    ...g,
+    items: g.items.map((it) =>
+      (it.extracted?.length ?? 0) > PERSIST_TEXT_LIMIT
+        ? { ...it, extracted: it.extracted!.slice(0, PERSIST_TEXT_LIMIT) }
+        : it,
+    ),
+  }
+}
 
 /** A freshly composed write-up as it's stored: unedited, provenance kept. */
 function asOutline(c: ComposedOutline): MaterialOutline {
@@ -133,10 +163,25 @@ interface StoreState {
   removeItem: (id: string) => void
 
   // --- Material groups (one group = one post) ---
-  /** Add a note/link/pasted-text material to the open group. */
-  addGroupNote: (input: { type: 'note' | 'link'; text: string; url?: string }) => void
-  /** Add one or more files to the open group. */
-  addGroupFiles: (files: { name: string; sizeLabel?: string; imageUrl?: string }[]) => void
+  /** Add a note/link/pasted-text material to the open group; returns its ids. */
+  addGroupNote: (input: {
+    type: 'note' | 'link'
+    text: string
+    url?: string
+  }) => { groupId: string; itemId: string } | null
+  /** Add one or more files to the open group, text included when it was read. */
+  addGroupFiles: (
+    files: {
+      name: string
+      sizeLabel?: string
+      imageUrl?: string
+      extracted?: string
+      pages?: number
+      readError?: string
+    }[],
+  ) => void
+  /** Fetch a pasted link's article text, then recompose the write-up around it. */
+  readGroupLink: (groupId: string, itemId: string) => Promise<void>
   /** Rename or retitle a material inside a group. */
   updateGroupItem: (groupId: string, itemId: string, patch: Partial<WorkspaceItem>) => void
   /** Drop a material out of a group. */
@@ -326,7 +371,7 @@ export const useStore = create<StoreState>()(
 
       addGroupNote: ({ type, text, url }) => {
         const trimmed = text.trim()
-        if (!trimmed && !url) return
+        if (!trimmed && !url) return null
         const firstLine = (trimmed || url || '').split('\n')[0]
         const item: WorkspaceItem = {
           id: uid('item'),
@@ -338,6 +383,8 @@ export const useStore = create<StoreState>()(
           createdAt: new Date().toISOString(),
         }
         set(pushIntoOpenGroup(item))
+        // The caller needs the ids so a pasted link can be read straight away.
+        return { groupId: get().openGroupId as string, itemId: item.id }
       },
 
       addGroupFiles: (files) => {
@@ -348,13 +395,65 @@ export const useStore = create<StoreState>()(
             id: uid('item'),
             type,
             title: f.name,
-            preview: f.sizeLabel ?? '',
+            // Once a document has been read, its own first line is a better
+            // preview than its size — the author can see we opened it.
+            preview: f.extracted ? firstLineOf(f.extracted) : (f.sizeLabel ?? ''),
             imageUrl: f.imageUrl,
             addedBy: 'You',
             createdAt: new Date().toISOString(),
+            ...(f.extracted ? { extracted: f.extracted, readState: 'read' as const } : {}),
+            ...(f.pages ? { pages: f.pages } : {}),
+            ...(f.readError
+              ? { readState: 'failed' as const, readError: f.readError }
+              : f.extracted
+                ? {}
+                : { readState: 'none' as const }),
           }
         })
         set(pushIntoOpenGroup(...newItems))
+      },
+
+      // A pasted link is only a link until it has been read. The fetch happens
+      // after the material is on screen so the author is never waiting on a
+      // network round-trip before they can keep typing — the card shows the
+      // reading state, and the write-up is recomposed once the text lands.
+      readGroupLink: async (groupId, itemId) => {
+        const item = get()
+          .groups.find((g) => g.id === groupId)
+          ?.items.find((it) => it.id === itemId)
+        if (!item?.url || item.readState === 'reading' || item.extracted) return
+
+        get().updateGroupItem(groupId, itemId, { readState: 'reading', readError: undefined })
+        const { text, title, error } = await extractUrl(item.url)
+
+        set((s) => ({
+          groups: s.groups.map((g) => {
+            if (g.id !== groupId) return g
+            const items = g.items.map((it) =>
+              it.id === itemId
+                ? {
+                    ...it,
+                    ...(text
+                      ? {
+                          extracted: text,
+                          readState: 'read' as const,
+                          readError: undefined,
+                          preview: firstLineOf(text),
+                          // The page's own title beats the raw URL as a name.
+                          title: title?.trim() ? title.trim().slice(0, 120) : it.title,
+                        }
+                      : { readState: 'failed' as const, readError: error }),
+                  }
+                : it,
+            )
+            // A write-up already composed without this text is now out of date.
+            const outline =
+              text && g.outline && !g.outline.edited
+                ? asOutline(composeOutline({ items }, s.brief))
+                : g.outline
+            return { ...g, items, ...(outline ? { outline } : {}) }
+          }),
+        }))
       },
 
       updateGroupItem: (groupId, itemId, patch) =>
@@ -718,7 +817,7 @@ export const useStore = create<StoreState>()(
       version: 9,
       partialize: (s) => ({
         items: s.items,
-        groups: s.groups,
+        groups: s.groups.map(trimGroupForStorage),
         openGroupId: s.openGroupId,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
