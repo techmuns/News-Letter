@@ -49,6 +49,11 @@ function firstSentence(text: string, max = 88): string {
   return picked.length > max ? `${picked.slice(0, max - 1).trimEnd()}…` : picked
 }
 
+/** Collapses a note to one line, for use as a numbered list item. */
+function firstLine(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 /** The prose an author wrote into a note (falls back to its title). */
 function noteText(item: WorkspaceItem): string {
   const body = (item.preview || '').trim()
@@ -108,17 +113,34 @@ function composeHeadline(items: WorkspaceItem[], brief: GenerationBrief): string
 /** How many notes get quoted in full before the rest are just counted. */
 const NOTES_SHOWN = 4
 
+/** How many checks a checklist will actually have — §5 states the count up front. */
+function countChecks(items: WorkspaceItem[]): number {
+  return Math.min(items.filter((it) => it.type === 'note').length, NOTES_SHOWN)
+}
+
 /**
  * The author's material, as the paragraphs it can legitimately become.
  * Notes go in verbatim — they're the argument. Files and links are listed,
  * never summarised: nothing here claims to know what's inside a document it
  * hasn't read.
+ *
+ * On a checklist pattern the notes are numbered instead of paragraphed, which
+ * is what §5's framework and data-list skeletons actually describe — and it's
+ * why picking "Framework / checklist" changes the post you can see, not just
+ * the headings underneath it.
  */
-function materialParas(items: WorkspaceItem[]): string[] {
+function materialParas(items: WorkspaceItem[], enumerate = false): string[] {
   const paras: string[] = []
 
   const notes = items.filter((it) => it.type === 'note')
-  notes.slice(0, NOTES_SHOWN).forEach((it) => paras.push(noteText(it)))
+  const shown = notes.slice(0, NOTES_SHOWN)
+  if (enumerate && shown.length > 1) {
+    // One check per line, numbered — a checklist reads as a block, not as
+    // separate paragraphs. A single item is not a list, so it stays prose.
+    paras.push(shown.map((it, i) => `${i + 1}. ${firstLine(noteText(it))}`).join('\n'))
+  } else {
+    shown.forEach((it) => paras.push(noteText(it)))
+  }
   if (notes.length > NOTES_SHOWN) {
     const rest = notes.length - NOTES_SHOWN
     paras.push(`(${rest} more note${rest > 1 ? 's' : ''} to work in.)`)
@@ -151,8 +173,8 @@ function composeBody(
   brief: GenerationBrief,
   pattern: Pattern,
 ): string {
-  const paras: string[] = [pattern.hook(subjectOf(items))]
-  const evidence = materialParas(items)
+  const paras: string[] = [pattern.hook(subjectOf(items), countChecks(items))]
+  const evidence = materialParas(items, pattern.enumerate)
   let spent = false
 
   for (const step of pattern.steps) {

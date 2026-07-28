@@ -58,12 +58,28 @@ export interface Pattern {
   /** the file's one-line description of the shape */
   shape: string
   /**
+   * True for the patterns the playbook writes as an enumerated list — §5's
+   * framework ("Only N things tell you whether X is real:") and data-backed
+   * list. Their evidence is numbered, not paragraphed, so choosing the type
+   * visibly changes the post rather than only its headings.
+   */
+  enumerate?: boolean
+  /**
    * How the post opens. `subject` is a noun phrase for what the material is
    * about, and is often EMPTY — a chart with no note attached names nothing.
-   * Every hook has to read correctly either way.
+   * Every hook has to read correctly either way. `checks` is how many items a
+   * checklist will have (0 when there is no list), so §5's "Only N things tell
+   * you whether X is real" can state the real number instead of a vague "a few".
    */
-  hook: (subject: string) => string
+  hook: (subject: string, checks: number) => string
   steps: PatternStep[]
+}
+
+/** §5's skeletons name the count in words ("Three questions tell you..."). */
+const NUMBER_WORD: Record<number, string> = {
+  2: 'Two',
+  3: 'Three',
+  4: 'Four',
 }
 
 /** " on the DRHP filing" / "" — lets one hook string serve both cases. */
@@ -117,10 +133,14 @@ export const PATTERNS: Record<PatternId, Pattern> = {
     name: 'Framework / named questions',
     rank: 4,
     shape: 'A fixed, repeatable test the reader can reuse.',
-    hook: (s) =>
-      s
-        ? `A few checks tell you whether ${s} holds up. These are the ones that do the work.`
-        : 'A few checks do most of the work here. These are them.',
+    enumerate: true,
+    // n === 0 means there is no list yet, so the hook can't name a count at all.
+    hook: (s, n) => {
+      const subject = s ? ` whether ${s} holds up` : ' whether this holds up'
+      if (n === 0) return `A short, repeatable test tells you${subject}.`
+      if (n === 1) return `One check tells you${subject}. This is it.`
+      return `${NUMBER_WORD[n] ?? n} checks tell you${subject}. These are the ones that do the work.`
+    },
     steps: [
       { heading: 'The checks', fillsFromMaterial: true },
       { heading: 'How to apply it', gap: '[where each check is read from — filing, disclosure, dashboard field]' },
@@ -135,8 +155,17 @@ export const PATTERNS: Record<PatternId, Pattern> = {
     name: 'Data-backed list',
     rank: 5,
     shape: 'Scannable — but every item carries a number.',
-    hook: (s) =>
-      `${s ? `${s[0].toUpperCase()}${s.slice(1)}, as a checklist` : 'As a checklist'}. Every item below carries its own evidence — a list without data is filler.`,
+    enumerate: true,
+    hook: (s, n) => {
+      const opener = s
+        ? `${s[0].toUpperCase()}${s.slice(1)}, as a checklist`
+        : n === 0
+          ? 'As a checklist'
+          : n === 1
+            ? 'One check worth running'
+            : `${NUMBER_WORD[n] ?? n} checks worth running`
+      return `${opener}. Every item below carries its own evidence — a list without data is filler.`
+    },
     steps: [
       { heading: 'The claim to pressure-test', gap: '[the assumption these checks are testing]' },
       { heading: 'The checks', fillsFromMaterial: true },

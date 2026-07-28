@@ -125,9 +125,13 @@ export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: O
             <span className="text-[11px] text-text-dim">drafted from your material</span>
           )}
           {/* which playbook pattern this is shaped on (§5) */}
+          {/* Names the pattern the Content Type chose, so changing that setting
+              is visibly what reshaped the write-up. */}
           {pattern && (
             <span
-              title={`${pattern.shape} — pattern ${pattern.rank} of 7 in the playbook`}
+              title={`${pattern.shape}\n\nPattern ${pattern.rank} of 7 in the playbook — chosen by your Content Type${
+                outline.edited ? '. Your edits are kept; hit Rebuild to reshape.' : ''
+              }`}
               className="rounded-full border border-border px-2 py-0.5 text-[10.5px] text-text-muted"
             >
               {pattern.name}

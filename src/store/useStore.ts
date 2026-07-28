@@ -237,7 +237,22 @@ export const useStore = create<StoreState>()(
 
       restoreSources: () => set({ hiddenSourceIds: [] }),
 
-      updateBrief: (patch) => set((s) => ({ brief: { ...s.brief, ...patch } })),
+      // The panel promises these settings apply to everything you generate, so
+      // changing one has to reshape the write-ups that are still waiting. Only
+      // the untouched ones: an author's own words are never overwritten by a
+      // dropdown — those carry a "Rebuild" button instead.
+      updateBrief: (patch) =>
+        set((s) => {
+          const brief = { ...s.brief, ...patch }
+          return {
+            brief,
+            groups: s.groups.map((g) =>
+              g.outline && !g.outline.edited && g.items.length > 0
+                ? { ...g, outline: asOutline(composeOutline(g, brief)) }
+                : g,
+            ),
+          }
+        }),
 
       addNote: (text, opts = {}) => {
         const trimmed = text.trim()
