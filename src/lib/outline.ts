@@ -1,5 +1,5 @@
 import { type GenerationBrief, type MaterialGroup, type Tone, type WorkspaceItem } from '../types'
-import { AUDIENCE_OPTS, CONTENT_TYPE_OPTS, TONE_OPTS, labelOf } from './brief'
+import { CONTENT_TYPE_OPTS, labelOf } from './brief'
 
 /* ============================================================
    Step one of generating a post: a basic write-up composed from
@@ -120,11 +120,9 @@ function composeBody(items: WorkspaceItem[], brief: GenerationBrief): string {
     paras.push(links.map((l) => `↳ ${l.url}`).join('\n'))
   }
 
-  const audience = labelOf(AUDIENCE_OPTS, brief.audience).toLowerCase()
-  const tone = labelOf(TONE_OPTS, brief.tone).toLowerCase()
-  const type = labelOf(CONTENT_TYPE_OPTS, brief.contentType).replace(/ \/.*$/, '').toLowerCase()
-  paras.push(`For ${audience} — a ${type}, ${tone} in tone.`)
-
+  // No brief restatement here. The audience/type/tone are settings the author
+  // already chose — writing them back as a line of the post is filler, and it
+  // is the first thing they would delete.
   return paras.join('\n\n')
 }
 

@@ -8,12 +8,7 @@ import {
   type LengthTarget,
 } from '../types'
 import { GENERATABLE } from '../data/mockData'
-import {
-  AUDIENCE_OPTS,
-  MARKET_OPTS,
-  CONTENT_TYPE_OPTS,
-  labelOf,
-} from './brief'
+import { CONTENT_TYPE_OPTS, labelOf } from './brief'
 
 /* ============================================================
    Mock content generator. No model call — this deterministically
@@ -92,15 +87,10 @@ function composeBody(input: DraftInput, baseBody: string): string {
     }
   }
 
-  // 3) audience + market-lens framing — the write-up already carries its own
-  //    framing line, so it isn't restated here
-  if (!authored) {
-    const audience = labelOf(AUDIENCE_OPTS, brief.audience).toLowerCase()
-    const lens = labelOf(MARKET_OPTS, brief.marketLens)
-    paras.push(`Written for ${audience}${brief.marketLens === 'global' ? '' : `, ${lens} lens`}.`)
-  }
+  // The brief shapes the copy; it is never restated inside it. "Written for
+  // buy-side analysts, analytical in tone" is a settings readout, not a post.
 
-  // 4) provenance line — where this came from
+  // 3) provenance line — where this came from
   if (sourceMode === 'auto' && sourceLabels.length) {
     const shown = sourceLabels.slice(0, 3).join(', ')
     const more = sourceLabels.length > 3 ? ` +${sourceLabels.length - 3} more` : ''
