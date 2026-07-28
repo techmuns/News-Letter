@@ -4,50 +4,52 @@
 
 /* ============================================================
    Design tokens — Munshot Content System
-   Palette: Rosewood #BA274A · Cream Deluxe #FFFECB · Sky Surge #5DB7DE
 
-   Two themes, both derived from the three brand colours:
-     • Dark  (default)          — deep rosewood-charcoal base, brightened
-                                   Rosewood accent, Sky-Surge secondary.
+   Two themes:
+     • Dark  (default)          — the original warm near-black / brown base
+                                   with the violet accent. Sky Surge carries
+                                   the wayfinding role (nav, eyebrows).
      • Light ([data-theme=light]) — Cream Deluxe canvas, true Rosewood accent,
                                    Sky-Surge secondary, deep-rosewood ink.
+                                   Palette: Rosewood #BA274A · Cream #FFFECB
+                                   · Sky Surge #5DB7DE.
 
    Legacy token names are kept as ALIASES so existing utility classes retheme
    for free:
-     --violet / --purple*  → Rosewood (primary action / brand)
+     --violet / --purple*  → the theme's primary action / brand colour
      --orange              → Sky Surge (secondary / wayfinding)
-   --on-accent is readable text on a Rosewood fill.
+   --on-accent is readable text on a primary fill.
    ============================================================ */
 
-/* ---- Dark theme (default) ---- */
+/* ---- Dark theme (default) — original violet on warm near-black ---- */
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
 
   /* base */
-  --bg: #170f12; /* deep rosewood-charcoal */
-  --rail: #120b0e; /* sidebar — a touch deeper */
-  --bg-translucent: rgba(23, 15, 18, 0.72);
-  --surface: #241820; /* rosewood-tinted panel */
-  --surface-soft: #1d1218; /* recessed surface */
-  --surface-hover: #2e1f27; /* row / control hover */
-  --surface-solid: #281a22; /* elevated surface — menus, modal */
+  --bg: #0d0908; /* warm page background — near-black */
+  --rail: #0b0807; /* sidebar — a touch deeper than the page */
+  --bg-translucent: rgba(13, 9, 8, 0.72);
+  --surface: #211713; /* warm dark-brown panel (upload / settings cards) */
+  --surface-soft: #1a1210; /* recessed surface */
+  --surface-hover: #291c18; /* row / control hover */
+  --surface-solid: #241a15; /* elevated surface — menus, modal */
   --glass-blur: 0px;
 
   /* borders */
-  --border: #3a2830;
-  --border-soft: #2c1e24;
-  --border-strong: #4d3540;
-  --glow: rgba(227, 90, 119, 0.55); /* active accent border */
-  --glow-shadow: 0 0 22px rgba(227, 90, 119, 0.2);
+  --border: #382820; /* fine warm-brown hairline */
+  --border-soft: #2b201b;
+  --border-strong: #4a352a;
+  --glow: rgba(145, 71, 245, 0.55); /* active violet border */
+  --glow-shadow: 0 0 22px rgba(145, 71, 245, 0.2);
 
-  /* primary — Rosewood (brightened for dark) */
-  --violet: #e35a77; /* text / icon accent */
-  --violet-dim: #c8455f;
-  --purple: #ba274a; /* solid button fill (true Rosewood) */
-  --purple-bright: #e35a77;
-  --purple-soft: rgba(227, 90, 119, 0.18);
-  --on-accent: #fffecb; /* cream text on rosewood fills */
+  /* primary — violet */
+  --violet: #a557ff; /* bright accent for text / icons on dark */
+  --violet-dim: #9147f5;
+  --purple: #9147f5; /* solid button fill */
+  --purple-bright: #a557ff;
+  --purple-soft: rgba(145, 71, 245, 0.18);
+  --on-accent: #f7f2ff; /* near-white text on violet fills */
 
   /* secondary — Sky Surge (was --orange) */
   --orange: #5db7de;
@@ -61,19 +63,43 @@
   /* status */
   --green: #47d6a1;
   --amber: #f2c566;
-  --grey-dot: #6a4f59;
+  --grey-dot: #5a4a40;
   --pink: #fb6e92;
   --red: #e2685a;
 
-  /* text — warm off-white, cream-tinted */
-  --text: #fbf1ee;
-  --text-2: #d8c2c7;
-  --text-muted: #a98a92;
-  --text-dim: #7d5c66;
+  /* text — warm off-white, high contrast on brown-black */
+  --text: #f5f1ee;
+  --text-2: #c4b6ac;
+  --text-muted: #93837a;
+  --text-dim: #6d5f57;
 
   /* body ambient */
-  --ambient-1: rgba(227, 90, 119, 0.1);
-  --ambient-2: rgba(93, 183, 222, 0.06);
+  --ambient-1: rgba(145, 71, 245, 0.08);
+  --ambient-2: rgba(93, 183, 222, 0.05);
+
+  /* brand orb (wordmark) */
+  --orb-gradient: radial-gradient(
+    120% 120% at 30% 25%,
+    #b892ff 0%,
+    #9147f5 42%,
+    #5b2ea8 78%,
+    #2a1650 100%
+  );
+  --orb-glow: rgba(145, 71, 245, 0.5);
+
+  /* workspace illustration */
+  --illus-glow: rgba(145, 71, 245, 0.28);
+  --illus-1: #9147f5;
+  --illus-2: #5b2ea8;
+  --illus-3: #a557ff;
+  --illus-4: #7a3fd6;
+  --illus-soft: #c9a3f5;
+  --illus-card-1: #2a1f1a;
+  --illus-card-2: #1c1512;
+  --illus-stroke: #3a2b23;
+  --illus-tile: #3a2b57;
+  --illus-line-1: #4a3a32;
+  --illus-line-2: #3f312a;
 
   /* elevation shadows */
   --shadow-card: 0 2px 12px -6px rgba(0, 0, 0, 0.45);
@@ -132,6 +158,29 @@
 
   --ambient-1: rgba(186, 39, 74, 0.06);
   --ambient-2: rgba(47, 155, 198, 0.07);
+
+  /* brand orb — Rosewood on the cream canvas */
+  --orb-gradient: radial-gradient(
+    120% 120% at 30% 25%,
+    #e35a77 0%,
+    #ba274a 45%,
+    #7a1834 100%
+  );
+  --orb-glow: rgba(186, 39, 74, 0.5);
+
+  /* workspace illustration — Rosewood, lightened for cream */
+  --illus-glow: rgba(186, 39, 74, 0.18);
+  --illus-1: #ba274a;
+  --illus-2: #8a1c38;
+  --illus-3: #e35a77;
+  --illus-4: #ba274a;
+  --illus-soft: #f5c2cd;
+  --illus-card-1: #fffef0;
+  --illus-card-2: #f7eed6;
+  --illus-stroke: rgba(58, 20, 30, 0.18);
+  --illus-tile: rgba(186, 39, 74, 0.16);
+  --illus-line-1: rgba(58, 20, 30, 0.22);
+  --illus-line-2: rgba(58, 20, 30, 0.14);
 
   --shadow-card: 0 2px 14px -8px rgba(58, 20, 30, 0.22);
   --shadow-modal: 0 24px 70px -20px rgba(58, 20, 30, 0.3);

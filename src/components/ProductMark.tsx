@@ -1,6 +1,6 @@
 import { cn } from '../lib/cn'
 
-/** The Munshot Content System wordmark + glowing violet orb mark. */
+/** The Munshot Content System wordmark + glowing accent orb mark. */
 export function ProductMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3 select-none">
@@ -8,12 +8,11 @@ export function ProductMark({ compact = false }: { compact?: boolean }) {
         <span
           className="absolute inset-0 rounded-full"
           style={{
-            background:
-              'radial-gradient(120% 120% at 30% 25%, #e35a77 0%, #ba274a 45%, #7a1834 100%)',
-            boxShadow: '0 0 18px rgba(186,39,74,0.5)',
+            background: 'var(--orb-gradient)',
+            boxShadow: '0 0 18px var(--orb-glow)',
           }}
         />
-        <span className="relative h-3 w-3 rounded-full bg-[#0b0807]/85 ring-1 ring-white/25" />
+        <span className="relative h-3 w-3 rounded-full bg-rail/85 ring-1 ring-white/25" />
       </span>
       {!compact && (
         <span className="flex flex-col leading-none">
