@@ -10,7 +10,7 @@ interface AddSourceFormProps {
 }
 
 const inputCls =
-  'w-full rounded-lg border border-border bg-bg px-3 py-2 text-[13px] text-text placeholder:text-text-dim transition-colors focus:border-[color:var(--sky-border)] focus-violet'
+  'w-full rounded-lg border border-border bg-surface-solid px-3 py-2 text-[13px] text-text placeholder:text-text-muted transition-colors focus-violet'
 
 /**
  * Adds a LinkedIn profile or company page to the monitored catalog.
@@ -46,7 +46,7 @@ export function AddSourceForm({ onAdd }: AddSourceFormProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border-strong bg-surface-soft py-2.5 text-[12.5px] font-medium text-sky transition-colors hover:border-[color:var(--sky-border)] hover:bg-sky-soft focus-violet"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border-strong bg-surface-solid py-2.5 text-[12.5px] font-medium text-violet transition-colors hover:border-[color:var(--violet-dim)] hover:bg-purple-soft focus-violet"
       >
         <IconPlus size={14} />
         Add a LinkedIn profile or page
@@ -55,7 +55,7 @@ export function AddSourceForm({ onAdd }: AddSourceFormProps) {
   }
 
   return (
-    <div className="rounded-xl border border-[color:var(--sky-border)] bg-surface-soft p-3.5 animate-fade-up">
+    <div className="rounded-xl border border-[color:var(--violet-dim)] bg-surface-solid p-3.5 animate-fade-up">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-[12.5px] font-medium text-text">Add a source</span>
         <button
@@ -103,7 +103,7 @@ export function AddSourceForm({ onAdd }: AddSourceFormProps) {
         <button
           type="button"
           onClick={submit}
-          className="mt-0.5 rounded-lg bg-violet px-3 py-2 text-[12.5px] font-semibold text-on-accent transition-all hover:brightness-110 focus-violet"
+          className="mt-0.5 rounded-lg bg-purple px-3 py-2 text-[12.5px] font-semibold text-on-accent transition-all hover:bg-purple-bright focus-violet"
         >
           Add to monitored sources
         </button>

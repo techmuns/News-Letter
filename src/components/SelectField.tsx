@@ -17,7 +17,7 @@ interface SelectFieldProps<T extends string> {
 /**
  * Themed native <select> — the clean choice for many-option filters
  * (audience, pillar, format). Native for accessibility; styled to the
- * violet system with a chevron affordance.
+ * plum system with a chevron affordance.
  */
 export function SelectField<T extends string>({
   value,
@@ -33,7 +33,7 @@ export function SelectField<T extends string>({
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
         className={cn(
-          'w-full cursor-pointer appearance-none rounded-lg border border-border bg-surface-soft',
+          'w-full cursor-pointer appearance-none rounded-lg border border-border bg-surface-solid',
           'px-3 py-2 pr-8 text-[13px] text-text transition-colors duration-200',
           'hover:border-border-strong focus-violet',
         )}

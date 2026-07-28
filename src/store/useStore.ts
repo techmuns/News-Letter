@@ -7,6 +7,7 @@ import {
   type ChannelStatus,
   type ChannelVersion,
   type GenerationBrief,
+  type MaterialGroup,
   type SourceMode,
   type WorkspaceAttachment,
   type WorkspaceItem,
@@ -50,8 +51,35 @@ export function typeFromName(name: string): WorkspaceItemType {
 
 const PROCESSING_MS = 2000
 
+/**
+ * Appends materials to the open group, starting a group if none is open.
+ * Returned as a set-updater so every add path shares the same behaviour.
+ */
+function pushIntoOpenGroup(...items: WorkspaceItem[]) {
+  return (s: StoreState): Partial<StoreState> => {
+    const openId = s.openGroupId
+    if (openId && s.groups.some((g) => g.id === openId)) {
+      return {
+        groups: s.groups.map((g) =>
+          g.id === openId ? { ...g, items: [...g.items, ...items] } : g,
+        ),
+      }
+    }
+    const group: MaterialGroup = {
+      id: uid('grp'),
+      items,
+      createdAt: new Date().toISOString(),
+    }
+    return { groups: [group, ...s.groups], openGroupId: group.id }
+  }
+}
+
 interface StoreState {
   items: WorkspaceItem[]
+  /** material groups, newest first — each is the source set for one post */
+  groups: MaterialGroup[]
+  /** the group currently being collected, if the panel is mid-flow */
+  openGroupId: string | null
   campaigns: Campaign[]
   /** rotates through generatable templates for the mocked action */
   genIndex: number
@@ -88,6 +116,22 @@ interface StoreState {
   /** attach one or more files onto an existing material (e.g. a note) */
   addAttachments: (itemId: string, files: { name: string; sizeLabel?: string; imageUrl?: string }[]) => void
   removeItem: (id: string) => void
+
+  // --- Material groups (one group = one post) ---
+  /** Add a note/link/pasted-text material to the open group. */
+  addGroupNote: (input: { type: 'note' | 'link'; text: string; url?: string }) => void
+  /** Add one or more files to the open group. */
+  addGroupFiles: (files: { name: string; sizeLabel?: string; imageUrl?: string }[]) => void
+  /** Rename or retitle a material inside a group. */
+  updateGroupItem: (groupId: string, itemId: string, patch: Partial<WorkspaceItem>) => void
+  /** Drop a material out of a group. */
+  removeGroupItem: (groupId: string, itemId: string) => void
+  /** Close the open group so the next material starts a fresh post. */
+  finishGroup: () => void
+  /** Reopen a finished group to add or edit its materials. */
+  reopenGroup: (groupId: string) => void
+  /** Throw a whole group away. */
+  discardGroup: (groupId: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
   turnIntoContent: (itemIds: string[], brief?: GenerationBrief) => string
@@ -130,6 +174,8 @@ export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
       items: SEED_ITEMS,
+      groups: [],
+      openGroupId: null,
       campaigns: SEED_CAMPAIGNS,
       genIndex: 0,
       lastGeneratedId: null,
@@ -237,6 +283,81 @@ export const useStore = create<StoreState>()(
 
       removeItem: (id) =>
         set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+
+      /* ---- Material groups ----------------------------------------------
+         Materials land in the open group. If none is open, adding the first
+         material starts one, so the user never has to "create a group"
+         before they can begin.
+         ------------------------------------------------------------------ */
+
+      addGroupNote: ({ type, text, url }) => {
+        const trimmed = text.trim()
+        if (!trimmed && !url) return
+        const firstLine = (trimmed || url || '').split('\n')[0]
+        const item: WorkspaceItem = {
+          id: uid('item'),
+          type,
+          title: firstLine.length > 60 ? `${firstLine.slice(0, 57)}…` : firstLine,
+          preview: trimmed,
+          ...(url ? { url } : {}),
+          addedBy: 'You',
+          createdAt: new Date().toISOString(),
+        }
+        set(pushIntoOpenGroup(item))
+      },
+
+      addGroupFiles: (files) => {
+        if (!files.length) return
+        const newItems: WorkspaceItem[] = files.map((f) => {
+          const type = f.imageUrl ? 'screenshot' : typeFromName(f.name)
+          return {
+            id: uid('item'),
+            type,
+            title: f.name,
+            preview: f.sizeLabel ?? '',
+            imageUrl: f.imageUrl,
+            addedBy: 'You',
+            createdAt: new Date().toISOString(),
+          }
+        })
+        set(pushIntoOpenGroup(...newItems))
+      },
+
+      updateGroupItem: (groupId, itemId, patch) =>
+        set((s) => ({
+          groups: s.groups.map((g) =>
+            g.id === groupId
+              ? {
+                  ...g,
+                  items: g.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
+                }
+              : g,
+          ),
+        })),
+
+      // Emptying a group removes it outright — an empty post group is noise.
+      removeGroupItem: (groupId, itemId) =>
+        set((s) => {
+          const groups = s.groups
+            .map((g) =>
+              g.id === groupId ? { ...g, items: g.items.filter((it) => it.id !== itemId) } : g,
+            )
+            .filter((g) => g.items.length > 0)
+          return {
+            groups,
+            openGroupId: groups.some((g) => g.id === s.openGroupId) ? s.openGroupId : null,
+          }
+        }),
+
+      finishGroup: () => set({ openGroupId: null }),
+
+      reopenGroup: (groupId) => set({ openGroupId: groupId }),
+
+      discardGroup: (groupId) =>
+        set((s) => ({
+          groups: s.groups.filter((g) => g.id !== groupId),
+          openGroupId: s.openGroupId === groupId ? null : s.openGroupId,
+        })),
 
       turnIntoContent: (itemIds, brief) => {
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
@@ -529,9 +650,11 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 7,
+      version: 8,
       partialize: (s) => ({
         items: s.items,
+        groups: s.groups,
+        openGroupId: s.openGroupId,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
         brief: s.brief,
@@ -547,6 +670,8 @@ export const useStore = create<StoreState>()(
           | undefined
         return {
           items: SEED_ITEMS,
+          groups: [],
+          openGroupId: null,
           campaigns: SEED_CAMPAIGNS,
           genIndex: 0,
           brief: DEFAULT_BRIEF,

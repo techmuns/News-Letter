@@ -66,7 +66,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
   }
 
   const inputCls =
-    'rounded-lg border border-border bg-bg px-3 py-2 text-[13.5px] text-text focus-violet transition-colors'
+    'rounded-lg border border-border bg-surface-solid px-3 py-2 text-[13.5px] text-text focus-violet transition-colors'
 
   return (
     <Modal
@@ -99,7 +99,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
       }
     >
       {/* post summary — carried forward from Preview */}
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
+      <div className="glass flex items-center gap-3 rounded-xl p-3">
         {campaign.heroImage ? (
           <img src={campaign.heroImage} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
         ) : (
@@ -208,7 +208,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
             <p className="text-[12.5px] text-text-muted">Select at least one channel to schedule.</p>
           )}
           {selected.map((k) => (
-            <div key={k} className="rounded-xl border border-border bg-surface p-3">
+            <div key={k} className="glass rounded-xl p-3">
               <div className="mb-2 flex items-center gap-2">
                 <ChannelIcon kind={k} size={13} className="text-violet-dim" />
                 <MicroLabel className="text-text-2">{CHANNEL_LABEL[k]}</MicroLabel>
@@ -217,7 +217,7 @@ export function ScheduleComposer({ campaign, initialKind, onClose }: ScheduleCom
                 value={captions[k] ?? ''}
                 onChange={(e) => setCaptions((c) => ({ ...c, [k]: e.target.value }))}
                 rows={k === 'linkedin' ? 4 : 2}
-                className="w-full resize-y rounded-lg border border-border bg-bg px-3 py-2 text-[13px] leading-relaxed text-text focus-violet"
+                className="w-full resize-y rounded-lg border border-border bg-surface-solid px-3 py-2 text-[13px] leading-relaxed text-text focus-violet"
               />
             </div>
           ))}

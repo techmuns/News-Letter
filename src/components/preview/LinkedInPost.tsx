@@ -24,7 +24,7 @@ export function LinkedInPost({
       <div className="mx-auto max-w-[560px] overflow-hidden rounded-[10px] bg-white text-[#1b1f23] shadow-[0_1px_3px_rgba(0,0,0,0.28),0_0_0_1px_rgba(255,255,255,0.06)]">
         {/* author */}
         <div className="flex items-start gap-3 px-4 pt-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#a896f7] to-[#8a7fc0] font-display text-[18px] font-bold text-white">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#5d2850] to-[#4b1d3f] font-display text-[18px] font-bold text-white">
             {content.authorAvatar}
           </span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -42,28 +42,28 @@ export function LinkedInPost({
         {image && (
           <div className="relative overflow-hidden border-y border-[#e6e6e6]">
             <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(28,25,38,0.95)_0%,rgba(28,25,38,0.82)_46%,rgba(42,37,64,0.62)_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(29,14,24,0.95)_0%,rgba(45,20,37,0.82)_46%,rgba(75,29,63,0.62)_100%)]" />
             <div className="relative flex min-h-[266px] flex-col justify-between p-6">
               {/* brand */}
               <div className="flex items-center gap-2">
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#12101e] ring-1 ring-[rgba(170,152,248,0.55)]">
-                  <span className="h-2 w-2 rounded-full bg-[#a896f7]" />
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-[#4b1d3f] ring-1 ring-[rgba(214,193,232,0.55)]">
+                  <span className="h-2 w-2 rounded-full bg-[#d6c1e8]" />
                 </span>
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#cabff8]">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#e4d3f0]">
                   Munshot Intelligence
                 </span>
               </div>
               {/* headline */}
               <div>
                 {topic && (
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[#a896f7]">
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[#d6c1e8]">
                     {topic}
                   </p>
                 )}
                 <p className="font-display text-[24px] font-bold leading-[1.16] text-white">
                   {content.headline}
                 </p>
-                <div className="mt-4 h-[3px] w-12 rounded-full bg-[#a896f7]" />
+                <div className="mt-4 h-[3px] w-12 rounded-full bg-[#d6c1e8]" />
               </div>
             </div>
           </div>

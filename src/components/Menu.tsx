@@ -69,7 +69,7 @@ export function Menu({ trigger, children, align = 'left', className }: MenuProps
             }}
             className={cn(
               'max-h-[70vh] min-w-[190px] overflow-y-auto rounded-xl border border-border-strong bg-surface-solid p-1.5',
-              'shadow-glow-soft backdrop-blur-glass animate-fade-up',
+              'shadow-modal backdrop-blur-glass animate-fade-up',
               className,
             )}
           >

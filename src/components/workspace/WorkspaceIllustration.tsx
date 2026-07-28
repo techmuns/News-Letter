@@ -54,7 +54,7 @@ export function WorkspaceIllustration() {
 
           <g transform="rotate(6 130 40)">
             <rect x="96" y="8" width="76" height="96" rx="10" fill="url(#ws-card)" stroke="var(--illus-stroke)" />
-            <rect x="108" y="22" width="30" height="12" rx="3" fill="rgba(226,104,90,0.85)" />
+            <rect x="108" y="22" width="30" height="12" rx="3" fill="var(--red)" opacity="0.85" />
             <text x="112" y="31" fontFamily="Satoshi, sans-serif" fontSize="8" fontWeight="700" fill="#fff">
               PDF
             </text>

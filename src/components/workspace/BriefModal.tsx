@@ -111,7 +111,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
       {/* backdrop */}
       <div
-        className="fixed inset-0 bg-[rgba(12,10,20,0.66)] backdrop-blur-[3px] animate-fade-up"
+        className="fixed inset-0 bg-[color:var(--scrim)] backdrop-blur-[3px] animate-fade-up"
         onClick={onClose}
         aria-hidden
       />

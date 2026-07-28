@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
-import { type WorkspaceItemType } from '../types'
 import { type SourceKind } from '../data/sources'
 import { previewPath } from '../lib/routes'
 import { cn } from '../lib/cn'
@@ -12,37 +11,26 @@ import {
 } from '../data/sources'
 import { MicroLabel } from '../components/MicroLabel'
 import { Segmented } from '../components/Segmented'
-import { Menu, MenuItem } from '../components/Menu'
-import { DropZone } from '../components/workspace/DropZone'
-import { MaterialRow } from '../components/workspace/MaterialRow'
+import { MaterialPanel } from '../components/workspace/MaterialPanel'
+import { MaterialGroupCard } from '../components/workspace/MaterialGroupCard'
 import { SourcePicker } from '../components/workspace/SourcePicker'
 import { DraftEditor } from '../components/workspace/DraftEditor'
 import { ContentSettingsPanel } from '../components/workspace/ContentSettingsPanel'
 import { WorkspaceIllustration } from '../components/workspace/WorkspaceIllustration'
 import {
   IconChevronDown,
-  IconFilter,
-  IconArrowRight,
   IconUpload,
   IconSparkle,
 } from '../components/icons'
 
 type Mode = 'manual' | 'auto'
-type SortMode = 'recent' | 'oldest'
-type FilterMode = 'all' | WorkspaceItemType
-
-const PAGE = 4
-const SORT_LABEL: Record<SortMode, string> = { recent: 'Recent', oldest: 'Oldest' }
-const FILTER_LABEL: Record<FilterMode, string> = {
-  all: 'All types',
-  pdf: 'PDFs',
-  screenshot: 'Screenshots',
-  note: 'Notes',
-}
 
 export function Workspace() {
-  const items = useStore((s) => s.items)
-  const removeItem = useStore((s) => s.removeItem)
+  const groups = useStore((s) => s.groups)
+  const openGroupId = useStore((s) => s.openGroupId)
+  const finishGroup = useStore((s) => s.finishGroup)
+  const reopenGroup = useStore((s) => s.reopenGroup)
+  const discardGroup = useStore((s) => s.discardGroup)
   const generateDraft = useStore((s) => s.generateDraft)
   const regenerateDraft = useStore((s) => s.regenerateDraft)
   const commitDraft = useStore((s) => s.commitDraft)
@@ -57,11 +45,8 @@ export function Workspace() {
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('manual')
-  // manual material selection
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [sort, setSort] = useState<SortMode>('recent')
-  const [filter, setFilter] = useState<FilterMode>('all')
-  const [showAll, setShowAll] = useState(false)
+  /** the material group Generate will run on — one group makes one post */
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
   // automatic generator selection
   const [mix, setMix] = useState('linkedin')
   // seeded from the persisted catalog so removed sources don't come back selected
@@ -72,51 +57,31 @@ export function Workspace() {
   const [inputsOpen, setInputsOpen] = useState(false)
   const [feedback, setFeedback] = useState<{ text: string; ok: boolean } | null>(null)
 
-  const filtered = useMemo(() => {
-    return items
-      .filter((it) => (filter === 'all' ? true : it.type === filter))
-      .slice()
-      .sort((a, b) => {
-        const da = new Date(a.createdAt).getTime()
-        const db = new Date(b.createdAt).getTime()
-        return sort === 'recent' ? db - da : da - db
-      })
-  }, [items, filter, sort])
-
-  const visible = showAll ? filtered : filtered.slice(0, PAGE)
-  const hasMore = filtered.length > PAGE
-  const allVisibleSelected = filtered.length > 0 && filtered.every((it) => selected.has(it.id))
+  // The group Generate acts on: the explicit pick, else the newest closed one.
+  const closedGroups = groups.filter((g) => g.id !== openGroupId)
+  const activeGroup =
+    closedGroups.find((g) => g.id === activeGroupId) ?? closedGroups[0] ?? null
+  const openGroup = groups.find((g) => g.id === openGroupId) ?? null
 
   function flash(text: string, ok: boolean) {
     setFeedback({ text, ok })
     window.setTimeout(() => setFeedback(null), 5000)
   }
 
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+  /** Done — close the group so the next material starts a new post. */
+  function handleDone() {
+    if (openGroup) setActiveGroupId(openGroup.id)
+    finishGroup()
   }
 
-  /** Select (or clear) every material currently passing the filter. */
-  function selectAllVisible(select: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      filtered.forEach((it) => (select ? next.add(it.id) : next.delete(it.id)))
-      return next
-    })
+  /** Edit reopens the group, so the panel above fills with its materials again. */
+  function handleEditGroup(id: string) {
+    reopenGroup(id)
   }
 
-  function handleRemove(id: string) {
-    removeItem(id)
-    setSelected((prev) => {
-      if (!prev.has(id)) return prev
-      const next = new Set(prev)
-      next.delete(id)
-      return next
-    })
+  function handleDiscardGroup(id: string) {
+    discardGroup(id)
+    if (activeGroupId === id) setActiveGroupId(null)
   }
 
   function toggleSource(id: string) {
@@ -163,12 +128,16 @@ export function Workspace() {
     setAutoSelected(new Set(defaultSelectionWithCustom(mix, customSources)))
   }
 
-  // The generation input for the current mode.
+  // The generation input for the current mode. In manual mode every material
+  // in the active group goes in together — one group is one post.
   function currentInput() {
     if (mode === 'manual') {
-      const ids = items.filter((it) => selected.has(it.id)).map((it) => it.id)
-      const labels = items.filter((it) => selected.has(it.id)).map((it) => it.title)
-      return { sourceMode: 'manual' as const, sourceItemIds: ids, sourceLabels: labels }
+      const items = activeGroup?.items ?? []
+      return {
+        sourceMode: 'manual' as const,
+        sourceItemIds: items.map((it) => it.id),
+        sourceLabels: items.map((it) => it.title),
+      }
     }
     return {
       sourceMode: 'auto' as const,
@@ -176,13 +145,14 @@ export function Workspace() {
     }
   }
 
-  const canGenerate = mode === 'manual' ? selected.size > 0 : autoSelected.size > 0
+  const groupCount = activeGroup?.items.length ?? 0
+  const canGenerate = mode === 'manual' ? groupCount > 0 : autoSelected.size > 0
 
   function handleGenerate() {
     if (!canGenerate) {
       flash(
         mode === 'manual'
-          ? 'Select one or more of your materials first.'
+          ? 'Add your material first, then click Done.'
           : 'Select at least one source to generate from.',
         false,
       )
@@ -209,7 +179,7 @@ export function Workspace() {
 
   const showInputs = !draftId || inputsOpen
   const autoCount = autoSelected.size
-  const selCount = mode === 'manual' ? selected.size : autoCount
+  const selCount = mode === 'manual' ? groupCount : autoCount
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
@@ -218,7 +188,7 @@ export function Workspace() {
         <MicroLabel tone="violet" className="text-[11px]">
           01
         </MicroLabel>
-        <h1 className="mt-2.5 font-display text-[34px] font-bold leading-[1.05] tracking-tight text-text md:text-[37px]">
+        <h1 className="mt-2.5 font-display text-[34px] font-bold leading-[1.05] tracking-tight text-heading md:text-[37px]">
           Workspace
         </h1>
         <p className="mt-3 max-w-[33rem] text-[15px] leading-relaxed text-text-2">
@@ -243,7 +213,7 @@ export function Workspace() {
           <button
             type="button"
             onClick={() => setInputsOpen((o) => !o)}
-            className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:border-border-strong"
+            className="glass mt-4 flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:border-border-strong"
           >
             <span className="flex items-center gap-2.5">
               {mode === 'auto' ? (
@@ -254,7 +224,7 @@ export function Workspace() {
               <span className="text-[13px] text-text-2">
                 {mode === 'auto'
                   ? `${autoCount} source${autoCount === 1 ? '' : 's'} · ${mixById(mix).label}`
-                  : `${selected.size} material${selected.size === 1 ? '' : 's'} selected`}
+                  : `${groupCount} material${groupCount === 1 ? '' : 's'} in this post`}
               </span>
             </span>
             <span className="flex items-center gap-1.5 text-[12px] font-medium text-violet">
@@ -272,133 +242,31 @@ export function Workspace() {
           <div className={cn(draftId && 'mt-4')}>
             {mode === 'manual' ? (
               <>
+                {/* the collection panel itself, front and centre */}
                 <div className="mt-6">
-                  <DropZone />
+                  <MaterialPanel group={openGroup ?? activeGroup} onDone={handleDone} />
                 </div>
 
-                <section className="mt-8">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-2">
-                      <MicroLabel>Your materials</MicroLabel>
-                      {selected.size > 0 && (
-                        <span className="rounded-full bg-purple-soft px-1.5 py-0.5 text-[10px] font-medium text-violet">
-                          {selected.size}
-                        </span>
-                      )}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {filtered.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => selectAllVisible(!allVisibleSelected)}
-                          className="text-[11.5px] font-medium text-violet transition-opacity hover:opacity-80 focus-violet"
-                        >
-                          {allVisibleSelected ? 'Clear' : 'Select all'}
-                        </button>
-                      )}
-                      <Menu
-                        align="right"
-                        trigger={
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-[12.5px] text-text-2 transition-colors hover:border-border-strong hover:text-text">
-                            {SORT_LABEL[sort]}
-                            <IconChevronDown size={13} className="text-text-muted" />
-                          </span>
-                        }
-                      >
-                        {(close) =>
-                          (Object.keys(SORT_LABEL) as SortMode[]).map((m) => (
-                            <MenuItem
-                              key={m}
-                              active={sort === m}
-                              onClick={() => {
-                                setSort(m)
-                                close()
-                              }}
-                            >
-                              {SORT_LABEL[m]}
-                            </MenuItem>
-                          ))
-                        }
-                      </Menu>
-
-                      <Menu
-                        align="right"
-                        trigger={
-                          <span
-                            className={
-                              'relative grid h-[34px] w-[34px] place-items-center rounded-lg border bg-surface transition-colors ' +
-                              (filter === 'all'
-                                ? 'border-border text-text-muted hover:border-border-strong hover:text-text'
-                                : 'border-[color:var(--glow)] text-violet')
-                            }
-                          >
-                            <IconFilter size={15} />
-                            {filter !== 'all' && (
-                              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-violet" />
-                            )}
-                          </span>
-                        }
-                      >
-                        {(close) =>
-                          (Object.keys(FILTER_LABEL) as FilterMode[]).map((m) => (
-                            <MenuItem
-                              key={m}
-                              active={filter === m}
-                              onClick={() => {
-                                setFilter(m)
-                                setShowAll(false)
-                                close()
-                              }}
-                            >
-                              {FILTER_LABEL[m]}
-                            </MenuItem>
-                          ))
-                        }
-                      </Menu>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 overflow-hidden rounded-panel border border-border bg-surface shadow-panel">
-                    {items.length === 0 ? (
-                      <div className="px-6 py-14 text-center">
-                        <p className="mx-auto max-w-[38ch] text-[13px] leading-relaxed text-text-muted">
-                          Nothing here yet. Upload your PDFs, screenshots and notes above — all
-                          together is fine.
-                        </p>
-                      </div>
-                    ) : filtered.length === 0 ? (
-                      <div className="px-6 py-12 text-center">
-                        <p className="text-[13px] text-text-muted">
-                          No {FILTER_LABEL[filter].toLowerCase()} in your materials yet.
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="divide-y divide-border-soft">
-                          {visible.map((item) => (
-                            <MaterialRow
-                              key={item.id}
-                              item={item}
-                              selected={selected.has(item.id)}
-                              onToggle={() => toggle(item.id)}
-                              onRemove={() => handleRemove(item.id)}
-                            />
-                          ))}
-                        </div>
-                        {hasMore && (
-                          <button
-                            type="button"
-                            onClick={() => setShowAll((v) => !v)}
-                            className="flex w-full items-center justify-center gap-1.5 border-t border-border-soft py-3.5 text-[12.5px] font-medium text-violet transition-colors hover:bg-surface-hover focus-violet"
-                          >
-                            {showAll ? 'Show less' : `View all files (${filtered.length})`}
-                            <IconArrowRight size={14} />
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </section>
+                {/* finished groups — one group per post, kept compact */}
+                {closedGroups.length > 0 && (
+                  <section className="mt-6 flex flex-col gap-2.5">
+                    <MicroLabel className="text-text-dim">
+                      {closedGroups.length === 1
+                        ? 'Finished material'
+                        : `${closedGroups.length} material groups · pick one to generate from`}
+                    </MicroLabel>
+                    {closedGroups.map((g) => (
+                      <MaterialGroupCard
+                        key={g.id}
+                        group={g}
+                        selected={activeGroup?.id === g.id}
+                        onSelect={() => setActiveGroupId(g.id)}
+                        onEdit={() => handleEditGroup(g.id)}
+                        onDiscard={() => handleDiscardGroup(g.id)}
+                      />
+                    ))}
+                  </section>
+                )}
               </>
             ) : (
               <div className="mt-6">
@@ -444,9 +312,11 @@ export function Workspace() {
             draftId
               ? 'Regenerate applies your latest settings & sources to this draft.'
               : canGenerate
-                ? `${selCount} selected — these settings apply to every generation.`
+                ? mode === 'manual'
+                  ? `All ${selCount} item${selCount === 1 ? '' : 's'} in this group become one post.`
+                  : `${selCount} selected — these settings apply to every generation.`
                 : mode === 'manual'
-                  ? 'Select your materials, then generate.'
+                  ? 'Add your material, then generate.'
                   : 'Select sources, then generate.'
           }
         />

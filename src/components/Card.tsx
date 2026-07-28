@@ -11,7 +11,7 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string
 }
 
-/** The workhorse surface — glass fill, hairline border, 18px radius (§5.3). */
+/** The workhorse surface — crafted glass fill, plum hairline, soft shadow. */
 export function Card({
   children,
   active = false,
@@ -24,9 +24,7 @@ export function Card({
     <div
       className={cn(
         'rounded-card',
-        solid
-          ? 'bg-surface-solid border border-border'
-          : 'glass shadow-card',
+        solid ? 'bg-surface-solid border border-border shadow-card' : 'glass',
         active && 'glow-active',
         interactive &&
           'cursor-pointer transition-all duration-[350ms] ease-premium hover:border-border-strong',

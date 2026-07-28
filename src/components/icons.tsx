@@ -184,6 +184,15 @@ export function IconUploadCloud({ size = 18, className, strokeWidth = 1.6 }: Ico
   )
 }
 
+/** Indeterminate progress ring — pair with `animate-spin` while work is in flight. */
+export function IconSpinner({ size = 18, className, strokeWidth = 2 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M12 3a9 9 0 1 0 9 9" />
+    </svg>
+  )
+}
+
 export function IconUpload({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

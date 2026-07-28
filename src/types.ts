@@ -57,7 +57,7 @@ export function statusTone(status: ChannelStatus): StatusTone {
   }
 }
 
-export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note'
+export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note' | 'link'
 
 /** A supporting file bundled onto a material (used by notes to carry references). */
 export interface WorkspaceAttachment {
@@ -75,10 +75,26 @@ export interface WorkspaceItem {
   preview: string
   /** data URL for image items (screenshots) — shown as a thumbnail */
   imageUrl?: string
+  /** destination for link items */
+  url?: string
   addedBy: string
   createdAt: string // ISO
   /** files attached after the fact — e.g. adding source docs to a note */
   attachments?: WorkspaceAttachment[]
+}
+
+/**
+ * A set of materials gathered for one post. The group is the unit of
+ * generation — one group produces one post, and materials never mix across
+ * groups.
+ */
+export interface MaterialGroup {
+  id: string
+  /** the materials collected for this post, newest last (authoring order) */
+  items: WorkspaceItem[]
+  createdAt: string // ISO
+  /** set once this group has produced a campaign */
+  campaignId?: string
 }
 
 /* ---- Channel-specific content shapes ---- */

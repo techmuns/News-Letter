@@ -66,7 +66,7 @@ export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: D
       </div>
 
       {/* provenance — where it came from + which settings are active */}
-      <div className="mt-4 rounded-xl border border-border bg-surface p-3.5">
+      <div className="glass mt-4 rounded-xl p-3.5">
         <div className="flex items-center gap-2">
           {auto ? (
             <IconSparkle size={13} className="text-violet" />
@@ -102,13 +102,13 @@ export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: D
       </div>
 
       {/* editor */}
-      <div className="mt-4 rounded-panel border border-border bg-surface p-4 shadow-panel">
+      <div className="glass mt-4 rounded-panel p-4">
         <MicroLabel className="text-text-dim">Headline</MicroLabel>
         <input
           value={li.headline}
           onChange={(e) => updateDraftContent({ title: e.target.value })}
           className={cn(
-            'mt-1.5 w-full rounded-lg border border-border bg-bg px-3 py-2 text-[15px] font-semibold text-text',
+            'mt-1.5 w-full rounded-lg border border-border bg-surface-solid px-3 py-2 text-[15px] font-semibold text-text',
             'focus-violet transition-colors',
           )}
         />
@@ -119,7 +119,7 @@ export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: D
           onChange={(e) => updateDraftContent({ body: e.target.value })}
           rows={10}
           className={cn(
-            'mt-1.5 w-full resize-y rounded-lg border border-border bg-bg px-3.5 py-3 text-[14px] leading-relaxed text-text',
+            'mt-1.5 w-full resize-y rounded-lg border border-border bg-surface-solid px-3.5 py-3 text-[14px] leading-relaxed text-text',
             'focus-violet transition-colors',
           )}
         />

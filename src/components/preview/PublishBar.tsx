@@ -29,9 +29,9 @@ export function PublishBar({ campaign }: { campaign: Campaign }) {
 
   if (published) {
     return (
-      <div className="mt-6 rounded-panel border border-[rgba(71,214,161,0.3)] bg-[rgba(71,214,161,0.06)] p-5">
+      <div className="mt-6 rounded-panel border border-green-border bg-green-soft p-5">
         <div className="flex items-center gap-2">
-          <span className="grid h-6 w-6 place-items-center rounded-full bg-green text-[#0d2a20]">
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-green text-on-accent">
             <IconCheck size={13} />
           </span>
           <MicroLabel className="text-green">Published</MicroLabel>
@@ -54,7 +54,7 @@ export function PublishBar({ campaign }: { campaign: Campaign }) {
   }
 
   return (
-    <div className="mt-6 rounded-panel border border-border bg-surface p-5 shadow-panel">
+    <div className="glass mt-6 rounded-panel p-5">
       <MicroLabel className="text-text-2">Publish</MicroLabel>
       <p className="mt-1.5 text-[12.5px] leading-relaxed text-text-muted">
         Choose the channels to publish, then push live or send to Scheduling.
@@ -73,7 +73,7 @@ export function PublishBar({ campaign }: { campaign: Campaign }) {
               className={cn(
                 'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] transition-colors',
                 on
-                  ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
+                  ? 'border-[color:var(--violet-dim)] bg-purple-soft text-violet'
                   : 'border-border text-text-muted hover:border-border-strong hover:text-text-2',
               )}
             >
@@ -82,7 +82,7 @@ export function PublishBar({ campaign }: { campaign: Campaign }) {
               <span
                 className={cn(
                   'grid h-4 w-4 place-items-center rounded border transition-colors',
-                  on ? 'border-transparent bg-violet text-on-accent' : 'border-border text-transparent',
+                  on ? 'border-transparent bg-purple text-on-accent' : 'border-border text-transparent',
                 )}
               >
                 <IconCheck size={10} />

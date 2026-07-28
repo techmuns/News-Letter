@@ -75,14 +75,14 @@ function SourceRow({
       className={cn(
         'group flex cursor-pointer items-center gap-3 rounded-xl border p-2.5 text-left transition-colors duration-200',
         selected
-          ? 'border-[color:var(--glow)] bg-purple-soft'
-          : 'border-border bg-surface-soft hover:border-border-strong hover:bg-surface-hover',
+          ? 'border-[color:var(--violet-dim)] bg-purple-soft'
+          : 'border-border bg-surface-solid hover:border-border-strong hover:bg-surface-hover',
       )}
     >
       <span
         className={cn(
           'grid h-9 w-9 shrink-0 place-items-center rounded-lg font-display text-[12px] font-bold',
-          selected ? 'bg-purple-soft text-violet' : 'bg-surface text-text-muted',
+          selected ? 'bg-purple text-on-accent' : 'bg-surface-soft text-text-muted',
         )}
       >
         {source.avatar}
@@ -111,7 +111,7 @@ function SourceRow({
       <span
         className={cn(
           'grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors',
-          selected ? 'border-transparent bg-violet text-on-accent' : 'border-border text-transparent',
+          selected ? 'border-transparent bg-purple text-on-accent' : 'border-border text-transparent',
         )}
       >
         <IconCheck size={12} />
@@ -147,12 +147,12 @@ export function SourcePicker({
   const removedCount = hiddenCount(hidden)
 
   return (
-    <div className="rounded-panel border border-border bg-surface p-4 shadow-panel md:p-5">
+    <div className="glass rounded-panel p-4 md:p-5">
       {/* input mix — the header doubles as the section label */}
       <div className="px-1">
         <div className="flex items-center gap-2.5">
-          <IconSparkle size={14} className="text-sky" />
-          <MicroLabel tone="sky">Pull from</MicroLabel>
+          <IconSparkle size={14} className="text-violet" />
+          <MicroLabel tone="violet">Pull from</MicroLabel>
         </div>
         <div className="mt-2.5">
           <Segmented
@@ -221,7 +221,7 @@ export function SourcePicker({
           <button
             type="button"
             onClick={onRestore}
-            className="flex items-center justify-center gap-1.5 rounded-lg py-1 text-[11.5px] text-text-muted transition-colors hover:text-sky focus-violet"
+            className="flex items-center justify-center gap-1.5 rounded-lg py-1 text-[11.5px] text-text-muted transition-colors hover:text-violet focus-violet"
           >
             <IconRefresh size={12} />
             Restore {removedCount} removed source{removedCount === 1 ? '' : 's'}

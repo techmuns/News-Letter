@@ -71,7 +71,7 @@ export function ArticlePreview({
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-2">{content.ctaBody}</p>
             <button
               type="button"
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-[13px] font-semibold text-on-accent transition-all hover:brightness-110"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-purple px-4 py-2 text-[13px] font-semibold text-on-accent transition-all hover:bg-purple-bright"
             >
               {content.ctaLabel}
               <IconArrowRight size={15} />

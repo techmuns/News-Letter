@@ -62,15 +62,15 @@ export function ContentSettingsPanel({
   const updateBrief = useStore((s) => s.updateBrief)
 
   return (
-    <div className="rounded-panel border border-border bg-surface p-5 shadow-panel">
+    <div className="glass rounded-panel p-5">
       {/* header */}
       <div className="flex items-start gap-3">
         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-purple-soft">
           <IconSliders size={16} className="text-violet" />
         </span>
         <div>
-          <MicroLabel className="text-text-2">Content Settings</MicroLabel>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-text-muted">
+          <h2 className="text-[13.5px] font-semibold tracking-tight text-text">Content Settings</h2>
+          <p className="mt-1 text-[12px] leading-relaxed text-text-muted">
             Control how your content is created.
           </p>
         </div>

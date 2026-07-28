@@ -94,7 +94,7 @@ function ScheduledRow({ entry, onOpen }: { entry: ScheduleEntry; onOpen: () => v
   return (
     <Card className="flex items-stretch gap-0 p-0">
       <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 border-r border-border-soft py-4">
-        <span className="micro text-[10px] text-sky">{wday}</span>
+        <span className="micro text-[10px] text-violet">{wday}</span>
         <span className="font-display text-[16px] font-bold leading-none text-text">
           {new Date(`${date}T12:00:00`).getDate()}
         </span>
@@ -182,7 +182,7 @@ export function SchedulingSpace() {
       />
 
       {/* status legend */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-surface px-4 py-2.5">
+      <div className="glass mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-2.5">
         <MicroLabel className="text-text-dim">Status</MicroLabel>
         {LEGEND.map((s) => (
           <span key={s} className="flex items-center gap-1.5">

@@ -39,7 +39,8 @@ export function RangeSlider<T extends string>({
         aria-label={ariaLabel}
         onChange={(e) => onChange(order[Number(e.target.value)])}
         style={{
-          background: `linear-gradient(90deg, var(--purple) 0%, var(--purple-bright) ${pct}%, var(--border) ${pct}%, var(--border) 100%)`,
+          // filled portion runs plum → lilac; the rest stays a muted track
+          background: `linear-gradient(90deg, var(--plum) 0%, var(--lilac) ${pct}%, var(--surface-hover) ${pct}%, var(--surface-hover) 100%)`,
         }}
       />
       <div className="flex items-center justify-between">

@@ -16,7 +16,7 @@ interface SegmentedProps<T extends string | number> {
 
 /**
  * A compact segmented control — the workhorse for 3–5 option filters.
- * One active segment, violet-tinted; the rest quiet.
+ * The active segment is a plum fill; the rest stay quiet.
  */
 export function Segmented<T extends string | number>({
   value,
@@ -28,7 +28,7 @@ export function Segmented<T extends string | number>({
   return (
     <div
       className={cn(
-        'inline-flex flex-wrap gap-1 rounded-lg border border-border bg-surface-soft p-1',
+        'inline-flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1 backdrop-blur-glass',
         className,
       )}
     >
@@ -44,8 +44,8 @@ export function Segmented<T extends string | number>({
               'rounded-md border text-[12px] transition-all duration-200 focus-violet',
               dense ? 'px-2 py-0.5' : 'px-2.5 py-1',
               active
-                ? 'border-[color:var(--glow)] bg-purple-soft text-violet'
-                : 'border-transparent text-text-muted hover:text-text',
+                ? 'border-transparent bg-purple text-on-accent font-medium'
+                : 'border-transparent text-text-muted hover:bg-purple-soft hover:text-violet',
             )}
           >
             {o.label}

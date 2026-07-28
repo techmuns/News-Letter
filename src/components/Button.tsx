@@ -10,12 +10,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT: Record<Variant, string> = {
+  // plum fill, warm-white ink — lifts a touch on hover
   primary:
-    'text-white bg-purple border border-transparent hover:brightness-110 shadow-[0_6px_20px_-8px_var(--glow)] font-medium',
+    'text-on-accent bg-purple border border-transparent font-medium hover:bg-purple-bright hover:-translate-y-px hover:shadow-accent disabled:hover:translate-y-0 disabled:hover:shadow-none',
   ghost:
     'text-text-2 bg-transparent border border-border hover:border-border-strong hover:text-text',
+  // pale lilac wash, plum ink
   subtle:
-    'text-violet bg-purple-soft border border-[color:var(--glow)] hover:bg-purple-soft',
+    'text-violet bg-purple-soft border border-border hover:border-border-strong hover:-translate-y-px disabled:hover:translate-y-0',
 }
 
 const SIZE: Record<Size, string> = {

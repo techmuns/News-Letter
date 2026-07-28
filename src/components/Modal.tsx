@@ -34,7 +34,7 @@ export function Modal({ open, onClose, title, children, footer, className }: Mod
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div
-        className="absolute inset-0 bg-[rgba(0,0,0,0.62)] backdrop-blur-[2px] animate-fade-up"
+        className="absolute inset-0 bg-[color:var(--scrim)] backdrop-blur-[3px] animate-fade-up"
         onClick={onClose}
       />
       <div

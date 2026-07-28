@@ -5,193 +5,241 @@
 /* ============================================================
    Design tokens — Munshot Content System
 
-   Two themes:
-     • Dark  (default)          — the original warm near-black / brown base
-                                   with the violet accent. Sky Surge carries
-                                   the wayfinding role (nav, eyebrows).
-     • Light ([data-theme=light]) — Cream Deluxe canvas, true Rosewood accent,
-                                   Sky-Surge secondary, deep-rosewood ink.
-                                   Palette: Rosewood #BA274A · Cream #FFFECB
-                                   · Sky Surge #5DB7DE.
+   One palette, two settings. Plum #4B1D3F is the ink and the action
+   colour; Lilac #D6C1E8 is the accent that carries active states,
+   small icons and selection. Everything else is a warm neutral.
 
-   Legacy token names are kept as ALIASES so existing utility classes retheme
-   for free:
-     --violet / --purple*  → the theme's primary action / brand colour
-     --orange              → Sky Surge (secondary / wayfinding)
+     • Light ([data-theme=light]) — warm lilac-tinted paper, plum ink,
+                                   translucent glass surfaces.
+     • Dark  (default)           — deep plum-black, translucent
+                                   deep-plum cards, lilac accents.
+
+   The sidebar is plum in BOTH themes, so it has its own --rail-*
+   tokens: on that dark ground the accent is always lilac, never the
+   theme's on-paper mauve.
+
+   Legacy token names are kept as ALIASES so existing utility classes
+   retheme for free:
+     --violet / --purple*  → plum (action) or lilac (accent on dark)
+     --sky / --orange      → the mauve-lilac secondary (was cyan)
    --on-accent is readable text on a primary fill.
    ============================================================ */
 
-/* ---- Dark theme (default) — original violet on warm near-black ---- */
+/* ---- Dark theme (default) — lilac on deep plum-black ---- */
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
 
   /* base */
-  --bg: #0d0908; /* warm page background — near-black */
-  --rail: #0b0807; /* sidebar — a touch deeper than the page */
-  --bg-translucent: rgba(13, 9, 8, 0.72);
-  --surface: #211713; /* warm dark-brown panel (upload / settings cards) */
-  --surface-soft: #1a1210; /* recessed surface */
-  --surface-hover: #291c18; /* row / control hover */
-  --surface-solid: #241a15; /* elevated surface — menus, modal */
-  --glass-blur: 0px;
+  --bg: #100b0f; /* deep plum-black page */
+  --bg-2: #170f15;
+  --bg-translucent: rgba(16, 11, 15, 0.72);
+  --surface: rgba(35, 19, 31, 0.7); /* translucent deep-plum glass */
+  --surface-soft: #1b1219; /* recessed, solid — stays distinct from glass */
+  --surface-hover: #2a1926; /* row / control hover */
+  --surface-solid: #21141e; /* opaque elevated surface — menus, modals */
+  --glass-blur: 18px;
 
-  /* borders */
-  --border: #382820; /* fine warm-brown hairline */
-  --border-soft: #2b201b;
-  --border-strong: #4a352a;
-  --glow: rgba(145, 71, 245, 0.55); /* active violet border */
-  --glow-shadow: 0 0 22px rgba(145, 71, 245, 0.2);
+  /* borders — lilac hairlines, never brown */
+  --border: rgba(214, 193, 232, 0.12);
+  --border-soft: rgba(214, 193, 232, 0.08);
+  --border-strong: rgba(214, 193, 232, 0.22);
+  --glow: rgba(214, 193, 232, 0.45); /* active lilac border */
+  --glow-shadow: 0 0 0 3px rgba(214, 193, 232, 0.1);
 
-  /* primary — violet */
-  --violet: #a557ff; /* bright accent for text / icons on dark */
-  --violet-dim: #9147f5;
-  --purple: #9147f5; /* solid button fill */
-  --purple-bright: #a557ff;
-  --purple-soft: rgba(145, 71, 245, 0.18);
-  --on-accent: #f7f2ff; /* near-white text on violet fills */
+  /* primary — plum fill, lilac ink */
+  --violet: #d6c1e8; /* lilac accent for text / icons on dark */
+  --violet-dim: #b695cb;
+  --purple: #6e2a5c; /* solid button fill — plum lifted off the black */
+  --purple-bright: #8a3b73;
+  --purple-soft: rgba(214, 193, 232, 0.13);
+  --on-accent: #fdf6fb; /* near-white text on plum fills */
+  --plum: #4b1d3f;
+  --lilac: #d6c1e8;
 
-  /* secondary — Sky Surge (was --orange) */
-  --orange: #5db7de;
-  --sky: #5db7de;
-  --sky-soft: rgba(93, 183, 222, 0.16);
-  --sky-border: rgba(93, 183, 222, 0.4);
+  /* secondary — soft pink-purple (was cyan) */
+  --orange: #e4b6dc;
+  --sky: #e4b6dc;
+  --sky-soft: rgba(228, 182, 220, 0.13);
+  --sky-border: rgba(228, 182, 220, 0.34);
 
-  /* cream highlight */
-  --cream: #fffecb;
+  --cream: #fdf6fb;
 
-  /* status */
-  --green: #47d6a1;
-  --amber: #f2c566;
-  --grey-dot: #5a4a40;
-  --pink: #fb6e92;
-  --red: #e2685a;
+  /* status — kept warm, no neon */
+  --green: #57d3a5;
+  --amber: #e8be6e;
+  --grey-dot: #5a4a55;
+  --pink: #e86fb0;
+  --red: #e0705e;
+  --green-soft: rgba(87, 211, 165, 0.12);
+  --green-border: rgba(87, 211, 165, 0.3);
+  --amber-soft: rgba(232, 190, 110, 0.12);
+  --red-soft: rgba(224, 112, 94, 0.12);
+  /* status dot halos — derived from the hues above, never hard-coded in TSX */
+  --glow-green: rgba(87, 211, 165, 0.5);
+  --glow-amber: rgba(232, 190, 110, 0.5);
+  --glow-red: rgba(224, 112, 94, 0.55);
+  --glow-pink: rgba(232, 111, 176, 0.65);
 
-  /* text — warm off-white, high contrast on brown-black */
-  --text: #f5f1ee;
-  --text-2: #c4b6ac;
-  --text-muted: #93837a;
-  --text-dim: #6d5f57;
+  /* text — warm off-white on plum-black */
+  --heading: #fdf4fa; /* display headings */
+  --text: #f8f1f6;
+  --text-2: #c7b7c2;
+  --text-muted: #9c8b98;
+  --text-dim: #7a6a76;
 
-  /* body ambient — purple/brown, as the dark theme has always been */
-  --ambient-1: rgba(145, 71, 245, 0.08);
-  --ambient-2: rgba(93, 183, 222, 0.05);
-  --ambient-3: transparent; /* third wash is light-theme only */
+  /* page atmosphere — large, soft plum & magenta forms */
+  --orb-a: rgba(116, 28, 91, 0.34);
+  --orb-b: rgba(214, 76, 168, 0.16);
+  --orb-c: rgba(75, 29, 63, 0.38);
+  --orb-opacity: 0.55;
 
   /* brand orb (wordmark) */
   --orb-gradient: radial-gradient(
     120% 120% at 30% 25%,
-    #b892ff 0%,
-    #9147f5 42%,
-    #5b2ea8 78%,
-    #2a1650 100%
+    #e8d3f2 0%,
+    #b98fd0 38%,
+    #6e2a5c 74%,
+    #33122b 100%
   );
-  --orb-glow: rgba(145, 71, 245, 0.5);
+  --orb-glow: rgba(214, 193, 232, 0.4);
 
   /* workspace illustration */
-  --illus-glow: rgba(145, 71, 245, 0.28);
-  --illus-1: #9147f5;
-  --illus-2: #5b2ea8;
-  --illus-3: #a557ff;
-  --illus-4: #7a3fd6;
-  --illus-soft: #c9a3f5;
-  --illus-card-1: #2a1f1a;
-  --illus-card-2: #1c1512;
-  --illus-stroke: #3a2b23;
-  --illus-tile: #3a2b57;
-  --illus-line-1: #4a3a32;
-  --illus-line-2: #3f312a;
+  --illus-glow: rgba(214, 193, 232, 0.22);
+  --illus-1: #8a3b73;
+  --illus-2: #4b1d3f;
+  --illus-3: #d6c1e8;
+  --illus-4: #6e2a5c;
+  --illus-soft: #e0cbee;
+  --illus-card-1: #2a1826;
+  --illus-card-2: #1d121a;
+  --illus-stroke: rgba(214, 193, 232, 0.16);
+  --illus-tile: rgba(214, 193, 232, 0.14);
+  --illus-line-1: rgba(214, 193, 232, 0.2);
+  --illus-line-2: rgba(214, 193, 232, 0.12);
 
-  /* elevation shadows */
-  --shadow-card: 0 2px 12px -6px rgba(0, 0, 0, 0.45);
-  --shadow-modal: 0 18px 60px -12px rgba(0, 0, 0, 0.7);
+  /* elevation */
+  --shadow-card: 0 18px 50px -20px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 28px 70px -18px rgba(0, 0, 0, 0.62);
+  --scrim: rgba(12, 6, 10, 0.66);
+  --shadow-glass: 0 18px 50px -22px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  --shadow-accent: 0 8px 24px -8px rgba(214, 193, 232, 0.22);
 }
 
-/* ---- Light theme ---- */
+/* ---- Light theme — plum ink on warm lilac paper ---- */
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* base — soft neutral paper. Cream Deluxe now lives as a low-opacity
-     ambient wash + accent tint (below), not a flat full-bleed fill —
-     the saturated version was fatiguing to read against for long. */
-  --bg: #faf8f2;
-  --rail: #f4f1e7;
-  --bg-translucent: rgba(250, 248, 242, 0.85);
-  --surface: #ffffff; /* clean white panel, pops off the paper canvas */
-  --surface-soft: #f6f3e9;
-  --surface-hover: #efeade;
-  --surface-solid: #ffffff; /* elevated surface — menus, modal */
-  --glass-blur: 0px;
+  /* base */
+  --bg: #f7f1f8; /* soft, warm lilac-tinted canvas */
+  --bg-2: #f1e8f3;
+  --bg-translucent: rgba(247, 241, 248, 0.74);
+  --surface: rgba(255, 252, 255, 0.78); /* translucent warm-white glass */
+  --surface-soft: #eee3f1; /* recessed lilac-grey, solid */
+  --surface-hover: #e6d8ea; /* row / control hover */
+  --surface-solid: #fff9fd; /* opaque elevated surface — menus, modals */
+  --glass-blur: 20px;
 
-  /* borders — rosewood-tinted hairlines */
-  --border: rgba(58, 20, 30, 0.13);
-  --border-soft: rgba(58, 20, 30, 0.09);
-  --border-strong: rgba(58, 20, 30, 0.28);
-  --glow: rgba(186, 39, 74, 0.4);
-  --glow-shadow: 0 0 20px rgba(186, 39, 74, 0.14);
+  /* borders — plum hairlines */
+  --border: rgba(75, 29, 63, 0.12);
+  --border-soft: rgba(75, 29, 63, 0.08);
+  --border-strong: rgba(75, 29, 63, 0.22);
+  --glow: rgba(75, 29, 63, 0.4);
+  --glow-shadow: 0 0 0 3px rgba(75, 29, 63, 0.1);
 
-  /* primary — true Rosewood */
-  --violet: #ba274a;
-  --violet-dim: #a01f3e;
-  --purple: #ba274a;
-  --purple-bright: #d13358;
-  --purple-soft: rgba(186, 39, 74, 0.1);
-  --on-accent: #fffecb;
+  /* primary — plum */
+  --violet: #4b1d3f;
+  --violet-dim: #7b3e6a;
+  --purple: #4b1d3f;
+  --purple-bright: #5d2850;
+  --purple-soft: rgba(214, 193, 232, 0.4);
+  --on-accent: #fff8fc;
+  --plum: #4b1d3f;
+  --lilac: #d6c1e8;
 
-  /* secondary — Sky Surge (deepened for the light canvas) */
-  --orange: #2f9bc6;
-  --sky: #2f9bc6;
-  --sky-soft: rgba(47, 155, 198, 0.12);
-  --sky-border: rgba(47, 155, 198, 0.36);
+  /* secondary — deep mauve, so it stays readable on paper */
+  --orange: #8a4e7b;
+  --sky: #8a4e7b;
+  --sky-soft: rgba(214, 193, 232, 0.32);
+  --sky-border: rgba(138, 78, 123, 0.3);
 
-  --cream: #fffecb;
+  --cream: #fff8fc;
 
-  /* status — deepened so they read on the light canvas */
-  --green: #12976a;
-  --amber: #b0820f;
-  --grey-dot: #cabf98;
-  --pink: #d6456a;
-  --red: #c8442f;
+  /* status — deepened for the light canvas */
+  --green: #1c7a5b;
+  --amber: #93650f;
+  --grey-dot: #c2aecb;
+  --pink: #b84a7e;
+  --red: #ac4130;
+  --green-soft: rgba(28, 122, 91, 0.1);
+  --green-border: rgba(28, 122, 91, 0.28);
+  --amber-soft: rgba(147, 101, 15, 0.1);
+  --red-soft: rgba(172, 65, 48, 0.1);
+  /* on a pale canvas a halo reads as smudge — keep it very restrained */
+  --glow-green: rgba(28, 122, 91, 0.24);
+  --glow-amber: rgba(147, 101, 15, 0.24);
+  --glow-red: rgba(172, 65, 48, 0.24);
+  --glow-pink: rgba(184, 74, 126, 0.3);
 
-  /* text — deep rosewood ink */
-  --text: #2a1319;
-  --text-2: #5a3b43;
-  --text-muted: #8a6b72;
-  --text-dim: #ab8f95;
+  /* text — plum headings over warm grey-plum body copy */
+  --heading: #3f1636;
+  --text: #2d1829;
+  --text-2: #6b5566;
+  --text-muted: #7e6878;
+  --text-dim: #9a8694;
 
-  /* ambient overlays — brand colour lives here, as soft radial tints
-     washing over the neutral canvas, instead of saturating the whole page.
-     Deep Rosewood on both washes — the brighter cream/gold glow read as
-     too bright, so it's replaced with the same deep rose used for --purple. */
-  --ambient-1: rgba(186, 39, 74, 0.05);
-  --ambient-2: rgba(47, 155, 198, 0.06);
-  --ambient-3: rgba(139, 20, 52, 0.1);
+  /* page atmosphere — plum & lilac forms around the edges */
+  --orb-a: rgba(75, 29, 63, 0.18);
+  --orb-b: rgba(214, 193, 232, 0.6);
+  --orb-c: rgba(184, 139, 183, 0.22);
+  --orb-opacity: 0.85;
 
-  /* brand orb — Rosewood on the cream canvas */
+  /* brand orb */
   --orb-gradient: radial-gradient(
     120% 120% at 30% 25%,
-    #e35a77 0%,
-    #ba274a 45%,
-    #7a1834 100%
+    #e6cef2 0%,
+    #b88bb7 40%,
+    #4b1d3f 100%
   );
-  --orb-glow: rgba(186, 39, 74, 0.5);
+  --orb-glow: rgba(75, 29, 63, 0.34);
 
-  /* workspace illustration — Rosewood, lightened for cream */
-  --illus-glow: rgba(186, 39, 74, 0.18);
-  --illus-1: #ba274a;
-  --illus-2: #8a1c38;
-  --illus-3: #e35a77;
-  --illus-4: #ba274a;
-  --illus-soft: #f5c2cd;
-  --illus-card-1: #fffef0;
-  --illus-card-2: #f7eed6;
-  --illus-stroke: rgba(58, 20, 30, 0.18);
-  --illus-tile: rgba(186, 39, 74, 0.16);
-  --illus-line-1: rgba(58, 20, 30, 0.22);
-  --illus-line-2: rgba(58, 20, 30, 0.14);
+  /* workspace illustration */
+  --illus-glow: rgba(75, 29, 63, 0.14);
+  --illus-1: #4b1d3f;
+  --illus-2: #35122d;
+  --illus-3: #b88bb7;
+  --illus-4: #7b3e6a;
+  --illus-soft: #e6d5ee;
+  --illus-card-1: #fffbfe;
+  --illus-card-2: #f3e7f5;
+  --illus-stroke: rgba(75, 29, 63, 0.16);
+  --illus-tile: rgba(214, 193, 232, 0.55);
+  --illus-line-1: rgba(75, 29, 63, 0.2);
+  --illus-line-2: rgba(75, 29, 63, 0.12);
 
-  --shadow-card: 0 2px 14px -8px rgba(58, 20, 30, 0.18);
-  --shadow-modal: 0 24px 70px -20px rgba(58, 20, 30, 0.28);
+  --shadow-card: 0 12px 40px -18px rgba(75, 29, 63, 0.22);
+  --shadow-modal: 0 28px 70px -20px rgba(75, 29, 63, 0.3);
+  --scrim: rgba(45, 24, 41, 0.42);
+  --shadow-glass: 0 12px 40px -16px rgba(75, 29, 63, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --shadow-accent: 0 8px 24px -6px rgba(75, 29, 63, 0.22);
+}
+
+/* ---- The rail (sidebar / bottom nav) — plum in both themes ----
+   Shared because the surface is dark either way, so the accent on it is
+   always lilac rather than the theme's on-paper mauve. */
+:root {
+  --rail-gradient: linear-gradient(180deg, #3c1633 0%, #4b1d3f 50%, #35122d 100%);
+  --rail: #4b1d3f; /* flat fallback where a gradient can't be used */
+  --rail-text: #f8effb;
+  --rail-text-2: #d3bcdb;
+  --rail-text-dim: rgba(214, 193, 232, 0.58);
+  --rail-accent: #d6c1e8;
+  --rail-hover: rgba(214, 193, 232, 0.09);
+  --rail-active: rgba(214, 193, 232, 0.14);
+  --rail-active-border: rgba(214, 193, 232, 0.32);
+  --rail-border: rgba(214, 193, 232, 0.14);
 }
 
 @layer base {
@@ -208,16 +256,6 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    /* soft ambient lift — retinted per theme. Brand colour washes over a
-       neutral canvas rather than filling it solid. */
-    background-image: radial-gradient(
-        900px 620px at 100% -8%,
-        var(--ambient-1),
-        transparent 60%
-      ),
-      radial-gradient(720px 520px at 0% 108%, var(--ambient-2), transparent 60%),
-      radial-gradient(680px 480px at 22% 0%, var(--ambient-3), transparent 55%);
-    background-attachment: fixed;
     color: var(--text);
     font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
     font-feature-settings: 'ss01';
@@ -242,46 +280,106 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--border-strong);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--purple-soft);
+    background: var(--violet-dim);
     background-clip: padding-box;
   }
 }
 
 @layer components {
-  /* Workhorse surface — solid panel, hairline border. No glass. */
+  /* ---- Atmosphere ------------------------------------------------
+     Large, heavily blurred colour forms behind the interface. Fixed and
+     static — no drift — and pointer-events-none so they never intercept
+     input. Sized in vw so they can't cause horizontal overflow. */
+  .atmosphere {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .blur-orb {
+    position: absolute;
+    width: clamp(220px, 42vw, 460px);
+    height: clamp(220px, 42vw, 460px);
+    border-radius: 999px;
+    filter: blur(110px);
+    opacity: var(--orb-opacity);
+  }
+
+  .blur-orb-a {
+    top: -8%;
+    left: -6%;
+    background: var(--orb-a);
+  }
+  .blur-orb-b {
+    top: 4%;
+    right: -8%;
+    background: var(--orb-b);
+  }
+  .blur-orb-c {
+    bottom: -12%;
+    left: 42%;
+    background: var(--orb-c);
+  }
+
+  /* Smaller screens: quieter and tighter, so text stays crisp. */
+  @media (max-width: 640px) {
+    .blur-orb {
+      filter: blur(80px);
+      opacity: calc(var(--orb-opacity) * 0.62);
+    }
+    .blur-orb-c {
+      left: 20%;
+    }
+  }
+
+  /* ---- Surfaces --------------------------------------------------
+     The crafted glass surface — translucent fill, plum hairline, soft
+     shadow and a fine inner highlight. For major containers only. */
   .glass {
     background-color: var(--surface);
     border: 1px solid var(--border);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--shadow-glass);
   }
 
-  /* Active / focused surface — gentle accent glow. Used sparingly. */
+  /* Active / focused surface — gentle accent tint. Used sparingly. */
   .glow-active {
     border: 1px solid var(--glow);
     box-shadow: var(--glow-shadow);
     background-color: var(--purple-soft);
   }
 
-  /* Sky variant — wayfinding surfaces (active nav, scheduling) */
+  /* Secondary accent surface — wayfinding (scheduling, "pull from") */
   .glow-sky {
     border: 1px solid var(--sky-border);
-    box-shadow: 0 0 22px var(--sky-soft);
     background-color: var(--sky-soft);
   }
 
-  /* Uppercase, letter-spaced micro-label — section headers, ids, eyebrows */
+  /* Rail nav — selected item on the plum ground */
+  .rail-active {
+    background-color: var(--rail-active);
+    border: 1px solid var(--rail-active-border);
+    color: var(--rail-text);
+  }
+
+  /* Uppercase micro-label — section headers, ids, eyebrows. Tracking is
+     restrained; the old wide spacing read as decorative rather than legible. */
   .micro {
     font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.07em;
     font-size: 10.5px;
     font-weight: 600;
-    line-height: 1;
+    line-height: 1.15;
     color: var(--text-muted);
   }
 
@@ -289,7 +387,6 @@
     color: var(--violet);
   }
 
-  /* Sky Surge micro-label — wayfinding / structural accent */
   .micro-sky {
     color: var(--sky);
   }
@@ -302,9 +399,9 @@
   .shimmer {
     background: linear-gradient(
       90deg,
-      var(--surface) 25%,
+      var(--surface-soft) 25%,
       var(--purple-soft) 50%,
-      var(--surface) 75%
+      var(--surface-soft) 75%
     );
     background-size: 200% 100%;
     animation: shimmer 1.8s linear infinite;
@@ -313,18 +410,18 @@
   /* Focus ring consistent with the accent system */
   .focus-violet:focus-visible {
     outline: none;
-    border-color: var(--glow);
+    border-color: var(--violet-dim);
     box-shadow: var(--glow-shadow);
   }
 
-  /* Themed range slider — accent fill up to the thumb, quiet track after. */
+  /* Themed range slider — plum→lilac fill up to the thumb, quiet after. */
   .range-violet {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
-    height: 4px;
+    height: 5px;
     border-radius: 999px;
-    background: var(--border);
+    background: var(--surface-hover);
     outline: none;
     cursor: pointer;
   }
@@ -335,7 +432,7 @@
     height: 15px;
     border-radius: 999px;
     background: var(--purple-bright);
-    border: 2px solid var(--surface-soft);
+    border: 2px solid var(--surface-solid);
     box-shadow: 0 0 0 3px var(--purple-soft);
     transition: box-shadow 0.2s ease;
   }
@@ -347,7 +444,7 @@
     height: 15px;
     border-radius: 999px;
     background: var(--purple-bright);
-    border: 2px solid var(--surface-soft);
+    border: 2px solid var(--surface-solid);
     box-shadow: 0 0 0 3px var(--purple-soft);
   }
 }
