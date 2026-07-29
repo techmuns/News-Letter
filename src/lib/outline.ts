@@ -365,7 +365,12 @@ export interface SourceDigest {
  */
 export function sourceDigest(items: WorkspaceItem[]): SourceDigest[] {
   return items
-    .filter((it) => it.type === 'pdf' || it.type === 'link' || it.extracted)
+    // Screenshots are listed too: once a vision model reads them they carry
+    // quotable lines like any other document, and when one can't be read the
+    // author needs to see that here rather than discover it in the post.
+    .filter(
+      (it) => it.type === 'pdf' || it.type === 'link' || it.type === 'screenshot' || it.extracted,
+    )
     .map((it) => {
       const text = (it.extracted ?? '').trim()
       return {

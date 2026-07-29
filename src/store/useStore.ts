@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
+  type AiTrace,
   type Campaign,
   type ChannelContent,
   type ChannelKind,
@@ -26,10 +27,18 @@ import {
   initialsFor,
   normaliseHandle,
 } from '../data/sources'
+import {
+  aiConfig,
+  analyzeImages,
+  composeWithAi,
+  documentsFrom,
+  imagesFrom,
+} from '../lib/ai'
 import { DEFAULT_BRIEF } from '../lib/brief'
 import { extractUrl } from '../lib/extract'
-import { composeDraft } from '../lib/generate'
+import { composeAiDraft, composeDraft } from '../lib/generate'
 import { type ComposedOutline, composeOutline } from '../lib/outline'
+import { composeCta } from '../lib/playbook'
 
 /** The opening line of a read document — used as its on-card preview. */
 function firstLineOf(text: string, max = 120): string {
@@ -48,16 +57,32 @@ function firstLineOf(text: string, max = 120): string {
  */
 const PERSIST_TEXT_LIMIT = 24_000
 
+/**
+ * Image data URLs kept per material when the store is written to localStorage.
+ *
+ * A downscaled page photo is ~300 KB of base64 and the whole origin gets about
+ * 5 MB, so a few uploads would blow the quota and a failed write loses the
+ * author's write-up with it. Above the limit the thumbnail is dropped and the
+ * transcription the vision model produced is what survives the reload — the
+ * text is what the post is written from either way.
+ */
+const PERSIST_IMAGE_LIMIT = 700_000
+
+function trimItemForStorage(it: WorkspaceItem): WorkspaceItem {
+  const oversizeText = (it.extracted?.length ?? 0) > PERSIST_TEXT_LIMIT
+  const oversizeImage = (it.imageUrl?.length ?? 0) > PERSIST_IMAGE_LIMIT
+  // Rendered scan pages are never persisted: three page images is megabytes,
+  // and by the time they are stored their text has already been read out.
+  if (!oversizeText && !oversizeImage && !it.pageImages) return it
+  const next = { ...it }
+  if (oversizeText) next.extracted = it.extracted!.slice(0, PERSIST_TEXT_LIMIT)
+  if (oversizeImage) delete next.imageUrl
+  delete next.pageImages
+  return next
+}
+
 function trimGroupForStorage(g: MaterialGroup): MaterialGroup {
-  if (!g.items.some((it) => (it.extracted?.length ?? 0) > PERSIST_TEXT_LIMIT)) return g
-  return {
-    ...g,
-    items: g.items.map((it) =>
-      (it.extracted?.length ?? 0) > PERSIST_TEXT_LIMIT
-        ? { ...it, extracted: it.extracted!.slice(0, PERSIST_TEXT_LIMIT) }
-        : it,
-    ),
-  }
+  return { ...g, items: g.items.map(trimItemForStorage) }
 }
 
 /** A freshly composed write-up as it's stored: unedited, provenance kept. */
@@ -74,6 +99,8 @@ function asOutline(c: ComposedOutline): MaterialOutline {
 /** Input the Workspace hands to the draft generator. */
 export interface GenerateInput {
   sourceMode: SourceMode
+  /** the material group being generated from — its files are what get read */
+  groupId?: string
   /** material ids (manual) — used to carry a hero image through */
   sourceItemIds?: string[]
   /** human-readable labels of the inputs (material titles or monitored sources) */
@@ -82,8 +109,122 @@ export interface GenerateInput {
   outline?: { headline: string; body: string; pattern?: string; dashboard?: string }
 }
 
+/**
+ * How a generation ended.
+ *
+ * `unreadable` is its own outcome and deliberately produces no campaign: when
+ * the model has looked at the upload and found nothing it can read, the author
+ * needs to hear that. A draft written anyway would be written from general
+ * knowledge, which is the one thing this pipeline must never ship.
+ */
+export type GenerateOutcome =
+  | { ok: true; id: string; via: 'ai' | 'local'; notice?: string }
+  | { ok: false; reason: string; unreadable?: boolean }
+
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+/* ---- one generation run ------------------------------------- */
+
+interface GenerationRun {
+  /** the materials being generated from — the source of images and text */
+  items: WorkspaceItem[]
+  brief: GenerationBrief
+  sourceMode: SourceMode
+  sourceLabels: string[]
+  seed: number
+  outline?: { headline: string; body: string; pattern?: string; dashboard?: string }
+}
+
+interface GenerationAttempt {
+  outcome: 'draft' | 'unreadable' | 'fallback' | 'failed'
+  draft?: ReturnType<typeof composeDraft>
+  trace?: AiTrace
+  summary?: string
+  facts?: string[]
+  reason?: string
+  notice?: string
+}
+
+/**
+ * Produces the draft, model-first.
+ *
+ * The order of the three outcomes is the whole policy:
+ *
+ * · a model wrote it from the uploaded document — the normal path;
+ * · the model looked and found nothing readable — no campaign at all, the
+ *   author is told (a post written anyway would be written from general
+ *   knowledge, which is exactly the bug this replaced);
+ * · no key is configured — the deterministic composer runs, as it always did,
+ *   so the app still works on a deployment without OpenAI.
+ *
+ * A model error with real uploads in the group is a failure, not a fallback.
+ * Silently composing a generic post there would hide the outage behind copy
+ * that looks fine and says nothing about the document.
+ */
+async function runGeneration(p: GenerationRun): Promise<GenerationAttempt> {
+  const input = {
+    brief: p.brief,
+    sourceMode: p.sourceMode,
+    sourceLabels: p.sourceLabels,
+    seed: p.seed,
+    outline: p.outline,
+  }
+
+  const cfg = await aiConfig()
+  const images = imagesFrom(p.items, cfg.maxImages)
+  const documents = documentsFrom(p.items)
+  const uploaded = images.length > 0 || documents.length > 0
+
+  if (!cfg.configured) {
+    return {
+      outcome: 'fallback',
+      draft: composeDraft(input),
+      notice: uploaded
+        ? 'No model is configured on this deployment, so your uploads were not read — the draft is composed from your write-up alone.'
+        : undefined,
+    }
+  }
+
+  const instructions = [p.outline?.headline, p.outline?.body].filter(Boolean).join('\n\n')
+
+  // The Automatic Generator has no uploads and no write-up — it composes from
+  // monitored-source labels, which is what the local composer is for. Sending
+  // an empty prompt to a model would spend a round trip to be told so.
+  if (!uploaded && !instructions.trim()) {
+    return { outcome: 'fallback', draft: composeDraft(input) }
+  }
+
+  // What the piece is about, for choosing the pointer — the write-up plus the
+  // front of each document, which is where a filing states its subject.
+  const subject = [instructions, ...documents.map((d) => d.text.slice(0, 4000))].join('\n')
+
+  const result = await composeWithAi({
+    instructions,
+    brief: p.brief,
+    documents,
+    images,
+    closingPointer: composeCta(subject, p.brief),
+  })
+
+  if (result.ok) {
+    return {
+      outcome: 'draft',
+      draft: composeAiDraft(input, result.draft),
+      trace: result.trace,
+      summary: result.draft.documentSummary,
+      facts: result.draft.keyFacts,
+    }
+  }
+  if (result.kind === 'unreadable') {
+    return { outcome: 'unreadable', reason: result.reason, trace: result.trace }
+  }
+  if (result.kind === 'unconfigured') {
+    return { outcome: 'fallback', draft: composeDraft(input), notice: result.reason }
+  }
+  if (uploaded) return { outcome: 'failed', reason: result.reason }
+  return { outcome: 'fallback', draft: composeDraft(input), notice: result.reason }
 }
 
 /** Guess a workspace item type from a (mock) filename. */
@@ -138,6 +279,8 @@ interface StoreState {
   customSources: MonitoredSource[]
   /** ids of built-in catalog sources the user removed */
   hiddenSourceIds: string[]
+  /** true while a generation is in flight — a model call is not instant */
+  generating: boolean
 
   // --- Monitored source actions ---
   /** Add a LinkedIn profile or company page to the monitored catalog. */
@@ -169,7 +312,10 @@ interface StoreState {
     text: string
     url?: string
   }) => { groupId: string; itemId: string } | null
-  /** Add one or more files to the open group, text included when it was read. */
+  /**
+   * Add one or more files to the open group, text included when it was read.
+   * Returns the ids so the caller can send the pictures off to be read.
+   */
   addGroupFiles: (
     files: {
       name: string
@@ -177,11 +323,14 @@ interface StoreState {
       imageUrl?: string
       extracted?: string
       pages?: number
+      pageImages?: string[]
       readError?: string
     }[],
-  ) => void
+  ) => { groupId: string; itemIds: string[] } | null
   /** Fetch a pasted link's article text, then recompose the write-up around it. */
   readGroupLink: (groupId: string, itemId: string) => Promise<void>
+  /** Read an uploaded image (or a scanned PDF's pages) with the vision model. */
+  readGroupImage: (groupId: string, itemId: string) => Promise<void>
   /** Rename or retitle a material inside a group. */
   updateGroupItem: (groupId: string, itemId: string, patch: Partial<WorkspaceItem>) => void
   /** Drop a material out of a group. */
@@ -202,9 +351,9 @@ interface StoreState {
 
   // --- Workspace draft (generate-inside-the-workspace) ---
   /** Generate a fresh draft campaign (hidden from Preview until committed). */
-  generateDraft: (input: GenerateInput) => string
+  generateDraft: (input: GenerateInput) => Promise<GenerateOutcome>
   /** Re-run generation for the active draft using the latest settings + sources. */
-  regenerateDraft: (input: GenerateInput) => void
+  regenerateDraft: (input: GenerateInput) => Promise<GenerateOutcome>
   /** Manually edit the active draft's primary copy (headline / body). */
   updateDraftContent: (patch: { title?: string; body?: string }) => void
   /** Throw the active draft away. */
@@ -247,6 +396,7 @@ export const useStore = create<StoreState>()(
       brief: DEFAULT_BRIEF,
       customSources: [],
       hiddenSourceIds: [],
+      generating: false,
 
       addSource: ({ name, handle, kind }) => {
         const trimmed = name.trim()
@@ -388,9 +538,12 @@ export const useStore = create<StoreState>()(
       },
 
       addGroupFiles: (files) => {
-        if (!files.length) return
+        if (!files.length) return null
         const newItems: WorkspaceItem[] = files.map((f) => {
           const type = f.imageUrl ? 'screenshot' : typeFromName(f.name)
+          // A picture with no text yet is on its way to the vision model, so it
+          // starts as 'reading' rather than flashing "not read" first.
+          const pending = !f.extracted && (!!f.imageUrl || !!f.pageImages?.length)
           return {
             id: uid('item'),
             type,
@@ -403,14 +556,21 @@ export const useStore = create<StoreState>()(
             createdAt: new Date().toISOString(),
             ...(f.extracted ? { extracted: f.extracted, readState: 'read' as const } : {}),
             ...(f.pages ? { pages: f.pages } : {}),
-            ...(f.readError
-              ? { readState: 'failed' as const, readError: f.readError }
-              : f.extracted
-                ? {}
-                : { readState: 'none' as const }),
+            ...(f.pageImages?.length ? { pageImages: f.pageImages } : {}),
+            ...(pending
+              ? { readState: 'reading' as const }
+              : f.readError
+                ? { readState: 'failed' as const, readError: f.readError }
+                : f.extracted
+                  ? {}
+                  : { readState: 'none' as const }),
           }
         })
         set(pushIntoOpenGroup(...newItems))
+        return {
+          groupId: get().openGroupId as string,
+          itemIds: newItems.map((it) => it.id),
+        }
       },
 
       // A pasted link is only a link until it has been read. The fetch happens
@@ -449,6 +609,77 @@ export const useStore = create<StoreState>()(
             // A write-up already composed without this text is now out of date.
             const outline =
               text && g.outline && !g.outline.edited
+                ? asOutline(composeOutline({ items }, s.brief))
+                : g.outline
+            return { ...g, items, ...(outline ? { outline } : {}) }
+          }),
+        }))
+      },
+
+      /* An uploaded picture is read the same way a pasted link is: the material
+         lands on screen immediately, the model reads it in the background, and
+         the write-up is recomposed once the text arrives.
+
+         This is what turns an image from something the app displays into
+         something it has read. Everything downstream already works on
+         `extracted` — the write-up, the sourced quote list, the playbook check —
+         so a screenshot of a report becomes a first-class source with no
+         special-casing anywhere else. */
+      readGroupImage: async (groupId, itemId) => {
+        const item = get()
+          .groups.find((g) => g.id === groupId)
+          ?.items.find((it) => it.id === itemId)
+        if (!item || item.extracted) return
+
+        const images = imagesFrom([item], 4)
+        if (!images.length) {
+          get().updateGroupItem(groupId, itemId, { readState: 'none' })
+          return
+        }
+
+        get().updateGroupItem(groupId, itemId, { readState: 'reading', readError: undefined })
+
+        // The author's own notes in this group say what they are after, which
+        // tells the model what the page is being read for.
+        const context = (get().groups.find((g) => g.id === groupId)?.items ?? [])
+          .filter((it) => it.type === 'note')
+          .map((it) => it.preview || it.title)
+          .join('\n')
+          .slice(0, 2000)
+
+        const result = await analyzeImages(images, context)
+
+        set((s) => ({
+          groups: s.groups.map((g) => {
+            if (g.id !== groupId) return g
+            const items = g.items.map((it) =>
+              it.id === itemId
+                ? {
+                    ...it,
+                    ...(result.readable && result.text
+                      ? {
+                          extracted: result.text,
+                          readState: 'read' as const,
+                          readError: undefined,
+                          readKind: result.kind || undefined,
+                          preview: firstLineOf(result.text),
+                          // The document's own title beats "Screenshot 2026-07-28
+                          // at 11.02" as the name of a material.
+                          title: result.title?.trim()
+                            ? result.title.trim().slice(0, 120)
+                            : it.title,
+                        }
+                      : {
+                          readState: 'failed' as const,
+                          // §7 — say what happened rather than quietly moving on.
+                          readError:
+                            result.reason || 'No readable text or data in this image.',
+                        }),
+                  }
+                : it,
+            )
+            const outline =
+              result.readable && g.outline && !g.outline.edited
                 ? asOutline(composeOutline({ items }, s.brief))
                 : g.outline
             return { ...g, items, ...(outline ? { outline } : {}) }
@@ -563,71 +794,147 @@ export const useStore = create<StoreState>()(
         return id
       },
 
-      generateDraft: ({ sourceMode, sourceItemIds = [], sourceLabels = [], outline }) => {
-        const seed = get().genIndex
-        const brief = get().brief
-        const d = composeDraft({ brief, sourceMode, sourceLabels, seed, outline })
-        const id = uid('camp')
-        const items = get().items
-        const heroFromSelection = sourceItemIds
-          .map((iid) => items.find((it) => it.id === iid)?.imageUrl)
-          .find(Boolean)
-        const mk = <T extends ChannelContent>(kind: ChannelKind, content: T): ChannelVersion<T> => ({
-          kind,
-          status: 'Draft',
-          edited: false,
-          approved: false,
-          content,
-        })
-        const campaign: Campaign = {
-          id,
-          name: d.name,
-          topic: d.topic,
-          createdAt: new Date().toISOString(),
-          sourceItemIds,
-          heroImage: heroFromSelection ?? d.heroImage,
-          promo: PROMOTIONS.find((p) => p.id === d.promoId),
-          brief,
-          sourceMode,
-          sources: sourceLabels.length ? sourceLabels : undefined,
-          draft: true,
-          linkedin: mk('linkedin', d.linkedin),
-          email: mk('email', d.email),
-          article: mk('article', d.article),
+      generateDraft: async ({
+        sourceMode,
+        groupId,
+        sourceItemIds = [],
+        sourceLabels = [],
+        outline,
+      }) => {
+        set({ generating: true })
+        try {
+          const { genIndex: seed, brief } = get()
+          const items = groupId ? (get().groups.find((g) => g.id === groupId)?.items ?? []) : []
+          const attempt = await runGeneration({
+            items,
+            brief,
+            sourceMode,
+            sourceLabels,
+            seed,
+            outline,
+          })
+
+          if (attempt.outcome === 'unreadable') {
+            return { ok: false, reason: attempt.reason ?? '', unreadable: true }
+          }
+          if (attempt.outcome === 'failed' || !attempt.draft) {
+            return { ok: false, reason: attempt.reason ?? 'Generation failed.' }
+          }
+
+          const d = attempt.draft
+          const id = uid('camp')
+          // The picture the author uploaded is the campaign's hero. It lives on
+          // the group's materials, not the seeded workspace list, so both are
+          // searched — looking only at the latter is why an uploaded screenshot
+          // used to end up as the template's stock hero.
+          const pool = [...items, ...get().items]
+          const heroFromSelection = (sourceItemIds.length ? sourceItemIds : pool.map((it) => it.id))
+            .map((iid) => pool.find((it) => it.id === iid)?.imageUrl)
+            .find(Boolean)
+          const mk = <T extends ChannelContent>(
+            kind: ChannelKind,
+            content: T,
+          ): ChannelVersion<T> => ({
+            kind,
+            status: 'Draft',
+            edited: false,
+            approved: false,
+            content,
+          })
+          const campaign: Campaign = {
+            id,
+            name: d.name,
+            topic: d.topic,
+            createdAt: new Date().toISOString(),
+            sourceItemIds,
+            heroImage: heroFromSelection ?? d.heroImage,
+            promo: PROMOTIONS.find((p) => p.id === d.promoId),
+            brief,
+            sourceMode,
+            sources: sourceLabels.length ? sourceLabels : undefined,
+            draft: true,
+            ...(attempt.trace ? { ai: attempt.trace } : {}),
+            ...(attempt.summary ? { aiSummary: attempt.summary } : {}),
+            ...(attempt.facts?.length ? { aiFacts: attempt.facts } : {}),
+            linkedin: mk('linkedin', d.linkedin),
+            email: mk('email', d.email),
+            article: mk('article', d.article),
+          }
+          set((s) => ({
+            campaigns: [campaign, ...s.campaigns],
+            genIndex: s.genIndex + 1,
+            draftId: id,
+            lastGeneratedId: id,
+          }))
+          return {
+            ok: true,
+            id,
+            via: attempt.outcome === 'draft' ? 'ai' : 'local',
+            ...(attempt.notice ? { notice: attempt.notice } : {}),
+          }
+        } finally {
+          set({ generating: false })
         }
-        set((s) => ({
-          campaigns: [campaign, ...s.campaigns],
-          genIndex: s.genIndex + 1,
-          draftId: id,
-          lastGeneratedId: id,
-        }))
-        return id
       },
 
-      regenerateDraft: ({ sourceMode, sourceLabels = [], outline }) => {
-        const { draftId, genIndex, brief } = get()
-        if (!draftId) return
-        const d = composeDraft({ brief, sourceMode, sourceLabels, seed: genIndex, outline })
-        set((s) => ({
-          genIndex: s.genIndex + 1,
-          campaigns: s.campaigns.map((c) =>
-            c.id === draftId
-              ? {
-                  ...c,
-                  name: d.name,
-                  topic: d.topic,
-                  heroImage: c.heroImage ?? d.heroImage,
-                  brief,
-                  sourceMode,
-                  sources: sourceLabels.length ? sourceLabels : undefined,
-                  promo: PROMOTIONS.find((p) => p.id === d.promoId),
-                  linkedin: { ...c.linkedin, edited: false, content: d.linkedin },
-                  email: { ...c.email, edited: false, content: d.email },
-                  article: { ...c.article, edited: false, content: d.article },
-                }
-              : c,
-          ),
-        }))
+      regenerateDraft: async ({ sourceMode, groupId, sourceLabels = [], outline }) => {
+        const draftId = get().draftId
+        if (!draftId) return { ok: false, reason: 'There is no draft to regenerate.' }
+        set({ generating: true })
+        try {
+          const { genIndex: seed, brief } = get()
+          const items = groupId ? (get().groups.find((g) => g.id === groupId)?.items ?? []) : []
+          const attempt = await runGeneration({
+            items,
+            brief,
+            sourceMode,
+            sourceLabels,
+            seed,
+            outline,
+          })
+
+          // A failed regenerate leaves the existing draft untouched — the author
+          // keeps the copy they had rather than losing it to an outage.
+          if (attempt.outcome === 'unreadable') {
+            return { ok: false, reason: attempt.reason ?? '', unreadable: true }
+          }
+          if (attempt.outcome === 'failed' || !attempt.draft) {
+            return { ok: false, reason: attempt.reason ?? 'Generation failed.' }
+          }
+
+          const d = attempt.draft
+          set((s) => ({
+            genIndex: s.genIndex + 1,
+            campaigns: s.campaigns.map((c) =>
+              c.id === draftId
+                ? {
+                    ...c,
+                    name: d.name,
+                    topic: d.topic,
+                    heroImage: c.heroImage ?? d.heroImage,
+                    brief,
+                    sourceMode,
+                    sources: sourceLabels.length ? sourceLabels : undefined,
+                    promo: PROMOTIONS.find((p) => p.id === d.promoId),
+                    ai: attempt.trace,
+                    aiSummary: attempt.summary,
+                    aiFacts: attempt.facts,
+                    linkedin: { ...c.linkedin, edited: false, content: d.linkedin },
+                    email: { ...c.email, edited: false, content: d.email },
+                    article: { ...c.article, edited: false, content: d.article },
+                  }
+                : c,
+            ),
+          }))
+          return {
+            ok: true,
+            id: draftId,
+            via: attempt.outcome === 'draft' ? 'ai' : 'local',
+            ...(attempt.notice ? { notice: attempt.notice } : {}),
+          }
+        } finally {
+          set({ generating: false })
+        }
       },
 
       updateDraftContent: (patch) =>
@@ -848,6 +1155,21 @@ export const useStore = create<StoreState>()(
       onRehydrateStorage: () => (state) => {
         if (!state) return
         state.draftId = null
+        state.generating = false
+        // A read that was in flight when the tab closed never resumes; leaving
+        // it as 'reading' would disable Done forever.
+        state.groups = state.groups.map((g) =>
+          g.items.some((it) => it.readState === 'reading')
+            ? {
+                ...g,
+                items: g.items.map((it) =>
+                  it.readState === 'reading'
+                    ? { ...it, readState: 'failed' as const, readError: 'Reading was interrupted.' }
+                    : it,
+                ),
+              }
+            : g,
+        )
         state.campaigns = state.campaigns
           .filter((c) => !c.draft)
           .map((c) => (c.processing ? { ...c, processing: false } : c))

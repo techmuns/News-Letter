@@ -25,6 +25,12 @@ export interface Extraction {
   title?: string
   /** why there is no text — shown to the author instead of failing silently */
   error?: string
+  /**
+   * Rendered page images, for a PDF with no text layer. A scan carries its
+   * content as pixels, so the only way to read it is to look at it — these go
+   * to the vision model exactly as an uploaded screenshot does.
+   */
+  pageImages?: string[]
 }
 
 const EMPTY: Extraction = { text: '' }
@@ -76,6 +82,53 @@ async function loadPdfjs() {
 /** Pages read before we stop — a 300-page prospectus does not need all of it. */
 const MAX_PAGES = 40
 
+/**
+ * Pages of a scanned PDF rendered for the vision model. Each one is a billed
+ * image, so this is a look at the document rather than a full transcription of
+ * a 200-page scan — the front of a filing is where the substance is.
+ */
+const MAX_RENDERED_PAGES = 3
+
+/** Long edge of a rendered page. Enough for body type to survive OCR. */
+const RENDER_EDGE = 1600
+
+/**
+ * Draws PDF pages to JPEGs.
+ *
+ * Only reached when a PDF has no text layer. Without this, a scanned annual
+ * report is a file we can name and not read, and the post gets written from its
+ * filename — which is the exact failure this whole path exists to remove.
+ */
+async function renderPdfPages(
+  doc: { numPages: number; getPage: (n: number) => Promise<any> },
+  limit = MAX_RENDERED_PAGES,
+): Promise<string[]> {
+  const images: string[] = []
+  const count = Math.min(doc.numPages, limit)
+  for (let i = 1; i <= count; i++) {
+    try {
+      const page = await doc.getPage(i)
+      const base = page.getViewport({ scale: 1 })
+      const scale = Math.min(2.5, RENDER_EDGE / Math.max(base.width, base.height))
+      const viewport = page.getViewport({ scale: Math.max(1, scale) })
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.floor(viewport.width)
+      canvas.height = Math.floor(viewport.height)
+      const canvasContext = canvas.getContext('2d')
+      if (!canvasContext) break
+      // A scan is white paper — without a fill the transparent areas encode black.
+      canvasContext.fillStyle = '#ffffff'
+      canvasContext.fillRect(0, 0, canvas.width, canvas.height)
+      await page.render({ canvasContext, viewport }).promise
+      images.push(canvas.toDataURL('image/jpeg', 0.85))
+      page.cleanup()
+    } catch {
+      break
+    }
+  }
+  return images
+}
+
 export async function extractPdf(file: File): Promise<Extraction> {
   try {
     const pdfjs = await loadPdfjs()
@@ -106,19 +159,26 @@ export async function extractPdf(file: File): Promise<Extraction> {
 
     const meta = await doc.getMetadata().catch(() => null)
     const info = meta?.info as { Title?: string } | undefined
-    await doc.destroy()
 
     // Pages are kept separated by a form feed so a quote can later cite the
     // page it came from — "p. 14" is the difference between a sourced figure
     // and an unsourced one.
     const text = cap(normalise(pages.join('\f')))
     if (!text) {
+      // No text layer: hand back the pages as pictures so the vision model can
+      // read them, rather than declaring the document unreadable here.
+      const pageImages = await renderPdfPages(doc)
+      await doc.destroy()
       return {
         text: '',
         pages: doc.numPages,
-        error: 'No text layer — this looks like a scanned PDF.',
+        ...(pageImages.length ? { pageImages } : {}),
+        error: pageImages.length
+          ? 'No text layer — reading the scanned pages instead.'
+          : 'No text layer — this looks like a scanned PDF.',
       }
     }
+    await doc.destroy()
     return {
       text,
       pages: doc.numPages,

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
-import { extractUrls, readFileList, textWithoutUrls } from '../../lib/files'
+import { extractUrls, hasVisualContent, readFileList, textWithoutUrls } from '../../lib/files'
 import { useStore } from '../../store/useStore'
 import { type MaterialGroup } from '../../types'
 import { Button } from '../Button'
@@ -23,6 +23,7 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
   const addGroupNote = useStore((s) => s.addGroupNote)
   const addGroupFiles = useStore((s) => s.addGroupFiles)
   const readGroupLink = useStore((s) => s.readGroupLink)
+  const readGroupImage = useStore((s) => s.readGroupImage)
   const updateGroupItem = useStore((s) => s.updateGroupItem)
   const removeGroupItem = useStore((s) => s.removeGroupItem)
 
@@ -47,17 +48,30 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
     setReading((n) => n + incoming)
     try {
       const files = await readFileList(fileList)
-      if (files.length) {
-        addGroupFiles(files)
-        // Say what was actually read — pages parsed is the thing that matters,
-        // because that text is what the post gets written from.
-        const pages = files.reduce((n, f) => n + (f.pages ?? 0), 0)
-        flashAdded(
-          pages
-            ? `${files.length} file${files.length > 1 ? 's' : ''} read · ${pages} page${pages > 1 ? 's' : ''}`
-            : `${files.length} file${files.length > 1 ? 's' : ''} added`,
-        )
+      if (!files.length) return
+      const added = addGroupFiles(files)
+
+      // A picture is not read by parsing it — it has to be looked at. Each
+      // uploaded image, and each rendered page of a scanned PDF, goes to the
+      // vision model now, so by the time the author hits Done the write-up is
+      // built on what the document actually says.
+      if (added) {
+        files.forEach((file, i) => {
+          const itemId = added.itemIds[i]
+          if (itemId && !file.extracted && hasVisualContent(file)) {
+            void readGroupImage(added.groupId, itemId)
+          }
+        })
       }
+
+      // Say what was actually read — pages parsed is the thing that matters,
+      // because that text is what the post gets written from.
+      const pages = files.reduce((n, f) => n + (f.pages ?? 0), 0)
+      flashAdded(
+        pages
+          ? `${files.length} file${files.length > 1 ? 's' : ''} read · ${pages} page${pages > 1 ? 's' : ''}`
+          : `${files.length} file${files.length > 1 ? 's' : ''} added`,
+      )
     } finally {
       setReading((n) => Math.max(0, n - incoming))
     }
@@ -236,7 +250,12 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
                 item={item}
                 onRename={(title) => group && updateGroupItem(group.id, item.id, { title })}
                 onRemove={() => group && removeGroupItem(group.id, item.id)}
-                onRetryRead={() => group && void readGroupLink(group.id, item.id)}
+                onRetryRead={() => {
+                  if (!group) return
+                  // A link is fetched again; a picture is looked at again.
+                  if (item.url) void readGroupLink(group.id, item.id)
+                  else void readGroupImage(group.id, item.id)
+                }}
               />
             ))}
           </div>
@@ -247,7 +266,7 @@ export function MaterialPanel({ group, onDone }: MaterialPanelProps) {
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
         <span className="text-[12px] text-text-muted">
           {stillReading > 0
-            ? `Reading ${stillReading} link${stillReading > 1 ? 's' : ''} — the write-up waits for the text`
+            ? `Reading ${stillReading} item${stillReading > 1 ? 's' : ''} — the write-up waits for the text`
             : items.length > 0
               ? `${items.length} item${items.length === 1 ? '' : 's'} will become one post`
               : 'Nothing added yet — drop a file, write a note or paste a link.'}

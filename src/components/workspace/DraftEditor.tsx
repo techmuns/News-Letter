@@ -13,11 +13,15 @@ import {
   IconClose,
   IconEdit,
   IconSparkle,
+  IconSpinner,
   IconUpload,
+  IconEye,
 } from '../icons'
 
 interface DraftEditorProps {
   campaign: Campaign
+  /** a regeneration is in flight */
+  busy?: boolean
   onRegenerate: () => void
   onContinue: () => void
   onDiscard: () => void
@@ -31,13 +35,82 @@ function Chip({ children }: { children: React.ReactNode }) {
   )
 }
 
+function kb(bytes: number): string {
+  if (!bytes) return '0 KB'
+  const kilo = bytes / 1024
+  return kilo < 1024 ? `${Math.round(kilo)} KB` : `${(kilo / 1024).toFixed(1)} MB`
+}
+
+/**
+ * What the model was actually given, reported from the server's own count of
+ * the request it sent.
+ *
+ * This exists because "the image is in the app" and "the image reached the
+ * model" look identical from the outside, and only the second one produces a
+ * post about the document. If this says 0 images, the draft in front of you was
+ * not written from your upload — and that is worth being able to see at a
+ * glance rather than having to open a network tab to find out.
+ */
+function AiTraceCard({ campaign }: { campaign: Campaign }) {
+  const trace = campaign.ai
+  if (!trace) return null
+  return (
+    <div className="glass mt-4 rounded-xl p-3.5">
+      <div className="flex items-center gap-2">
+        <IconEye size={13} className="text-violet" />
+        <MicroLabel className="text-text-dim">Read by the model</MicroLabel>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <Chip>{trace.model}</Chip>
+        <Chip>
+          {trace.imagesSent} image{trace.imagesSent === 1 ? '' : 's'} sent
+          {trace.imagesSent > 0 ? ` · ${kb(trace.imageBytes)}` : ''}
+        </Chip>
+        {trace.documentsSent > 0 && (
+          <Chip>
+            {trace.documentsSent} document{trace.documentsSent === 1 ? '' : 's'} ·{' '}
+            {trace.documentChars.toLocaleString('en-IN')} chars
+          </Chip>
+        )}
+        {trace.promptTokens !== null && (
+          <Chip>{trace.promptTokens.toLocaleString('en-IN')} prompt tokens</Chip>
+        )}
+      </div>
+      {campaign.aiSummary && (
+        <p className="mt-2.5 text-[12px] leading-relaxed text-text-2">{campaign.aiSummary}</p>
+      )}
+      {campaign.aiFacts && campaign.aiFacts.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {campaign.aiFacts.slice(0, 6).map((fact) => (
+            <li key={fact} className="flex items-start gap-2 text-[11.5px] leading-relaxed text-text-muted">
+              <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-violet" />
+              {fact}
+            </li>
+          ))}
+        </ul>
+      )}
+      {trace.imagesSent === 0 && (
+        <p className="mt-2 text-[11px] leading-relaxed text-amber">
+          No image was transmitted with this generation — the copy came from text alone.
+        </p>
+      )}
+    </div>
+  )
+}
+
 /**
  * The Workspace's create-and-refine surface. Shows the generated draft as
  * editable copy with a live LinkedIn preview, the sources + settings it came
  * from, a Regenerate that responds to the latest settings, and the primary
  * "Continue to Preview" once the author is satisfied.
  */
-export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: DraftEditorProps) {
+export function DraftEditor({
+  campaign,
+  busy = false,
+  onRegenerate,
+  onContinue,
+  onDiscard,
+}: DraftEditorProps) {
   const updateDraftContent = useStore((s) => s.updateDraftContent)
   const li = campaign.linkedin.content
   const chips = campaign.brief ? briefChips(campaign.brief) : []
@@ -101,6 +174,9 @@ export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: D
         )}
       </div>
 
+      {/* proof of what went to the model — images included */}
+      <AiTraceCard campaign={campaign} />
+
       {/* editor */}
       <div className="glass mt-4 rounded-panel p-4">
         <MicroLabel className="text-text-dim">Headline</MicroLabel>
@@ -146,11 +222,23 @@ export function DraftEditor({ campaign, onRegenerate, onContinue, onDiscard }: D
 
       {/* actions */}
       <div className="mt-5 flex flex-wrap items-center gap-2.5 border-t border-border-soft pt-4">
-        <Button variant="ghost" size="md" onClick={onRegenerate}>
-          <IconRefresh size={15} /> Regenerate
+        <Button variant="ghost" size="md" onClick={onRegenerate} disabled={busy}>
+          {busy ? (
+            <>
+              <IconSpinner size={15} className="animate-spin" /> Regenerating…
+            </>
+          ) : (
+            <>
+              <IconRefresh size={15} /> Regenerate
+            </>
+          )}
         </Button>
-        <span className="text-[11.5px] text-text-dim">Uses the latest settings &amp; sources</span>
-        <Button variant="primary" size="md" className="ml-auto" onClick={onContinue}>
+        <span className="text-[11.5px] text-text-dim">
+          {busy
+            ? 'Re-reading your material with the current settings'
+            : 'Uses the latest settings & sources'}
+        </span>
+        <Button variant="primary" size="md" className="ml-auto" onClick={onContinue} disabled={busy}>
           Continue to Preview <IconArrowRight size={16} />
         </Button>
       </div>

@@ -9,6 +9,7 @@ import {
   type LengthTarget,
 } from '../types'
 import { GENERATABLE } from '../data/mockData'
+import { type AiDraft } from './ai'
 import { CONTENT_TYPE_OPTS, labelOf } from './brief'
 import { type PatternId, PATTERNS, composeCta, pickDashboard } from './playbook'
 
@@ -251,6 +252,84 @@ export function composeDraft(input: DraftInput): GeneratedDraft {
     article: {
       ...article,
       deck: sourceNote ? `${article.deck} ${sourceNote}` : article.deck,
+    },
+  }
+}
+
+/* ============================================================
+   The model-written draft.
+
+   Same output shape as composeDraft above, so everything
+   downstream — the three previews, the editor, scheduling —
+   cannot tell which one produced a campaign. What differs is
+   where the words came from: here they were written from the
+   uploaded document by a vision model that read it, and they
+   arrive already stripped of any brief metadata (src/lib/
+   sanitize.ts).
+
+   Only the channel chrome is borrowed from a template: the
+   author avatar, the reaction counts, the hero label. Those are
+   presentation for the mock previews, not content.
+   ============================================================ */
+
+/** Roughly how long the article reads — used when the model doesn't say. */
+function readingMinutes(text: string): number {
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0
+  return Math.max(1, Math.round(words / 220))
+}
+
+export function composeAiDraft(input: DraftInput, ai: AiDraft): GeneratedDraft {
+  const tpl = GENERATABLE[input.seed % GENERATABLE.length]
+  const headline = ai.linkedin.headline || ai.article.title || tpl.linkedin.headline
+  const body = ai.linkedin.body
+
+  // The pointer is picked from what the piece is actually about, exactly as on
+  // the deterministic path — so the promoted product can't contradict the copy.
+  const dash = pickDashboard([ai.topic, headline, body].join('\n'), input.brief)
+
+  const sourceNote =
+    input.sourceMode === 'auto' && input.sourceLabels.length
+      ? `Generated from ${input.sourceLabels.length} monitored source${input.sourceLabels.length > 1 ? 's' : ''}.`
+      : undefined
+
+  // An article with no sections is still an article — its paragraphs become the
+  // body rather than the piece arriving empty.
+  const sections: ArticleSection[] = ai.article.sections.length
+    ? ai.article.sections.map((s) => ({ ...(s.heading ? { heading: s.heading } : {}), body: s.body }))
+    : body
+        .split('\n\n')
+        .filter(Boolean)
+        .map((p) => ({ body: p }))
+
+  const deck = ai.article.deck || body.split('\n\n')[0] || tpl.article.deck
+  const cta = composeCta([ai.topic, headline, body].join('\n'), input.brief)
+
+  return {
+    name: headline,
+    topic: ai.topic || dash.topic,
+    heroImage: tpl.heroImage,
+    promoId: dash.promoId,
+    linkedin: { ...tpl.linkedin, headline, body },
+    email: {
+      ...tpl.email,
+      subject: ai.email.subject || headline,
+      preheader: sourceNote
+        ? `${sourceNote} ${ai.email.preheader}`.trim()
+        : ai.email.preheader || tpl.email.preheader,
+      idea: ai.email.idea || body.split('\n\n')[0] || tpl.email.idea,
+      story: ai.email.story || tpl.email.story,
+      takeaway: ai.email.takeaway || tpl.email.takeaway,
+      ctaLabel: ai.email.ctaLabel || `Open ${dash.name}`,
+    },
+    article: {
+      ...tpl.article,
+      title: ai.article.title || headline,
+      deck: sourceNote ? `${deck} ${sourceNote}` : deck,
+      readMinutes: ai.article.readMinutes || readingMinutes(sections.map((s) => s.body).join(' ')),
+      sections,
+      ctaTitle: `Follow this in ${dash.name}`,
+      ctaBody: cta ?? tpl.article.ctaBody,
+      ctaLabel: `Open ${dash.name}`,
     },
   }
 }

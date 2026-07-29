@@ -39,6 +39,7 @@ export function Workspace() {
   const discardDraft = useStore((s) => s.discardDraft)
   const draftId = useStore((s) => s.draftId)
   const draft = useStore((s) => s.campaigns.find((c) => c.id === s.draftId) ?? null)
+  const generating = useStore((s) => s.generating)
   const customSources = useStore((s) => s.customSources)
   const hiddenSourceIds = useStore((s) => s.hiddenSourceIds)
   const addSource = useStore((s) => s.addSource)
@@ -73,9 +74,11 @@ export function Workspace() {
   const outlineGroup = !collecting && activeGroup?.outline ? activeGroup : null
   const otherGroups = closedGroups.filter((g) => g.id !== outlineGroup?.id)
 
+  // A failure explains what the model saw and what to do about it, so it stays
+  // up long enough to read; a confirmation doesn't need the same room.
   function flash(text: string, ok: boolean) {
     setFeedback({ text, ok })
-    window.setTimeout(() => setFeedback(null), 5000)
+    window.setTimeout(() => setFeedback(null), ok ? 5000 : 14000)
   }
 
   /** Done — closes the group, which composes its write-up (step one). */
@@ -160,6 +163,9 @@ export function Workspace() {
       const items = group?.items ?? []
       return {
         sourceMode: 'manual' as const,
+        // The group id is what lets the generator reach the actual files — the
+        // uploaded images travel to the model from here.
+        groupId: group?.id,
         sourceItemIds: items.map((it) => it.id),
         sourceLabels: items.map((it) => it.title),
         // the approved write-up is the text the post is built from — its
@@ -184,7 +190,7 @@ export function Workspace() {
   // In manual mode the write-up is the gate: no step one, nothing to generate.
   const canGenerate = mode === 'manual' ? !!outlineGroup : autoSelected.size > 0
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (!canGenerate) {
       flash(
         mode === 'manual'
@@ -194,14 +200,24 @@ export function Workspace() {
       )
       return
     }
-    generateDraft(currentInput())
+    setFeedback(null)
+    const result = await generateDraft(currentInput())
+    if (!result.ok) {
+      // Nothing readable in the upload, or the model call failed. Either way
+      // there is no draft — saying so beats showing a post about nothing.
+      flash(result.reason, false)
+      return
+    }
     setStartingNew(false)
     setInputsOpen(false)
-    setFeedback(null)
+    if (result.notice) flash(result.notice, false)
   }
 
-  function handleRegenerate() {
-    regenerateDraft(currentInput())
+  async function handleRegenerate() {
+    setFeedback(null)
+    const result = await regenerateDraft(currentInput())
+    if (!result.ok) flash(result.reason, false)
+    else if (result.notice) flash(result.notice, false)
   }
 
   function handleContinue() {
@@ -285,6 +301,7 @@ export function Workspace() {
                   <div className="mt-6">
                     <OutlineCard
                       group={outlineGroup}
+                      busy={generating}
                       onGenerate={handleGenerate}
                       onEditMaterials={() => handleEditGroup(outlineGroup.id)}
                       onDiscard={() => handleDiscardGroup(outlineGroup.id)}
@@ -351,6 +368,7 @@ export function Workspace() {
           <div className="mt-8">
             <DraftEditor
               campaign={draft}
+              busy={generating}
               onRegenerate={handleRegenerate}
               onContinue={handleContinue}
               onDiscard={handleDiscard}
@@ -363,20 +381,29 @@ export function Workspace() {
       <aside className="flex flex-col gap-4 lg:sticky lg:top-0 lg:max-h-[calc(100vh-5.5rem)] lg:self-start lg:overflow-y-auto lg:pt-1 lg:pb-4">
         {!draftId && <WorkspaceIllustration />}
         <ContentSettingsPanel
-          canGenerate={draftId ? true : canGenerate}
-          ctaLabel={draftId ? 'Regenerate' : 'Generate content'}
+          canGenerate={(draftId ? true : canGenerate) && !generating}
+          busy={generating}
+          ctaLabel={
+            generating
+              ? 'Reading your material…'
+              : draftId
+                ? 'Regenerate'
+                : 'Generate content'
+          }
           onGenerate={draftId ? handleRegenerate : handleGenerate}
           feedback={feedback}
           hint={
-            draftId
-              ? 'Regenerate applies your latest settings & sources to this draft.'
-              : canGenerate
-                ? mode === 'manual'
-                  ? `Builds the post from your write-up + ${selCount} material${selCount === 1 ? '' : 's'}.`
-                  : `${selCount} selected — these settings apply to every generation.`
-                : mode === 'manual'
-                  ? 'Add your material and click Done — a write-up comes first.'
-                  : 'Select sources, then generate.'
+            generating
+              ? 'Your document and instructions are with the model — this takes a few seconds.'
+              : draftId
+                ? 'Regenerate applies your latest settings & sources to this draft.'
+                : canGenerate
+                  ? mode === 'manual'
+                    ? `Builds the post from your write-up + ${selCount} material${selCount === 1 ? '' : 's'}.`
+                    : `${selCount} selected — these settings apply to every generation.`
+                  : mode === 'manual'
+                    ? 'Add your material and click Done — a write-up comes first.'
+                    : 'Select sources, then generate.'
           }
         />
       </aside>

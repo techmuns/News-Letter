@@ -46,10 +46,16 @@ One **master Campaign** → **three linked channel versions** (LinkedIn / Email 
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # typecheck + production build to dist/
-npm run preview  # preview the production build
+npm run dev            # http://localhost:5173 — UI only, no /api routes
+npm run dev:functions  # builds, then serves the app *with* the Pages Functions
+npm run build          # typecheck + production build to dist/
+npm run preview        # preview the production build
 ```
+
+`vite dev` does not run the `functions/` directory, so `/api/generate` 404s there
+and the app falls back to its deterministic composer. To exercise the real model
+locally, use `npm run dev:functions` with the key in a `.dev.vars` file — see
+[Vision-based document analysis](#vision-based-document-analysis-openai) below.
 
 ### Project structure
 
@@ -60,9 +66,115 @@ src/
     preview/           channel renderers (LinkedInPost, EmailPreview, ArticlePreview)
   spaces/              the four routed spaces
   store/useStore.ts    shared Zustand store + mocked actions
+  lib/ai.ts            the browser's side of the model call
+  lib/sanitize.ts      strips brief metadata out of model output
   data/mockData.ts     seeded, value-first mock content
   types.ts             Campaign / ChannelVersion / WorkspaceItem model
+functions/
+  api/generate.js      Cloudflare Pages Function — the only place OpenAI is called
+  api/read.js          server-side article reader for pasted links
 ```
+
+---
+
+## Vision-based document analysis (OpenAI)
+
+Uploads are **read**, not just displayed. A screenshot of a results page, a slide,
+a dashboard grab or a scanned PDF goes to a vision-capable OpenAI model together
+with the author's own instructions, and the post is written from what the document
+actually says.
+
+### The two calls
+
+Both go through [`functions/api/generate.js`](functions/api/generate.js), which is
+the only place the API key is ever used — it lives on the server, never in the
+browser bundle.
+
+| When | Mode | What is sent in **one** request |
+| --- | --- | --- |
+| A file is dropped into the Workspace | `analyze` | the image + what the author is working towards → a transcription that becomes the material's text |
+| **Generate the post** is clicked | `compose` | the images **and** the extracted document text **and** the author's write-up **and** the brief-as-directives → the three channel drafts |
+
+The images travel as `image_url` parts on the same user message as the prompt, at
+`detail: "high"`. The upload and the instructions are never split across two calls.
+
+Downstream, nothing else changed shape: once an image has been read, its text is a
+normal material, so the step-one write-up, the sourced-quote list and the playbook
+check all work on screenshots exactly as they already did on PDFs.
+
+### Environment variables
+
+Set these in the Cloudflare dashboard → your Pages project → **Settings →
+Environment variables** (Production, and Preview if you want preview deploys to
+work too). Add them as **plaintext** except the key, which should be **Encrypted**.
+
+| Variable | Required | Default | What it does |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | **yes** | — | Your OpenAI key (`sk-…`). Mark it **Encrypt**. |
+| `OPENAI_MODEL` | no | `gpt-4o` | Any vision-capable chat model your key can use. |
+| `OPENAI_BASE_URL` | no | `https://api.openai.com/v1` | Point at a compatible gateway or proxy. |
+| `OPENAI_MAX_IMAGES` | no | `6` | Images per request — each one is billed. |
+| `OPENAI_ORG` / `OPENAI_PROJECT` | no | — | Sent as `OpenAI-Organization` / `OpenAI-Project` headers. |
+
+> **The name matters.** It must be exactly `OPENAI_API_KEY`. Do **not** prefix it
+> with `VITE_` — anything named `VITE_*` is compiled into the JavaScript the
+> browser downloads, which would publish your key to every visitor.
+
+Environment-variable changes only take effect on a **new build**, so push a commit
+or hit **Retry deployment** after adding them.
+
+For local development, put the same values in a `.dev.vars` file at the repo root
+(it is git-ignored) and run `npm run dev:functions`:
+
+```
+OPENAI_API_KEY=sk-…
+OPENAI_MODEL=gpt-4o
+```
+
+### Package dependencies
+
+**None were added.** The Pages Function calls the OpenAI REST API with the
+`fetch` that is already in the Workers runtime, so there is no `openai` package,
+no SDK and nothing extra in the browser bundle. The only new dev dependency is
+`wrangler`, and that is purely so `npm run dev:functions` can serve the functions
+locally — it is not needed to build or deploy.
+
+### Checking that the image really is being sent
+
+"Uploaded" and "reached the model" are different things, so the app reports the
+second one rather than asking you to take its word for it:
+
+1. **In the app.** Every generated draft carries a **Read by the model** card
+   showing the model id, how many images were transmitted and their size, how many
+   documents and characters went with them, and the prompt-token count — all
+   counted server-side from the request that was actually sent. If it says
+   `0 images sent`, the draft in front of you was not written from your upload,
+   and it says so in amber.
+2. **In the browser.** DevTools → Network → the `POST /api/generate` request →
+   Payload. The `images[].dataUrl` is the file itself, base64-encoded.
+3. **On the edge.** `npx wrangler pages deployment tail` streams the function's
+   logs; failures log as `[api/generate] compose <reason>`.
+4. **Is it wired up at all?** `curl https://<your-site>/api/generate` returns
+   `{"configured":true,"model":"gpt-4o",…}` when the key is set.
+
+### What it will not do
+
+- **It will not write around an unreadable upload.** If the model looks and finds
+  no legible text or data, no draft is created at all — the Workspace tells you
+  what it saw instead. A confident post about a blurred scan is the failure mode
+  this exists to prevent.
+- **It will not put the brief in the copy.** The audience, tone, objective and
+  format are sent as instructions on *how* to write and are explicitly banned from
+  appearing in what is written. Anything that slips through — `(Written for VC)`,
+  `Target Audience:`, `[insert figure]`, markdown asterisks — is stripped by
+  [`src/lib/sanitize.ts`](src/lib/sanitize.ts) before the draft is stored.
+  Parentheses carrying facts, like `(FY25)`, are left alone.
+- **It will not invent figures.** Every number is supposed to come from the
+  supplied material, and the draft lists the specific facts it used so they can be
+  checked against the document.
+- **It will not break without a key.** With `OPENAI_API_KEY` unset the app behaves
+  exactly as it did before: the deterministic composer writes the drafts from your
+  write-up, and the Workspace says the uploads were not read.
 
 ---
 

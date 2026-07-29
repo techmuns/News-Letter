@@ -12,7 +12,7 @@ import { MicroLabel } from '../MicroLabel'
 import { SelectField } from '../SelectField'
 import { RangeSlider } from '../RangeSlider'
 import { Button } from '../Button'
-import { IconSliders, IconSparkle } from '../icons'
+import { IconSliders, IconSparkle, IconSpinner } from '../icons'
 
 /** Tone ordered from most formal → most conversational (drives the Formal↔Conversational slider). */
 const TONE_FORMAL_ORDER: readonly Tone[] = [
@@ -40,6 +40,8 @@ interface ContentSettingsPanelProps {
   canGenerate: boolean
   /** label for the primary button (e.g. "Generate content" / "Regenerate") */
   ctaLabel: string
+  /** a generation is in flight — a model call is not instant */
+  busy?: boolean
   onGenerate: () => void
   feedback?: { text: string; ok: boolean } | null
   /** helper line under the button */
@@ -54,6 +56,7 @@ interface ContentSettingsPanelProps {
 export function ContentSettingsPanel({
   canGenerate,
   ctaLabel,
+  busy = false,
   onGenerate,
   feedback,
   hint,
@@ -143,7 +146,12 @@ export function ContentSettingsPanel({
           disabled={!canGenerate}
           className="w-full justify-center py-3 text-[14px]"
         >
-          <IconSparkle size={16} /> {ctaLabel}
+          {busy ? (
+            <IconSpinner size={16} className="animate-spin" />
+          ) : (
+            <IconSparkle size={16} />
+          )}{' '}
+          {ctaLabel}
         </Button>
 
         {feedback ? (

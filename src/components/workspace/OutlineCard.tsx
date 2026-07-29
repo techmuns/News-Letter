@@ -21,6 +21,7 @@ import {
   IconClose,
   IconChevronDown,
   IconQuote,
+  IconSpinner,
 } from '../icons'
 
 /** The §6 dashboard names, used to find the CTA paragraph a quote goes above. */
@@ -37,6 +38,8 @@ interface OutlineCardProps {
   group: MaterialGroup
   /** generate the full post from this write-up */
   onGenerate: () => void
+  /** the model is writing — the button waits rather than firing twice */
+  busy?: boolean
   /** go back and change the materials */
   onEditMaterials: () => void
   onDiscard: () => void
@@ -81,7 +84,13 @@ function Para({ text }: { text: string }) {
  * editable. Whatever the author leaves here is what the full generation runs
  * on, so the first thing they do is correct the machine rather than accept it.
  */
-export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: OutlineCardProps) {
+export function OutlineCard({
+  group,
+  busy = false,
+  onGenerate,
+  onEditMaterials,
+  onDiscard,
+}: OutlineCardProps) {
   const updateOutline = useStore((s) => s.updateOutline)
   const recomposeOutline = useStore((s) => s.recomposeOutline)
   const outline = group.outline
@@ -435,10 +444,18 @@ export function OutlineCard({ group, onGenerate, onEditMaterials, onDiscard }: O
             variant="primary"
             size="md"
             onClick={onGenerate}
-            disabled={words === 0 || anyReading}
+            disabled={words === 0 || anyReading || busy}
           >
-            <IconSparkle size={15} /> {anyReading ? 'Reading…' : 'Generate the post'}{' '}
-            <IconArrowRight size={15} />
+            {busy ? (
+              <>
+                <IconSpinner size={15} className="animate-spin" /> Writing from your material…
+              </>
+            ) : (
+              <>
+                <IconSparkle size={15} /> {anyReading ? 'Reading…' : 'Generate the post'}{' '}
+                <IconArrowRight size={15} />
+              </>
+            )}
           </Button>
         </span>
       </div>

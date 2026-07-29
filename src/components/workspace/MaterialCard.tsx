@@ -44,7 +44,8 @@ function ReadStatus({ item, onRetry }: { item: WorkspaceItem; onRetry?: () => vo
   if (item.readState === 'reading') {
     return (
       <span className="flex shrink-0 items-center gap-1 text-[11px] text-violet">
-        <IconSpinner size={11} className="animate-spin" /> reading…
+        <IconSpinner size={11} className="animate-spin" />
+        {item.imageUrl || item.pageImages?.length ? 'reading the document…' : 'reading…'}
       </span>
     )
   }
@@ -66,13 +67,20 @@ function ReadStatus({ item, onRetry }: { item: WorkspaceItem; onRetry?: () => vo
   }
   if (item.extracted) {
     const words = wordsIn(item.extracted)
+    // An image that was looked at says so — "text read" on a screenshot would
+    // leave the author guessing whether the picture itself was ever opened.
+    const what = item.imageUrl || item.pageImages?.length
+      ? item.readKind || 'document read'
+      : item.pages
+        ? `${item.pages} page${item.pages > 1 ? 's' : ''} read`
+        : 'text read'
     return (
       <span
         className="flex shrink-0 items-center gap-1 text-[11px] text-green"
         title={`${words.toLocaleString('en-IN')} words read — the post is written from this text`}
       >
         <IconCheck size={11} />
-        {item.pages ? `${item.pages} page${item.pages > 1 ? 's' : ''} read` : 'text read'}
+        {what}
       </span>
     )
   }
@@ -141,7 +149,10 @@ export function MaterialCard({ item, onRename, onRemove, onRetryRead }: Material
         )}
       </div>
 
-      <ReadStatus item={item} onRetry={item.url ? onRetryRead : undefined} />
+      <ReadStatus
+        item={item}
+        onRetry={item.url || item.imageUrl || item.pageImages?.length ? onRetryRead : undefined}
+      />
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         <button

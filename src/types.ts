@@ -89,10 +89,35 @@ export interface WorkspaceItem {
   extracted?: string
   /** page count of a read PDF, shown so the author knows how much was read */
   pages?: number
+  /**
+   * Rendered pages of a scanned PDF, as data URLs. A scan has no text to parse,
+   * so its pages travel to the vision model as pictures — the same route an
+   * uploaded screenshot takes.
+   */
+  pageImages?: string[]
   /** 'reading' while extraction is in flight, then how it ended */
   readState?: 'reading' | 'read' | 'failed' | 'none'
   /** why nothing could be read — a scanned PDF, a page that blocks fetching */
   readError?: string
+  /** what the vision model called this document — "bar chart", "slide", … */
+  readKind?: string
+}
+
+/**
+ * What a model call actually carried.
+ *
+ * Stored on the campaign and shown in the draft, because "the image was
+ * uploaded" and "the image reached the model" are different claims and only the
+ * second one produces a post about the document.
+ */
+export interface AiTrace {
+  model: string
+  imagesSent: number
+  imageBytes: number
+  documentsSent: number
+  documentChars: number
+  promptTokens: number | null
+  completionTokens: number | null
 }
 
 /**
@@ -325,6 +350,12 @@ export interface Campaign {
   /** true while still being composed in the Workspace — hidden from Preview
       and Scheduling until the author hits "Continue to Preview". */
   draft?: boolean
+  /** set when a model wrote this — what it read, and how much of it */
+  ai?: AiTrace
+  /** the model's one-line account of what the uploaded material actually was */
+  aiSummary?: string
+  /** the specific figures it took from the material and used */
+  aiFacts?: string[]
   /** true during the mocked "turn into content" processing state */
   processing?: boolean
 }
