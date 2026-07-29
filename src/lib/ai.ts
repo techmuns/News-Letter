@@ -24,6 +24,7 @@
 import { type AiTrace, type GenerationBrief, type WorkspaceItem } from '../types'
 import {
   AUDIENCE_OPTS,
+  AUDIENCE_READERS,
   CONFIDENCE_OPTS,
   CONTENT_TYPE_OPTS,
   DATA_OPTS,
@@ -227,7 +228,7 @@ export type AiComposeResult =
  */
 function directivesFrom(brief: GenerationBrief): Record<string, string> {
   return {
-    'Write for': labelOf(AUDIENCE_OPTS, brief.audience),
+    'Write for': `${labelOf(AUDIENCE_OPTS, brief.audience)} — ${AUDIENCE_READERS[brief.audience]}`,
     Objective: labelOf(OBJECTIVE_OPTS, brief.objective),
     'Piece type': labelOf(CONTENT_TYPE_OPTS, brief.contentType),
     Depth: labelOf(DEPTH_OPTS, brief.depth),

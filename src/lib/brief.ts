@@ -48,35 +48,31 @@ export function flattenOpts<T>(entries: OptEntry<T>[]): Opt<T>[] {
   return entries.flatMap((e) => (isGroup(e) ? e.options : [e]))
 }
 
-/** Audience, categorised by where the reader invests. The generalist sits
-    above the categories as the broad default. */
-export const AUDIENCE_GROUPS: OptEntry<Persona>[] = [
-  { value: 'analyst-generalist', label: 'Generalist analysts' },
-  {
-    label: 'Public markets',
-    options: [
-      { value: 'hedge-fund-pm', label: 'Hedge-fund PMs' },
-      { value: 'buy-side-analyst', label: 'Buy-side analysts' },
-      { value: 'sell-side-analyst', label: 'Sell-side analysts' },
-    ],
-  },
-  {
-    label: 'Private markets',
-    options: [
-      { value: 'pe-investor', label: 'PE investors' },
-      { value: 'vc-investor', label: 'VC investors' },
-    ],
-  },
-  {
-    label: 'Allocators & leadership',
-    options: [
-      { value: 'allocator', label: 'Allocators & LPs' },
-      { value: 'cio', label: 'CIOs & heads of research' },
-    ],
-  },
+/**
+ * Audience is the category, not the job title. Eight personas asked the author
+ * to pick between readers the post is written identically for — a buy-side and
+ * a sell-side analyst want the same evidence in the same order. Three groups
+ * are the real fork in the writing, and "All investors" is the default for a
+ * post that does not need to choose.
+ */
+export const AUDIENCE_OPTS: Opt<Persona>[] = [
+  { value: 'all', label: 'All investors' },
+  { value: 'public-markets', label: 'Public markets' },
+  { value: 'private-markets', label: 'Private markets' },
+  { value: 'allocators', label: 'Allocators & leadership' },
 ]
 
-export const AUDIENCE_OPTS: Opt<Persona>[] = flattenOpts(AUDIENCE_GROUPS)
+/**
+ * Who each category actually contains. Used wherever the copy needs the reader
+ * named rather than the category labelled — a prose summary, and the writing
+ * directive handed to the model, which needs to know who it is addressing.
+ */
+export const AUDIENCE_READERS: Record<Persona, string> = {
+  all: 'investors across public and private markets',
+  'public-markets': 'hedge-fund PMs, buy-side and sell-side analysts',
+  'private-markets': 'PE and VC investors',
+  allocators: 'allocators, LPs and heads of research',
+}
 
 export const OBJECTIVE_OPTS: Opt<Objective>[] = [
   { value: 'authority', label: 'Build authority' },
@@ -235,7 +231,7 @@ export function labelOf<T>(opts: Opt<T>[], value: T): string {
    ============================================================ */
 
 export const DEFAULT_BRIEF: GenerationBrief = {
-  audience: 'buy-side-analyst',
+  audience: 'all',
   objective: 'authority',
   pillar: 'research-tradecraft',
   contentType: 'framework',
@@ -265,7 +261,7 @@ export const PRESETS: Preset[] = [
     description: 'A Bloomberg-style market note — dense, cited, chart-led.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'buy-side-analyst',
+      audience: 'public-markets',
       objective: 'authority',
       pillar: 'market-science',
       contentType: 'data-drop',
@@ -285,7 +281,7 @@ export const PRESETS: Preset[] = [
     description: 'A McKinsey-style one-pager for time-poor decision-makers.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'cio',
+      audience: 'allocators',
       objective: 'authority',
       pillar: 'decision-frameworks',
       contentType: 'framework',
@@ -304,7 +300,7 @@ export const PRESETS: Preset[] = [
     description: 'A sharp, non-consensus hook — still fully defensible.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'hedge-fund-pm',
+      audience: 'public-markets',
       objective: 'engagement',
       pillar: 'market-science',
       contentType: 'contrarian',
@@ -324,7 +320,7 @@ export const PRESETS: Preset[] = [
     description: 'A teaching post that makes one concept click.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'analyst-generalist',
+      audience: 'all',
       objective: 'educate',
       pillar: 'research-tradecraft',
       contentType: 'explainer',
@@ -344,7 +340,7 @@ export const PRESETS: Preset[] = [
     description: 'A single-chart insight — minimal prose, primary data.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'buy-side-analyst',
+      audience: 'public-markets',
       objective: 'authority',
       pillar: 'market-science',
       contentType: 'data-drop',
@@ -363,7 +359,7 @@ export const PRESETS: Preset[] = [
     description: 'A forensic red-flag note under research-grade compliance.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'buy-side-analyst',
+      audience: 'public-markets',
       objective: 'authority',
       pillar: 'governance-incentives',
       contentType: 'case-study',
@@ -386,7 +382,7 @@ export const PRESETS: Preset[] = [
     description: 'A thought-leadership flagship — the one lane where product may lead.',
     brief: {
       ...DEFAULT_BRIEF,
-      audience: 'cio',
+      audience: 'allocators',
       objective: 'category',
       pillar: 'ai-native',
       contentType: 'deep-dive',
@@ -475,7 +471,7 @@ const OBJECTIVE_VERB: Record<Objective, string> = {
 /** One-line, plain-English restatement of the brief. */
 export function briefSentence(b: GenerationBrief): string {
   const type = labelOf(CONTENT_TYPE_OPTS, b.contentType).toLowerCase()
-  const audience = labelOf(AUDIENCE_OPTS, b.audience).toLowerCase()
+  const audience = AUDIENCE_READERS[b.audience]
   return `A ${type} for ${audience}, written to ${OBJECTIVE_VERB[b.objective]}.`
 }
 

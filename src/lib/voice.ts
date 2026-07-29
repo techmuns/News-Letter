@@ -65,14 +65,10 @@ export const VOICE: Record<Tone, Voice> = {
  * the audience setting reaches the copy without ever being named in it.
  */
 const STAKE: Record<Persona, string> = {
-  'hedge-fund-pm': 'the book',
-  'buy-side-analyst': 'the model',
-  'sell-side-analyst': 'the call',
-  'pe-investor': 'the deal',
-  'vc-investor': 'the round',
-  allocator: 'the mandate',
-  cio: 'the research agenda',
-  'analyst-generalist': 'the coverage',
+  all: 'the decision',
+  'public-markets': 'the position',
+  'private-markets': 'the deal',
+  allocators: 'the mandate',
 }
 
 const STAKE_TOKEN = /\{stake\}/g

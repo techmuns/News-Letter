@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore'
 import {
   CONTENT_TYPE_GROUPS,
   TONE_OPTS,
-  AUDIENCE_GROUPS,
+  AUDIENCE_OPTS,
   OBJECTIVE_OPTS,
   DEPTH_OPTS,
 } from '../../lib/brief'
@@ -80,7 +80,7 @@ export function ContentSettingsPanel({
           <SelectField
             value={brief.audience}
             onChange={(v) => updateBrief({ audience: v })}
-            options={AUDIENCE_GROUPS}
+            options={AUDIENCE_OPTS}
           />
         </Field>
 

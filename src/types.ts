@@ -224,15 +224,9 @@ export interface Promotion {
    UI-friendly subset). Stored on the Campaign for provenance.
    ============================================================ */
 
-export type Persona =
-  | 'hedge-fund-pm'
-  | 'buy-side-analyst'
-  | 'sell-side-analyst'
-  | 'pe-investor'
-  | 'vc-investor'
-  | 'allocator'
-  | 'cio'
-  | 'analyst-generalist'
+/** The audience is picked as a category, not a job title — the three groups a
+    post is actually written differently for, plus the broad default. */
+export type Persona = 'all' | 'public-markets' | 'private-markets' | 'allocators'
 
 export type Objective =
   | 'authority'
