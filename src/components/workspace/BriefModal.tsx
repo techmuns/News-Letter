@@ -12,10 +12,10 @@ import {
   applyGuardrails,
   briefSentence,
   briefChips,
-  AUDIENCE_OPTS,
+  AUDIENCE_GROUPS,
   OBJECTIVE_OPTS,
   PILLAR_OPTS,
-  CONTENT_TYPE_OPTS,
+  CONTENT_TYPE_GROUPS,
   DEPTH_OPTS,
   LENGTH_OPTS,
   LENGTH_HINT,
@@ -196,7 +196,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
           {/* core */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Audience">
-              <SelectField value={brief.audience} onChange={(v) => update('audience', v)} options={AUDIENCE_OPTS} />
+              <SelectField value={brief.audience} onChange={(v) => update('audience', v)} options={AUDIENCE_GROUPS} />
             </Field>
             <Field label="Objective">
               <SelectField value={brief.objective} onChange={(v) => update('objective', v)} options={OBJECTIVE_OPTS} />
@@ -205,7 +205,7 @@ export function BriefModal({ open, items, onClose, onGenerate }: BriefModalProps
               <SelectField value={brief.pillar} onChange={(v) => update('pillar', v)} options={PILLAR_OPTS} />
             </Field>
             <Field label="Format">
-              <SelectField value={brief.contentType} onChange={(v) => update('contentType', v)} options={CONTENT_TYPE_OPTS} />
+              <SelectField value={brief.contentType} onChange={(v) => update('contentType', v)} options={CONTENT_TYPE_GROUPS} />
             </Field>
           </div>
 

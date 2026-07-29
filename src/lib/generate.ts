@@ -5,13 +5,13 @@ import {
   type ArticleContent,
   type ArticleSection,
   type SourceMode,
-  type Tone,
   type LengthTarget,
 } from '../types'
 import { GENERATABLE } from '../data/mockData'
 import { type AiDraft } from './ai'
 import { CONTENT_TYPE_OPTS, labelOf } from './brief'
 import { type PatternId, PATTERNS, composeCta, pickDashboard } from './playbook'
+import { CLOSING_ASK, CLOSING_HEAD, DEPTH_PARAS, VOICE, forReader } from './voice'
 
 /* ============================================================
    Deterministic content generator. No model call — it composes a
@@ -52,14 +52,6 @@ export interface GeneratedDraft {
   article: ArticleContent
 }
 
-const TONE_HOOK: Record<Tone, string> = {
-  authoritative: 'Here is what the filings actually say.',
-  analytical: 'Line the data up and a pattern shows up.',
-  provocative: 'Most people are reading this exactly backwards.',
-  conversational: "A quick thing that's been on my mind:",
-  academic: 'Consider the mechanism underneath the headline.',
-}
-
 const LENGTH_PARAS: Record<LengthTarget, number> = {
   micro: 1,
   short: 2,
@@ -96,17 +88,23 @@ function composeBody(input: DraftInput, baseBody: string): string {
     // draft that came from a person, so length only shapes template copy.
     paras.push(...baseParas)
   } else {
-    // 1) tone-flavoured hook
-    paras.push(TONE_HOOK[brief.tone])
+    const voice = VOICE[brief.tone]
 
-    // 2) base paragraphs, count driven by the length target
-    const want = LENGTH_PARAS[brief.length]
+    // 1) tone-flavoured hook
+    paras.push(voice.opener)
+
+    // 2) base paragraphs — the length target sets the count, depth moves it
+    const want = Math.max(1, LENGTH_PARAS[brief.length] + DEPTH_PARAS[brief.depth])
+    paras.push(voice.handoff)
     for (let i = 0; i < want; i++) {
       if (i < baseParas.length) paras.push(baseParas[i])
       else paras.push(FILLER[(seed + i) % FILLER.length])
     }
 
-    // 3) §3 value flow — the pointer closes the post, once, and only when the
+    // 3) the objective's closing move, asked of whoever this is written for
+    paras.push(forReader(CLOSING_ASK[brief.objective], brief.audience))
+
+    // 4) §3 value flow — the pointer closes the post, once, and only when the
     // insight ratio leaves room for it.
     const cta = composeCta(paras.join('\n'), brief)
     if (cta && !paras.some((p) => p.includes(cta))) paras.push(cta)
@@ -129,7 +127,7 @@ function composeBody(input: DraftInput, baseBody: string): string {
 function composeTitle(input: DraftInput, baseHeadline: string): string {
   // An authored headline is used verbatim — it's what they chose to call it.
   if (input.outline) return baseHeadline
-  const type = labelOf(CONTENT_TYPE_OPTS, input.brief.contentType).replace(/ \/.*$/, '')
+  const type = labelOf(CONTENT_TYPE_OPTS, input.brief.contentType)
   // Rotate a light prefix by seed so regeneration visibly changes the title.
   const prefixes = ['', `${type}: `, 'Signal — ', 'What the data says: ']
   return `${prefixes[input.seed % prefixes.length]}${baseHeadline}`
@@ -188,11 +186,26 @@ function composeArticle(input: DraftInput, tplArticle: ArticleContent, headline:
   // the author's material, which belongs under the step that consumes it.
   // Slicing paragraphs evenly across the steps instead would file the evidence
   // under whichever heading the arithmetic landed on.
-  const materialHead =
-    pattern.steps.find((s) => s.fillsFromMaterial)?.heading ?? pattern.steps[0].heading
+  //
+  // Gaps and headings are matched after the reader's stake is resolved into
+  // them, because that is the form the write-up carries.
+  const reader = (text: string) => forReader(text, input.brief.audience)
+  const materialHead = reader(
+    pattern.steps.find((s) => s.fillsFromMaterial)?.heading ?? pattern.steps[0].heading,
+  )
+  const handoff = VOICE[input.brief.tone].handoff
+  const closing = reader(CLOSING_ASK[input.brief.objective])
   for (const para of restParas) {
-    const step = pattern.steps.find((s) => s.gap && s.gap === para.trim())
-    const heading = step?.heading ?? materialHead
+    // The handoff is the tone's way into the evidence, not a section of its own.
+    if (para.trim() === handoff) continue
+    const step = pattern.steps.find((s) => s.gap && reader(s.gap) === para.trim())
+    // The objective's close is its own section — filing it under the material's
+    // heading would repeat a heading the article has already used.
+    const heading = para.trim() === closing
+      ? CLOSING_HEAD[input.brief.objective]
+      : step
+        ? reader(step.heading)
+        : materialHead
     const last = sections[sections.length - 1]
     if (last && last.heading === heading) last.body = `${last.body}\n\n${para}`
     else sections.push({ heading, body: para })

@@ -19,7 +19,10 @@ import {
 
 /* ============================================================
    Filter option catalogs — the labelled choices behind every
-   control in the Content Brief. Mirrors content-filters.md.
+   control in the Content Brief. A curated, UI-friendly subset of
+   content-filters.md: the long lists are categorised so they scan
+   in one pass, and options that produced identical output have
+   been folded together.
    ============================================================ */
 
 export interface Opt<T> {
@@ -27,16 +30,53 @@ export interface Opt<T> {
   label: string
 }
 
-export const AUDIENCE_OPTS: Opt<Persona>[] = [
-  { value: 'hedge-fund-pm', label: 'Hedge-fund PMs' },
-  { value: 'buy-side-analyst', label: 'Buy-side analysts' },
-  { value: 'sell-side-analyst', label: 'Sell-side analysts' },
-  { value: 'pe-investor', label: 'PE investors' },
-  { value: 'vc-investor', label: 'VC investors' },
-  { value: 'allocator', label: 'Allocators / LPs' },
-  { value: 'cio', label: 'CIOs / Heads of Research' },
+/** A named category of options — rendered as a heading inside the dropdown. */
+export interface OptGroup<T> {
+  label: string
+  options: Opt<T>[]
+}
+
+/** A catalog entry: either a loose option or a category of them. */
+export type OptEntry<T> = Opt<T> | OptGroup<T>
+
+function isGroup<T>(entry: OptEntry<T>): entry is OptGroup<T> {
+  return 'options' in entry
+}
+
+/** Flattens a categorised catalog to a plain list, for label lookups. */
+export function flattenOpts<T>(entries: OptEntry<T>[]): Opt<T>[] {
+  return entries.flatMap((e) => (isGroup(e) ? e.options : [e]))
+}
+
+/** Audience, categorised by where the reader invests. The generalist sits
+    above the categories as the broad default. */
+export const AUDIENCE_GROUPS: OptEntry<Persona>[] = [
   { value: 'analyst-generalist', label: 'Generalist analysts' },
+  {
+    label: 'Public markets',
+    options: [
+      { value: 'hedge-fund-pm', label: 'Hedge-fund PMs' },
+      { value: 'buy-side-analyst', label: 'Buy-side analysts' },
+      { value: 'sell-side-analyst', label: 'Sell-side analysts' },
+    ],
+  },
+  {
+    label: 'Private markets',
+    options: [
+      { value: 'pe-investor', label: 'PE investors' },
+      { value: 'vc-investor', label: 'VC investors' },
+    ],
+  },
+  {
+    label: 'Allocators & leadership',
+    options: [
+      { value: 'allocator', label: 'Allocators & LPs' },
+      { value: 'cio', label: 'CIOs & heads of research' },
+    ],
+  },
 ]
+
+export const AUDIENCE_OPTS: Opt<Persona>[] = flattenOpts(AUDIENCE_GROUPS)
 
 export const OBJECTIVE_OPTS: Opt<Objective>[] = [
   { value: 'authority', label: 'Build authority' },
@@ -69,18 +109,36 @@ export const PILLAR_SHORT: Record<PillarId, string> = {
   'ai-native': 'AI-Native',
 }
 
-export const CONTENT_TYPE_OPTS: Opt<ContentType>[] = [
-  { value: 'framework', label: 'Framework / checklist' },
-  { value: 'deep-dive', label: 'Deep dive' },
-  { value: 'data-drop', label: 'Data drop' },
-  { value: 'contrarian', label: 'Contrarian take' },
-  { value: 'explainer', label: 'Explainer' },
-  { value: 'case-study', label: 'Case study' },
-  { value: 'myth-buster', label: 'Myth-buster' },
-  { value: 'trend', label: 'Trend analysis' },
-  { value: 'teardown', label: 'Teardown / Q&A' },
-  { value: 'bookshelf', label: 'Bookshelf / curation' },
+/** Content type, categorised by what the post does for the reader. One entry
+    per playbook pattern — the old list offered three pairs that generated the
+    identical shape (myth-buster/contrarian, teardown/framework, trend/deep
+    dive), so the duplicates are gone. */
+export const CONTENT_TYPE_GROUPS: OptEntry<ContentType>[] = [
+  {
+    label: 'Explain',
+    options: [
+      { value: 'explainer', label: 'Explainer' },
+      { value: 'framework', label: 'Framework' },
+    ],
+  },
+  {
+    label: 'Show evidence',
+    options: [
+      { value: 'data-drop', label: 'Data drop' },
+      { value: 'data-list', label: 'Ranked list' },
+      { value: 'case-study', label: 'Case study' },
+    ],
+  },
+  {
+    label: 'Take a view',
+    options: [
+      { value: 'deep-dive', label: 'Deep dive' },
+      { value: 'contrarian', label: 'Contrarian take' },
+    ],
+  },
 ]
+
+export const CONTENT_TYPE_OPTS: Opt<ContentType>[] = flattenOpts(CONTENT_TYPE_GROUPS)
 
 export const DEPTH_OPTS: Opt<Depth>[] = [
   { value: 'surface', label: 'Surface' },
@@ -106,12 +164,13 @@ export const LENGTH_HINT: Record<LengthTarget, string> = {
   deep: '10+ min',
 }
 
+/** Ordered most formal → most conversational, so a slider can walk it. */
 export const TONE_OPTS: Opt<Tone>[] = [
+  { value: 'academic', label: 'Academic' },
   { value: 'authoritative', label: 'Authoritative' },
   { value: 'analytical', label: 'Analytical' },
   { value: 'provocative', label: 'Provocative' },
   { value: 'conversational', label: 'Conversational' },
-  { value: 'academic', label: 'Academic' },
 ]
 
 export const POV_OPTS: Opt<PointOfView>[] = [
@@ -330,7 +389,7 @@ export const PRESETS: Preset[] = [
       audience: 'cio',
       objective: 'category',
       pillar: 'ai-native',
-      contentType: 'trend',
+      contentType: 'deep-dive',
       depth: 'standard',
       dataIntensity: 'illustrative',
       pointOfView: 'variant',
@@ -415,7 +474,7 @@ const OBJECTIVE_VERB: Record<Objective, string> = {
 
 /** One-line, plain-English restatement of the brief. */
 export function briefSentence(b: GenerationBrief): string {
-  const type = labelOf(CONTENT_TYPE_OPTS, b.contentType).replace(/ \/.*$/, '').toLowerCase()
+  const type = labelOf(CONTENT_TYPE_OPTS, b.contentType).toLowerCase()
   const audience = labelOf(AUDIENCE_OPTS, b.audience).toLowerCase()
   return `A ${type} for ${audience}, written to ${OBJECTIVE_VERB[b.objective]}.`
 }
@@ -435,6 +494,5 @@ export function briefChips(b: GenerationBrief): string[] {
 
 /** Very compact descriptor for the campaigns rail. */
 export function briefRailLine(b: GenerationBrief): string {
-  const type = labelOf(CONTENT_TYPE_OPTS, b.contentType).replace(/ \/.*$/, '')
-  return `${PILLAR_SHORT[b.pillar]} · ${type}`
+  return `${PILLAR_SHORT[b.pillar]} · ${labelOf(CONTENT_TYPE_OPTS, b.contentType)}`
 }

@@ -75,11 +75,22 @@ export interface Pattern {
   steps: PatternStep[]
 }
 
+/**
+ * §9 — the signal belongs inside the first two lines, so a lead longer than
+ * this stops being one. Exported because the composer has to respect the same
+ * ceiling it is later audited against.
+ */
+export const LEAD_MAX_WORDS = 40
+
 /** §5's skeletons name the count in words ("Three questions tell you..."). */
 const NUMBER_WORD: Record<number, string> = {
   2: 'Two',
   3: 'Three',
   4: 'Four',
+  5: 'Five',
+  6: 'Six',
+  7: 'Seven',
+  8: 'Eight',
 }
 
 /** " on the DRHP filing" / "" — lets one hook string serve both cases. */
@@ -98,7 +109,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { heading: 'The headline claim', gap: '[what the market currently believes here — one line]' },
       { heading: 'The data that contradicts it', fillsFromMaterial: true },
       { heading: 'Why the gap exists', gap: '[the mechanism — what produces this, and why it stays unnoticed]' },
-      { heading: 'What it means for a book', gap: '[the implication for durability, multiple or risk — one line]' },
+      { heading: 'What it means for {stake}', gap: '[the implication for {stake} — durability, multiple or risk, one line]' },
     ],
   },
   'one-chart': {
@@ -110,7 +121,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
     steps: [
       { heading: 'What the chart shows', fillsFromMaterial: true },
       { heading: 'The one takeaway', gap: '[the single thing this chart proves — resist adding a second]' },
-      { heading: 'Investor implication', gap: '[the implication for the position — what changes because of it]' },
+      { heading: 'Investor implication', gap: '[the implication for {stake} — what changes because of it]' },
     ],
   },
   missed: {
@@ -124,7 +135,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { heading: 'The signal underneath', fillsFromMaterial: true },
       {
         heading: 'Why it matters',
-        gap: '[what this means for the position that the headline number hides]',
+        gap: '[what this means for {stake} that the headline number hides]',
       },
     ],
   },
@@ -146,7 +157,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { heading: 'How to apply it', gap: '[where each check is read from — filing, disclosure, dashboard field]' },
       {
         heading: 'What it rules out',
-        gap: '[the conclusion this lets you reject — and what it means for the position]',
+        gap: '[the conclusion this lets you reject — and what it means for {stake}]',
       },
     ],
   },
@@ -170,7 +181,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { heading: 'The claim to pressure-test', gap: '[the assumption these checks are testing]' },
       { heading: 'The checks', fillsFromMaterial: true },
       { heading: 'Where to verify each', gap: '[the source for each item — this is what makes it usable]' },
-      { heading: 'What it means', gap: '[the implication if the checks fail — one line]' },
+      { heading: 'What it means', gap: '[the implication for {stake} if the checks fail — one line]' },
     ],
   },
   reframe: {
@@ -187,7 +198,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { heading: 'The reframing question', gap: '[the question that changes the reading — one line]' },
       {
         heading: 'The answer the data gives',
-        gap: '[what the evidence says once reframed, and what it means for the position]',
+        gap: '[what the evidence says once reframed, and what it means for {stake}]',
       },
     ],
   },
@@ -204,23 +215,20 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { heading: 'The event', fillsFromMaterial: true },
       { heading: 'The first-order read', gap: '[where most analysis stops]' },
       { heading: 'The second-order effect', gap: '[the consequence of the consequence — this is the post]' },
-      { heading: 'Implication', gap: '[what a desk does differently]' },
+      { heading: 'Implication', gap: '[what changes for {stake}]' },
     ],
   },
 }
 
-/** §5 — content type maps onto the shape that fits it. */
+/** §5 — content type maps onto the shape that fits it, one to one. */
 const TYPE_PATTERN: Record<ContentType, PatternId> = {
-  framework: 'framework',
-  'deep-dive': 'why-matters',
-  'data-drop': 'one-chart',
-  contrarian: 'divergence',
   explainer: 'reframe',
+  framework: 'framework',
+  'data-drop': 'one-chart',
+  'data-list': 'data-list',
   'case-study': 'missed',
-  'myth-buster': 'divergence',
-  trend: 'why-matters',
-  teardown: 'framework',
-  bookshelf: 'data-list',
+  'deep-dive': 'why-matters',
+  contrarian: 'divergence',
 }
 
 /**
@@ -458,11 +466,16 @@ export function scorePiece(input: {
   lines.push({
     dim: 'clarity',
     label: 'Clarity',
-    score: leadWords > 0 && leadWords <= 40 && !HAS_GAP.test(lead) ? 2 : leadWords > 0 ? 1 : 0,
+    score:
+      leadWords > 0 && leadWords <= LEAD_MAX_WORDS && !HAS_GAP.test(lead)
+        ? 2
+        : leadWords > 0
+          ? 1
+          : 0,
     fix:
       leadWords === 0
         ? 'Open with the signal.'
-        : leadWords > 40
+        : leadWords > LEAD_MAX_WORDS
           ? 'Lead is long — put the signal in the first two lines.'
           : HAS_GAP.test(lead)
             ? 'The opening line still has a gap in it.'

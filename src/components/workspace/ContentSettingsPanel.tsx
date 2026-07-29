@@ -1,10 +1,9 @@
 import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
-import { type Tone, type Depth } from '../../types'
 import {
-  CONTENT_TYPE_OPTS,
+  CONTENT_TYPE_GROUPS,
   TONE_OPTS,
-  AUDIENCE_OPTS,
+  AUDIENCE_GROUPS,
   OBJECTIVE_OPTS,
   DEPTH_OPTS,
 } from '../../lib/brief'
@@ -13,18 +12,6 @@ import { SelectField } from '../SelectField'
 import { RangeSlider } from '../RangeSlider'
 import { Button } from '../Button'
 import { IconSliders, IconSparkle, IconSpinner } from '../icons'
-
-/** Tone ordered from most formal → most conversational (drives the Formal↔Conversational slider). */
-const TONE_FORMAL_ORDER: readonly Tone[] = [
-  'academic',
-  'authoritative',
-  'analytical',
-  'provocative',
-  'conversational',
-]
-
-/** Depth ordered concise → in-depth (matches DEPTH_OPTS order). */
-const DEPTH_ORDER: readonly Depth[] = DEPTH_OPTS.map((o) => o.value)
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -85,23 +72,7 @@ export function ContentSettingsPanel({
           <SelectField
             value={brief.contentType}
             onChange={(v) => updateBrief({ contentType: v })}
-            options={CONTENT_TYPE_OPTS}
-          />
-        </Field>
-
-        <Field label="Tone / Tonality">
-          <SelectField
-            value={brief.tone}
-            onChange={(v) => updateBrief({ tone: v })}
-            options={TONE_OPTS}
-          />
-          <RangeSlider
-            order={TONE_FORMAL_ORDER}
-            value={brief.tone}
-            onChange={(v) => updateBrief({ tone: v })}
-            leftLabel="Formal"
-            rightLabel="Conversational"
-            ariaLabel="Tone: formal to conversational"
+            options={CONTENT_TYPE_GROUPS}
           />
         </Field>
 
@@ -109,7 +80,7 @@ export function ContentSettingsPanel({
           <SelectField
             value={brief.audience}
             onChange={(v) => updateBrief({ audience: v })}
-            options={AUDIENCE_OPTS}
+            options={AUDIENCE_GROUPS}
           />
         </Field>
 
@@ -121,14 +92,22 @@ export function ContentSettingsPanel({
           />
         </Field>
 
-        <Field label="Depth / Balance">
-          <SelectField
-            value={brief.depth}
-            onChange={(v) => updateBrief({ depth: v })}
-            options={DEPTH_OPTS}
-          />
+        {/* Tone and Depth are scales, so the slider is the whole control —
+            it names the setting it lands on instead of a second dropdown. */}
+        <Field label="Tone">
           <RangeSlider
-            order={DEPTH_ORDER}
+            options={TONE_OPTS}
+            value={brief.tone}
+            onChange={(v) => updateBrief({ tone: v })}
+            leftLabel="Formal"
+            rightLabel="Conversational"
+            ariaLabel="Tone: formal to conversational"
+          />
+        </Field>
+
+        <Field label="Depth">
+          <RangeSlider
+            options={DEPTH_OPTS}
             value={brief.depth}
             onChange={(v) => updateBrief({ depth: v })}
             leftLabel="Concise"

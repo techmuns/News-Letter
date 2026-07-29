@@ -251,17 +251,16 @@ export type PillarId =
   | 'portfolio-risk'
   | 'ai-native'
 
+/** One per playbook pattern — two formats that generate the same shape are
+    the same choice, so the picker never offers the same post twice. */
 export type ContentType =
-  | 'framework'
-  | 'deep-dive'
-  | 'data-drop'
-  | 'contrarian'
   | 'explainer'
+  | 'framework'
+  | 'data-drop'
+  | 'data-list'
   | 'case-study'
-  | 'myth-buster'
-  | 'trend'
-  | 'teardown'
-  | 'bookshelf'
+  | 'deep-dive'
+  | 'contrarian'
 
 export type Depth = 'surface' | 'standard' | 'deep' | 'technical'
 

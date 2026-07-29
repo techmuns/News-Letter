@@ -6,10 +6,23 @@ interface SelectOption<T> {
   label: string
 }
 
+/** A named category — rendered as a heading its options sit under. */
+interface SelectGroup<T> {
+  label: string
+  options: SelectOption<T>[]
+}
+
+type SelectEntry<T> = SelectOption<T> | SelectGroup<T>
+
+function isGroup<T>(entry: SelectEntry<T>): entry is SelectGroup<T> {
+  return 'options' in entry
+}
+
 interface SelectFieldProps<T extends string> {
   value: T
   onChange: (value: T) => void
-  options: SelectOption<T>[]
+  /** a flat list, or categories the options are grouped under */
+  options: SelectEntry<T>[]
   id?: string
   className?: string
 }
@@ -17,7 +30,8 @@ interface SelectFieldProps<T extends string> {
 /**
  * Themed native <select> — the clean choice for many-option filters
  * (audience, pillar, format). Native for accessibility; styled to the
- * plum system with a chevron affordance.
+ * plum system with a chevron affordance. A long list reads faster when
+ * it is categorised, so entries may be groups as well as options.
  */
 export function SelectField<T extends string>({
   value,
@@ -26,6 +40,12 @@ export function SelectField<T extends string>({
   id,
   className,
 }: SelectFieldProps<T>) {
+  const option = (o: SelectOption<T>) => (
+    <option key={o.value} value={o.value} className="bg-surface-solid text-text">
+      {o.label}
+    </option>
+  )
+
   return (
     <div className={cn('relative', className)}>
       <select
@@ -38,11 +58,15 @@ export function SelectField<T extends string>({
           'hover:border-border-strong focus-violet',
         )}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-surface-solid text-text">
-            {o.label}
-          </option>
-        ))}
+        {options.map((entry) =>
+          isGroup(entry) ? (
+            <optgroup key={entry.label} label={entry.label} className="bg-surface-solid text-text-muted">
+              {entry.options.map(option)}
+            </optgroup>
+          ) : (
+            option(entry)
+          ),
+        )}
       </select>
       <IconChevronRight
         size={13}

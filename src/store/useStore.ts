@@ -1121,7 +1121,7 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 9,
+      version: 10,
       partialize: (s) => ({
         items: s.items,
         groups: s.groups.map(trimGroupForStorage),

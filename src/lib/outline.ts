@@ -3,12 +3,14 @@ import { CONTENT_TYPE_OPTS, labelOf } from './brief'
 import {
   type Pattern,
   type PatternId,
+  LEAD_MAX_WORDS,
   PATTERNS,
   composeCta,
   pickDashboard,
   pickPattern,
 } from './playbook'
 import { type Excerpt, SELF_VOICE_RE, excerptsFrom, subjectFrom } from './readSource'
+import { CLOSING_ASK, EVIDENCE_BUDGET, VOICE, forReader } from './voice'
 
 /* ============================================================
    Step one of generating a post: a basic write-up composed from
@@ -121,7 +123,7 @@ function excerptsOf(item: WorkspaceItem): Excerpt[] {
 
 function readExcerpts(items: WorkspaceItem[], perSource = 3): Excerpt[] {
   const sources = readItems(items)
-  const share = sources.length > 2 ? 2 : perSource
+  const share = sources.length > 2 ? Math.max(2, Math.ceil(perSource / 2)) : perSource
   return sources
     .flatMap((it) => excerptsOf(it).slice(0, share))
     .sort((a, b) => b.weight - a.weight)
@@ -202,31 +204,36 @@ function composeHeadline(items: WorkspaceItem[], brief: GenerationBrief): string
   const link = items.find((it) => it.url)
   if (link?.url) return `What ${hostOf(link.url)} is reporting`
 
-  const type = labelOf(CONTENT_TYPE_OPTS, brief.contentType).replace(/ \/.*$/, '')
+  const type = labelOf(CONTENT_TYPE_OPTS, brief.contentType)
   return `Untitled ${type.toLowerCase()}`
 }
-
-/** How many notes get quoted in full before the rest are just counted. */
-const NOTES_SHOWN = 4
 
 /**
  * The evidence lines this material yields, in order: the author's own notes
  * first, then the strongest sourced sentences out of what was read.
  *
+ * `budget` is the depth setting — how many lines the post is allowed to carry.
+ * A surface post quotes two and a technical one quotes eight out of exactly the
+ * same materials, which is what makes the Depth control change the post rather
+ * than describe it.
+ *
  * One function, because §5's hook states the count ("Three checks tell you…")
  * and the body prints the list — if they were counted separately the post would
  * promise one number and show another.
  */
-function evidenceLines(items: WorkspaceItem[]): { notes: string[]; quotes: Excerpt[] } {
-  const notes = items.filter((it) => it.type === 'note').slice(0, NOTES_SHOWN)
+function evidenceLines(
+  items: WorkspaceItem[],
+  budget: number,
+): { notes: string[]; quotes: Excerpt[] } {
+  const notes = items.filter((it) => it.type === 'note').slice(0, budget)
   // Room left over after the author's own notes — their words lead.
-  const room = Math.max(1, NOTES_SHOWN - notes.length)
-  return { notes: notes.map(noteText), quotes: readExcerpts(items).slice(0, room) }
+  const room = Math.max(1, budget - notes.length)
+  return { notes: notes.map(noteText), quotes: readExcerpts(items, budget).slice(0, room) }
 }
 
 /** How many checks a checklist will have — §5 states the count up front. */
-function countChecks(items: WorkspaceItem[]): number {
-  const { notes, quotes } = evidenceLines(items)
+function countChecks(items: WorkspaceItem[], budget: number): number {
+  const { notes, quotes } = evidenceLines(items, budget)
   return notes.length + quotes.length
 }
 
@@ -241,13 +248,13 @@ function countChecks(items: WorkspaceItem[]): number {
  *
  * On a checklist pattern the lines are numbered instead of paragraphed, which
  * is what §5's framework and data-list skeletons actually describe — and it's
- * why picking "Framework / checklist" changes the post you can see, not just
+ * why picking "Framework" changes the post you can see, not just
  * the headings underneath it.
  */
-function materialParas(items: WorkspaceItem[], enumerate = false): string[] {
+function materialParas(items: WorkspaceItem[], budget: number, enumerate = false): string[] {
   const paras: string[] = []
 
-  const { notes, quotes } = evidenceLines(items)
+  const { notes, quotes } = evidenceLines(items, budget)
 
   if (enumerate && notes.length + quotes.length > 1) {
     // One check per line, numbered — a checklist reads as a block, not as
@@ -310,23 +317,37 @@ function composeBody(
   brief: GenerationBrief,
   pattern: Pattern,
 ): string {
-  const paras: string[] = [pattern.hook(subjectOf(items), countChecks(items))]
-  const evidence = materialParas(items, pattern.enumerate)
+  const voice = VOICE[brief.tone]
+  const budget = EVIDENCE_BUDGET[brief.depth]
+
+  // The pattern supplies the claim; the tone supplies the register it is made
+  // in. Both matter — a contrarian hook read academically is a different post
+  // from the same hook read provocatively. But §9 wants the signal inside the
+  // first two lines, so where a long subject already fills the lead, the claim
+  // keeps the space and the tone shows up in the handoff instead.
+  const hook = pattern.hook(subjectOf(items), countChecks(items, budget))
+  const voiced = voice.lead(hook)
+  const paras: string[] = [voiced.split(/\s+/).length <= LEAD_MAX_WORDS ? voiced : hook]
+  const evidence = materialParas(items, budget, pattern.enumerate)
   let spent = false
 
   for (const step of pattern.steps) {
     if (step.lead) paras.push(step.lead)
     if (step.fillsFromMaterial && evidence.length && !spent) {
-      paras.push(...evidence)
+      paras.push(voice.handoff, ...evidence)
       spent = true
     } else if (step.gap) {
-      paras.push(step.gap)
+      // The skeleton asks its question about whatever this reader has at stake.
+      paras.push(forReader(step.gap, brief.audience))
     }
   }
 
   // Anything left over that the skeleton had no slot for still belongs in the
   // post — the author's own words are never dropped to fit a shape.
-  if (!spent && evidence.length) paras.push(...evidence)
+  if (!spent && evidence.length) paras.push(voice.handoff, ...evidence)
+
+  // The objective decides the exit: a conclusion, a takeaway, or a question.
+  paras.push(CLOSING_ASK[brief.objective])
 
   // §3 / §10 — the pointer comes last, and only once the insight is on the
   // page. At a 100/0 ratio there is no pointer at all.
@@ -335,7 +356,7 @@ function composeBody(
 
   // No brief restatement here. The audience/type/tone are settings the author
   // already chose — writing them back as a line of the post is filler, and it
-  // is the first thing they would delete.
+  // is the first thing they would delete. They shape these sentences instead.
   return paras.join('\n\n')
 }
 
