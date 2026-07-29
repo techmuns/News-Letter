@@ -48,6 +48,9 @@ export interface AiConfig {
   configured: boolean
   model: string | null
   maxImages: number
+  imageDetail: string
+  /** false → an upload is read once, at generation time, instead of on drop */
+  readOnUpload: boolean
   reason: string
 }
 
@@ -55,10 +58,30 @@ const OFFLINE: AiConfig = {
   configured: false,
   model: null,
   maxImages: 0,
+  imageDetail: 'auto',
+  readOnUpload: false,
   reason: 'The generation endpoint is not reachable from here.',
 }
 
 let configPromise: Promise<AiConfig> | null = null
+
+/**
+ * Why the endpoint didn't answer, in terms of the thing to go and fix.
+ *
+ * Worth the specificity: every one of these failures looks identical from the
+ * author's chair — a post that reads like it never saw the document — and
+ * "couldn't reach the model" would send someone to the wrong dashboard.
+ */
+function unreachable(status: number): string {
+  if (status === 401 || status === 403) {
+    return `The site password gate is blocking /api/generate (${status}). Sign in to the site first; if you already are, the gate is rejecting the app's own requests.`
+  }
+  if (status === 404) {
+    return 'No /api/generate route on this deployment — the build predates the vision integration, or the functions/ directory was not deployed.'
+  }
+  if (status === 503) return 'OPENAI_API_KEY is not set on this deployment.'
+  return `The generation endpoint answered ${status}.`
+}
 
 /**
  * Whether this deployment has a model behind it. Asked once and cached — the
@@ -67,11 +90,19 @@ let configPromise: Promise<AiConfig> | null = null
 export function aiConfig(): Promise<AiConfig> {
   if (!configPromise) {
     configPromise = fetch(ENDPOINT, { method: 'GET' })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((res) =>
+        res.ok
+          ? res.json()
+          : // Carried through as a normal answer, so the reason survives to the
+            // banner instead of collapsing into the generic offline message.
+            ({ configured: false, model: null, reason: unreachable(res.status) }),
+      )
       .then((data: Partial<AiConfig>) => ({
         configured: !!data.configured,
         model: data.model ?? null,
-        maxImages: Number(data.maxImages) || 4,
+        maxImages: Number(data.maxImages) || 3,
+        imageDetail: data.imageDetail ?? 'auto',
+        readOnUpload: data.readOnUpload !== false,
         reason: data.reason ?? '',
       }))
       .catch(() => OFFLINE)
@@ -113,10 +144,41 @@ export interface AiReadResult {
   kind: string
   /** why nothing was read — shown to the author instead of a generic post */
   reason: string
+  /** not a failure: reading was postponed to generation time to save a call */
+  deferred?: boolean
   trace?: AiTrace
 }
 
+/* ---- the session's own brake -------------------------------- */
+
+/**
+ * Model calls made since this tab was opened.
+ *
+ * Not a spending limit — a reload resets it, and the only real cap is the one
+ * set in the OpenAI dashboard. What it does catch is the expensive accident: a
+ * loop, a stuck retry, or a demo left running, quietly billing all afternoon.
+ */
+let callsMade = 0
+
+/** Calls allowed per tab before the app stops on its own. */
+const SESSION_CALL_LIMIT = 60
+
+export function modelCallsMade(): number {
+  return callsMade
+}
+
+/** Clears the brake — the author saw the warning and chose to keep going. */
+export function resetCallCount(): void {
+  callsMade = 0
+}
+
 async function post(body: unknown): Promise<Record<string, unknown>> {
+  if (callsMade >= SESSION_CALL_LIMIT) {
+    throw new Error(
+      `${SESSION_CALL_LIMIT} model calls in this session — stopping so a runaway loop can't keep billing. Reload the page to carry on.`,
+    )
+  }
+  callsMade++
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -144,6 +206,19 @@ export async function analyzeImages(
 ): Promise<AiReadResult> {
   if (!images.length) return { readable: false, text: '', title: '', kind: '', reason: 'No image.' }
   const cfg = await aiConfig()
+  // Reading on upload is a second billed call per file. Where a deployment has
+  // turned it off, the picture is left untouched and read once at generation
+  // time — the post is still written from the document, for half the calls.
+  if (cfg.configured && !cfg.readOnUpload) {
+    return {
+      readable: false,
+      text: '',
+      title: '',
+      kind: '',
+      deferred: true,
+      reason: 'Will be read when you generate the post.',
+    }
+  }
   if (!cfg.configured) {
     return {
       readable: false,

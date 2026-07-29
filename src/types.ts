@@ -112,6 +112,8 @@ export interface WorkspaceItem {
  */
 export interface AiTrace {
   model: string
+  /** how the images were looked at — 'low' is a flat, much cheaper charge */
+  imageDetail?: string
   imagesSent: number
   imageBytes: number
   documentsSent: number

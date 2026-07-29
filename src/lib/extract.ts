@@ -83,11 +83,13 @@ async function loadPdfjs() {
 const MAX_PAGES = 40
 
 /**
- * Pages of a scanned PDF rendered for the vision model. Each one is a billed
- * image, so this is a look at the document rather than a full transcription of
- * a 200-page scan — the front of a filing is where the substance is.
+ * Pages of a scanned PDF rendered for the vision model.
+ *
+ * Each page is a separate billed image, so a 200-page scan is never sent whole.
+ * Two pages is the front of a filing, which is where the substance is — and it
+ * keeps a dropped scan costing about what a dropped screenshot costs.
  */
-const MAX_RENDERED_PAGES = 3
+const MAX_RENDERED_PAGES = 2
 
 /** Long edge of a rendered page. Enough for body type to survive OCR. */
 const RENDER_EDGE = 1600

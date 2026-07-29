@@ -21,10 +21,25 @@
 const DEFAULT_MODEL = 'gpt-4o'
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
 
+/* ---- what this costs ----------------------------------------
+   Every call here is billed per token, and images are the
+   expensive part: at detail "high" the model tiles the picture
+   and charges per tile, while "low" is a flat, much smaller
+   charge. The defaults below are set for a demo — few images,
+   little document text, short answers — and every one of them
+   is an environment variable, so a production deployment can
+   turn the quality back up without touching this file.
+
+   None of it is a spending guarantee. The only hard cap lives
+   in the OpenAI dashboard (Settings → Limits); set one.
+   ------------------------------------------------------------ */
+
 /** Images per request. Each one is billed, so the cap is deliberate. */
-const DEFAULT_MAX_IMAGES = 6
+const DEFAULT_MAX_IMAGES = 3
 /** Extracted document text carried into the prompt, per request. */
-const MAX_DOC_CHARS = 60_000
+const DEFAULT_MAX_DOC_CHARS = 12_000
+/** How the model is told to look at an image: 'auto' | 'low' | 'high'. */
+const DEFAULT_IMAGE_DETAIL = 'auto'
 /** Guard against a runaway upload — ~8 MB of base64 is already a lot of pixels. */
 const MAX_IMAGE_CHARS = 8_000_000
 
@@ -39,14 +54,31 @@ function json(body, status = 200) {
 }
 
 function config(env) {
+  const detail = String(env.OPENAI_IMAGE_DETAIL || DEFAULT_IMAGE_DETAIL).toLowerCase()
   return {
     key: env.OPENAI_API_KEY,
     model: env.OPENAI_MODEL || DEFAULT_MODEL,
     baseUrl: (env.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, ''),
     maxImages: Math.max(1, Number(env.OPENAI_MAX_IMAGES) || DEFAULT_MAX_IMAGES),
+    maxDocChars: Math.max(500, Number(env.OPENAI_MAX_DOC_CHARS) || DEFAULT_MAX_DOC_CHARS),
+    // A ceiling, not a budget: you are billed for what is generated, not for
+    // this number. It is set high enough that a dense page transcription is
+    // never cut off mid-JSON, which would fail the call and cost the input
+    // tokens anyway — a truncated answer is the expensive outcome, not a saving.
+    maxOutputTokens: Math.max(500, Number(env.OPENAI_MAX_OUTPUT_TOKENS) || 3000),
+    imageDetail: ['auto', 'low', 'high'].includes(detail) ? detail : DEFAULT_IMAGE_DETAIL,
+    // Reading an upload the moment it lands makes the write-up show what the
+    // document says — and costs a call per file. Turn it off and the picture is
+    // read once, at generation time, halving the calls for the same demo.
+    readOnUpload: String(env.OPENAI_READ_ON_UPLOAD ?? 'true').toLowerCase() !== 'false',
     org: env.OPENAI_ORG || '',
     project: env.OPENAI_PROJECT || '',
   }
+}
+
+/** An image part, at whatever detail this deployment is paying for. */
+function imagePart(cfg, img) {
+  return { type: 'image_url', image_url: { url: img.dataUrl, detail: cfg.imageDetail } }
 }
 
 /* ---- the model call ------------------------------------------ */
@@ -86,7 +118,15 @@ async function chat(cfg, { system, content, maxTokens }) {
 
     if (res.ok) {
       const data = await res.json()
-      const text = data?.choices?.[0]?.message?.content ?? ''
+      const choice = data?.choices?.[0]
+      const text = choice?.message?.content ?? ''
+      // A JSON answer cut off at the token ceiling is unparseable, and "did not
+      // return usable JSON" would send someone hunting the wrong bug.
+      if (choice?.finish_reason === 'length') {
+        throw new Error(
+          'The answer hit the output token limit — raise OPENAI_MAX_OUTPUT_TOKENS.',
+        )
+      }
       let parsed
       try {
         parsed = JSON.parse(text)
@@ -145,9 +185,9 @@ function usableImages(raw, max) {
     .map((img) => ({ name: String(img.name ?? 'image').slice(0, 120), dataUrl: img.dataUrl }))
 }
 
-function usableDocuments(raw) {
+function usableDocuments(raw, maxChars) {
   if (!Array.isArray(raw)) return []
-  let budget = MAX_DOC_CHARS
+  let budget = maxChars
   const out = []
   for (const doc of raw) {
     if (!doc || typeof doc.text !== 'string' || !doc.text.trim()) continue
@@ -164,9 +204,10 @@ function usableDocuments(raw) {
 }
 
 /** How much of the upload actually went to OpenAI — reported back as proof. */
-function traceOf(images, documents, usage, model) {
+function traceOf(cfg, images, documents, usage, model) {
   return {
     model,
+    imageDetail: cfg.imageDetail,
     imagesSent: images.length,
     imageBytes: images.reduce((n, i) => n + Math.round((i.dataUrl.length * 3) / 4), 0),
     documentsSent: documents.length,
@@ -239,16 +280,15 @@ async function analyze(cfg, payload) {
         .join('\n\n'),
     },
     // The upload itself, inline, in the same request as the instruction above.
-    ...images.map((img) => ({
-      type: 'image_url',
-      image_url: { url: img.dataUrl, detail: 'high' },
-    })),
+    ...images.map((img) => imagePart(cfg, img)),
   ]
 
   const { parsed, usage, model } = await chat(cfg, {
     system: ANALYZE_SYSTEM,
     content,
-    maxTokens: 4000,
+    // A transcription runs long; cutting it short breaks the JSON, so this
+    // ceiling sits above what a page needs rather than at the budget.
+    maxTokens: cfg.maxOutputTokens,
   })
 
   const text = typeof parsed.text === 'string' ? parsed.text.trim() : ''
@@ -263,7 +303,7 @@ async function analyze(cfg, payload) {
       ? ''
       : String(parsed.reason || '').trim() ||
         'No readable text or data could be found in this image.',
-    trace: traceOf(images, [], usage, model),
+    trace: traceOf(cfg, images, [], usage, model),
   })
 }
 
@@ -315,7 +355,7 @@ function directiveLines(directives) {
 
 async function compose(cfg, payload) {
   const images = usableImages(payload.images, cfg.maxImages)
-  const documents = usableDocuments(payload.documents)
+  const documents = usableDocuments(payload.documents, cfg.maxDocChars)
   const instructions = String(payload.instructions ?? '').slice(0, 24_000).trim()
 
   if (!images.length && !documents.length && !instructions) {
@@ -368,19 +408,16 @@ async function compose(cfg, payload) {
     { type: 'text', text: parts.join('\n\n') },
     // The uploads ride in the same message as the prompt above — one request,
     // instructions and document together.
-    ...images.map((img) => ({
-      type: 'image_url',
-      image_url: { url: img.dataUrl, detail: 'high' },
-    })),
+    ...images.map((img) => imagePart(cfg, img)),
   ]
 
   const { parsed, usage, model } = await chat(cfg, {
     system: COMPOSE_SYSTEM,
     content,
-    maxTokens: 6000,
+    maxTokens: cfg.maxOutputTokens,
   })
 
-  const trace = traceOf(images, documents, usage, model)
+  const trace = traceOf(cfg, images, documents, usage, model)
 
   if (parsed.readable === false || !parsed.linkedin) {
     return json({
@@ -436,6 +473,11 @@ export function onRequestGet({ env }) {
     configured: !!cfg.key,
     model: cfg.key ? cfg.model : null,
     maxImages: cfg.maxImages,
+    imageDetail: cfg.imageDetail,
+    // The browser needs this one: it decides whether an upload is read on the
+    // spot or left for generation time, which is the difference between two
+    // billed calls and one.
+    readOnUpload: cfg.readOnUpload,
     reason: cfg.key ? '' : 'OPENAI_API_KEY is not set on this deployment.',
   })
 }

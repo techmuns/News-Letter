@@ -113,7 +113,11 @@ work too). Add them as **plaintext** except the key, which should be **Encrypted
 | `OPENAI_API_KEY` | **yes** | — | Your OpenAI key (`sk-…`). Mark it **Encrypt**. |
 | `OPENAI_MODEL` | no | `gpt-4o` | Any vision-capable chat model your key can use. |
 | `OPENAI_BASE_URL` | no | `https://api.openai.com/v1` | Point at a compatible gateway or proxy. |
-| `OPENAI_MAX_IMAGES` | no | `6` | Images per request — each one is billed. |
+| `OPENAI_MAX_IMAGES` | no | `3` | Images per request — each one is billed. |
+| `OPENAI_IMAGE_DETAIL` | no | `auto` | `low` \| `auto` \| `high`. The biggest cost lever — see below. |
+| `OPENAI_MAX_DOC_CHARS` | no | `12000` | Extracted document text per request. A long PDF is silently the most expensive input. |
+| `OPENAI_READ_ON_UPLOAD` | no | `true` | `false` reads an upload only at generation time — one billed call instead of two. |
+| `OPENAI_MAX_OUTPUT_TOKENS` | no | `3000` | Safety ceiling on the answer. Not a budget — you pay for what is generated. |
 | `OPENAI_ORG` / `OPENAI_PROJECT` | no | — | Sent as `OpenAI-Organization` / `OpenAI-Project` headers. |
 
 > **The name matters.** It must be exactly `OPENAI_API_KEY`. Do **not** prefix it
@@ -130,6 +134,56 @@ For local development, put the same values in a `.dev.vars` file at the repo roo
 OPENAI_API_KEY=sk-…
 OPENAI_MODEL=gpt-4o
 ```
+
+### What it costs, and how to keep it cheap
+
+The OpenAI API is **pay-per-use and billed separately from ChatGPT** — a ChatGPT
+subscription includes no API credit. Every call below is charged on tokens in +
+tokens out, and images are the expensive part.
+
+**Set a spend limit in the OpenAI dashboard (Settings → Limits) before demoing.**
+That is the only hard cap. Everything below reduces spend; nothing below
+guarantees it.
+
+One billed call per action:
+
+| Action | Calls |
+| --- | --- |
+| Drop an image | 1 (`analyze`) — none if `OPENAI_READ_ON_UPLOAD=false` |
+| Drop a scanned PDF | 1, carrying up to 2 rendered pages |
+| Drop a PDF that has a text layer | **0** — parsed in the browser |
+| Paste a link | **0** — fetched by `/api/read` |
+| **Generate the post** | 1 (`compose`) |
+| **Regenerate** | 1 more, every time |
+
+So the default demo path — drop a screenshot, generate — is **2 calls**.
+
+Cheapest sane demo settings:
+
+```
+OPENAI_IMAGE_DETAIL=low       # flat, much smaller image charge
+OPENAI_READ_ON_UPLOAD=false   # 2 calls become 1
+OPENAI_MAX_IMAGES=1
+OPENAI_MAX_DOC_CHARS=6000
+```
+
+`low` renders the image small before the model looks at it. On a chart or a
+slide with large type it reads fine; on a dense table in 9pt it will start
+missing digits, and a wrong figure is worse than an expensive one. Test your
+actual demo document at `low` before the demo, and fall back to `auto` if it
+misreads. `gpt-4o-mini` is also worth testing as `OPENAI_MODEL` — cheaper per
+token, but verify it on a real report page rather than assuming.
+
+Two things stop a runaway rather than trim a bill:
+
+- The browser stops making calls after **60 in one tab** and says so; a reload
+  clears it. That catches a stuck loop or a demo left open, not deliberate use.
+- Every draft's **Read by the model** card shows the tokens in and out and how
+  many calls the session has made, so the cost is visible while you demo rather
+  than a surprise on the invoice.
+
+With `OPENAI_API_KEY` unset the app spends nothing at all and still demos the
+full flow — it just composes the drafts locally instead of reading the upload.
 
 ### Package dependencies
 

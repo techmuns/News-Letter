@@ -649,6 +649,14 @@ export const useStore = create<StoreState>()(
 
         const result = await analyzeImages(images, context)
 
+        // Reading was postponed to save a call, not attempted and failed. The
+        // card stays neutral: the image is still going to the model, just once
+        // rather than twice.
+        if (result.deferred) {
+          get().updateGroupItem(groupId, itemId, { readState: 'none', readError: undefined })
+          return
+        }
+
         set((s) => ({
           groups: s.groups.map((g) => {
             if (g.id !== groupId) return g

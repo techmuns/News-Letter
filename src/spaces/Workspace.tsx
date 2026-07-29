@@ -17,6 +17,7 @@ import { OutlineCard } from '../components/workspace/OutlineCard'
 import { SourcePicker } from '../components/workspace/SourcePicker'
 import { DraftEditor } from '../components/workspace/DraftEditor'
 import { ContentSettingsPanel } from '../components/workspace/ContentSettingsPanel'
+import { ModelStatus } from '../components/workspace/ModelStatus'
 import { WorkspaceIllustration } from '../components/workspace/WorkspaceIllustration'
 import {
   IconChevronDown,
@@ -248,6 +249,9 @@ export function Workspace() {
           Start from your own materials or from continuously monitored sources — then generate,
           refine and preview content without leaving this page.
         </p>
+
+        {/* the one thing that decides whether uploads mean anything */}
+        <ModelStatus />
 
         {/* two input modes */}
         <div className="mt-6">

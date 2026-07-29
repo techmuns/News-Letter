@@ -1,6 +1,7 @@
 import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
 import { type Campaign, CHANNEL_ORDER, CHANNEL_LABEL } from '../../types'
+import { modelCallsMade } from '../../lib/ai'
 import { briefChips } from '../../lib/brief'
 import { MicroLabel } from '../MicroLabel'
 import { Button } from '../Button'
@@ -65,6 +66,7 @@ function AiTraceCard({ campaign }: { campaign: Campaign }) {
         <Chip>
           {trace.imagesSent} image{trace.imagesSent === 1 ? '' : 's'} sent
           {trace.imagesSent > 0 ? ` · ${kb(trace.imageBytes)}` : ''}
+          {trace.imagesSent > 0 && trace.imageDetail ? ` · ${trace.imageDetail} detail` : ''}
         </Chip>
         {trace.documentsSent > 0 && (
           <Chip>
@@ -73,8 +75,18 @@ function AiTraceCard({ campaign }: { campaign: Campaign }) {
           </Chip>
         )}
         {trace.promptTokens !== null && (
-          <Chip>{trace.promptTokens.toLocaleString('en-IN')} prompt tokens</Chip>
+          <Chip>
+            {trace.promptTokens.toLocaleString('en-IN')} in
+            {trace.completionTokens !== null
+              ? ` · ${trace.completionTokens.toLocaleString('en-IN')} out`
+              : ''}{' '}
+            tokens
+          </Chip>
         )}
+        {/* Billed calls, counted in the browser — what a demo actually spent. */}
+        <Chip>
+          {modelCallsMade()} model call{modelCallsMade() === 1 ? '' : 's'} this session
+        </Chip>
       </div>
       {campaign.aiSummary && (
         <p className="mt-2.5 text-[12px] leading-relaxed text-text-2">{campaign.aiSummary}</p>
