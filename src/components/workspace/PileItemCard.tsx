@@ -27,9 +27,9 @@ export function PileItemCard({ item, selected, onToggle }: PileItemCardProps) {
       aria-pressed={selected}
       className="flex gap-3 p-4"
     >
-      {item.imageUrl ? (
+      {item.thumbnail ? (
         <img
-          src={item.imageUrl}
+          src={item.thumbnail}
           alt=""
           className="mt-0.5 h-10 w-14 shrink-0 rounded-md border border-border object-cover"
         />

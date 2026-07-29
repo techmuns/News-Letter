@@ -1,13 +1,5 @@
-/* Small date helpers — mock timestamps stay fresh relative to "now",
-   and the email schedule always lands on the current week's Mon/Wed/Fri. */
-
-export function hoursAgo(n: number): string {
-  return new Date(Date.now() - n * 3600_000).toISOString()
-}
-
-export function daysAgo(n: number): string {
-  return new Date(Date.now() - n * 86_400_000).toISOString()
-}
+/* Small date helpers — relative timestamps for the pile, and an email
+   schedule that always lands on the current week's Mon/Wed/Fri. */
 
 /** "2h ago" · "3d ago" · "just now" — friendly relative time. */
 export function relativeTime(iso: string): string {

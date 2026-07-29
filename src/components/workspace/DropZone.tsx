@@ -3,18 +3,12 @@ import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
-import { IconPlus, IconNote } from '../icons'
-
-function formatBytes(n: number): string {
-  if (!n) return ''
-  const kb = n / 1024
-  if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`
-  return `${(kb / 1024).toFixed(1)} MB`
-}
+import { IconPlus, IconNote, IconClose } from '../icons'
 
 /**
- * The drop zone at the top of the Workspace: mocked file drop + a quick
- * text-note input. No tagging, no structure required (§3.1).
+ * The drop zone at the top of the Workspace: real file ingest + a quick
+ * text-note input. Files are stored locally (IndexedDB) and only leave the
+ * browser when you press "Turn into content".
  */
 export function DropZone() {
   const addFiles = useStore((s) => s.addFiles)
@@ -22,6 +16,8 @@ export function DropZone() {
   const [dragging, setDragging] = useState(false)
   const [note, setNote] = useState('')
   const [flash, setFlash] = useState<string | null>(null)
+  const [rejected, setRejected] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function flashMsg(msg: string) {
@@ -29,27 +25,19 @@ export function DropZone() {
     window.setTimeout(() => setFlash(null), 2200)
   }
 
-  function readImage(file: File): Promise<string | undefined> {
-    if (!file.type.startsWith('image/')) return Promise.resolve(undefined)
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : undefined)
-      reader.onerror = () => resolve(undefined)
-      reader.readAsDataURL(file)
-    })
-  }
-
   async function ingest(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return
-    const files = await Promise.all(
-      Array.from(fileList).map(async (f) => ({
-        name: f.name,
-        sizeLabel: formatBytes(f.size),
-        imageUrl: await readImage(f),
-      })),
-    )
-    addFiles(files)
-    flashMsg(`Added ${files.length} item${files.length > 1 ? 's' : ''} to the pile`)
+    setBusy(true)
+    setRejected([])
+    try {
+      const files = Array.from(fileList)
+      const problems = await addFiles(files)
+      setRejected(problems)
+      const added = files.length - problems.length
+      if (added > 0) flashMsg(`Added ${added} item${added > 1 ? 's' : ''} to the pile`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   function submitNote() {
@@ -70,13 +58,11 @@ export function DropZone() {
       onDrop={(e) => {
         e.preventDefault()
         setDragging(false)
-        ingest(e.dataTransfer.files)
+        void ingest(e.dataTransfer.files)
       }}
       className={cn(
         'relative rounded-panel border border-dashed p-5 transition-all duration-[350ms] ease-premium md:p-6',
-        dragging
-          ? 'glow-active border-solid'
-          : 'border-border bg-surface backdrop-blur-glass',
+        dragging ? 'glow-active border-solid' : 'border-border bg-surface backdrop-blur-glass',
       )}
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
@@ -107,9 +93,15 @@ export function DropZone() {
             <Button variant="subtle" size="sm" onClick={submitNote} disabled={!note.trim()}>
               <IconPlus size={15} /> Add note
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
-              Browse files
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => inputRef.current?.click()}
+            >
+              {busy ? 'Reading…' : 'Browse files'}
             </Button>
+            <span className="micro text-text-dim">PDF and images up to 8 MB</span>
           </div>
         </div>
       </div>
@@ -118,12 +110,34 @@ export function DropZone() {
         ref={inputRef}
         type="file"
         multiple
+        accept="application/pdf,image/*"
         className="hidden"
         onChange={(e) => {
-          ingest(e.target.files)
+          void ingest(e.target.files)
           e.target.value = ''
         }}
       />
+
+      {/* Files we could not take */}
+      {rejected.length > 0 && (
+        <div className="mt-4 flex items-start justify-between gap-4 rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.07)] px-4 py-3">
+          <ul className="flex flex-col gap-1">
+            {rejected.map((r) => (
+              <li key={r} className="text-[13px] leading-relaxed text-amber">
+                {r}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setRejected([])}
+            aria-label="Dismiss"
+            className="mt-0.5 shrink-0 text-amber transition-opacity hover:opacity-70"
+          >
+            <IconClose size={14} />
+          </button>
+        </div>
+      )}
 
       {/* drag overlay hint */}
       {dragging && (

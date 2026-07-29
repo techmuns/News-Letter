@@ -1,6 +1,6 @@
 import { cn } from '../lib/cn'
 
-/** A shimmering placeholder line/block for mocked loading states (§5.6). */
+/** A shimmering placeholder line/block shown while a draft is generating (§5.6). */
 export function Skeleton({
   className,
   rounded = 'rounded-md',

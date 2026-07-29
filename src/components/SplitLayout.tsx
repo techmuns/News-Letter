@@ -21,6 +21,18 @@ export function SplitLayout({
   )
 }
 
+/** Shown in the list column when no campaign has reached this channel yet. */
+export function ListEmpty({ channel }: { channel: string }) {
+  return (
+    <div className="rounded-panel border border-dashed border-border p-8 text-center">
+      <p className="mx-auto max-w-[34ch] text-[13px] leading-relaxed text-text-muted">
+        No {channel} drafts yet. Drop source material in the Workspace, turn it into content, and
+        approve the {channel} version — it lands here.
+      </p>
+    </div>
+  )
+}
+
 export function PreviewEmpty({ label }: { label: string }) {
   return (
     <div className="grid min-h-[300px] place-items-center rounded-panel border border-dashed border-border p-8 text-center">

@@ -8,7 +8,7 @@ import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
 import { StatusChip } from '../components/StatusChip'
 import { Card } from '../components/Card'
-import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
+import { SplitLayout, PreviewEmpty, ListEmpty } from '../components/SplitLayout'
 import { PreviewShell } from '../components/preview/PreviewShell'
 import { EmailPreview } from '../components/preview/EmailPreview'
 
@@ -80,7 +80,9 @@ export function EmailSpace() {
       ),
   })).filter((g) => g.items.length > 0)
 
-  const list = (
+  const list = campaigns.length === 0 ? (
+    <ListEmpty channel="email" />
+  ) : (
     <div className="flex flex-col gap-6">
       {grouped.map((group) => (
         <div key={group.key}>

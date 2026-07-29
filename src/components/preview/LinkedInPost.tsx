@@ -1,4 +1,5 @@
 import { type LinkedInContent } from '../../types'
+import { BRAND } from '../../config'
 import { MicroLabel } from '../MicroLabel'
 import { IconLinkedIn } from '../icons'
 
@@ -25,11 +26,11 @@ export function LinkedInPost({
         {/* author */}
         <div className="flex items-start gap-3 px-4 pt-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#a896f7] to-[#8a7fc0] font-display text-[18px] font-bold text-white">
-            {content.authorAvatar}
+            {BRAND.authorAvatar}
           </span>
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="text-[14px] font-semibold text-[#1b1f23]">{content.authorName}</p>
-            <p className="truncate text-[12px] text-[#5e6670]">{content.authorHandle}</p>
+            <p className="text-[14px] font-semibold text-[#1b1f23]">{BRAND.authorName}</p>
+            <p className="truncate text-[12px] text-[#5e6670]">{BRAND.authorHandle}</p>
           </div>
         </div>
 

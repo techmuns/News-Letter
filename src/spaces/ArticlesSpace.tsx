@@ -5,7 +5,7 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 import { channelApproved } from '../types'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
-import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
+import { SplitLayout, PreviewEmpty, ListEmpty } from '../components/SplitLayout'
 import { ChannelListRow } from '../components/ChannelListRow'
 import { PreviewShell } from '../components/preview/PreviewShell'
 import { ArticlePreview } from '../components/preview/ArticlePreview'
@@ -18,7 +18,9 @@ export function ArticlesSpace() {
   const selected = campaigns.find((c) => c.id === campaignId) ?? null
   const previewCampaign = selected ?? (isDesktop ? campaigns[0] ?? null : null)
 
-  const list = (
+  const list = campaigns.length === 0 ? (
+    <ListEmpty channel="article" />
+  ) : (
     <div className="flex flex-col gap-3">
       <MicroLabel>Drafts</MicroLabel>
       {campaigns.map((c) => (

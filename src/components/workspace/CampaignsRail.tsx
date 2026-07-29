@@ -48,21 +48,20 @@ function ReviewRows({ campaign }: { campaign: Campaign }) {
   )
 }
 
+function GeneratingCard() {
+  return (
+    <Card active className="p-4">
+      <div className="flex items-center gap-2">
+        <StatusDot tone="pink" pulse size={7} />
+        <MicroLabel className="text-pink">Drafting three versions…</MicroLabel>
+      </div>
+      <SkeletonLines lines={2} className="mt-3" />
+    </Card>
+  )
+}
+
 function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlight: boolean }) {
   const approveCampaign = useStore((s) => s.approveCampaign)
-
-  if (campaign.processing) {
-    return (
-      <Card active className="p-4">
-        <div className="flex items-center gap-2">
-          <StatusDot tone="pink" pulse size={7} />
-          <MicroLabel className="text-pink">Drafting three versions…</MicroLabel>
-        </div>
-        <SkeletonLines lines={2} className="mt-3" />
-      </Card>
-    )
-  }
-
   const review = campaignNeedsReview(campaign)
 
   return (
@@ -96,14 +95,17 @@ function CampaignRailCard({ campaign, highlight }: { campaign: Campaign; highlig
 export function CampaignsRail({
   campaigns,
   highlightId,
+  generating,
 }: {
   campaigns: Campaign[]
   highlightId?: string | null
+  generating?: boolean
 }) {
   return (
     <div className="flex flex-col gap-3">
       <MicroLabel>Campaigns</MicroLabel>
-      {campaigns.length === 0 ? (
+      {generating && <GeneratingCard />}
+      {campaigns.length === 0 && !generating ? (
         <Card className="p-4">
           <p className="text-[12.5px] leading-relaxed text-text-muted">
             Select items from the pile and turn them into content.

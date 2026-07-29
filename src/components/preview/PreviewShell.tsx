@@ -1,16 +1,21 @@
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import {
   type Campaign,
   type ChannelKind,
   CHANNEL_LABEL,
+  CHANNEL_ORDER,
   CHANNEL_STATUS_FLOW,
   type ChannelStatus,
 } from '../../types'
 import { formatDate, weekdayIn } from '../../lib/date'
+import { cn } from '../../lib/cn'
 import { MicroLabel } from '../MicroLabel'
 import { StatusChip } from '../StatusChip'
 import { Menu, MenuItem } from '../Menu'
-import { IconCalendar } from '../icons'
+import { Button } from '../Button'
+import { IconCalendar, IconSparkle } from '../icons'
+import { ChannelEditor } from '../editor/ChannelEditor'
 
 const SETTABLE_STATUSES: ChannelStatus[] = CHANNEL_STATUS_FLOW.filter((s) => s !== 'Scheduled')
 
@@ -28,18 +33,34 @@ interface PreviewShellProps {
   onBack?: () => void
 }
 
-/** Wraps a channel preview with a minimal header + one or two controls. */
+/** Wraps a channel preview with a preview/edit toggle and its controls. */
 export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellProps) {
   const setChannelStatus = useStore((s) => s.setChannelStatus)
   const scheduleChannel = useStore((s) => s.scheduleChannel)
+  const regenerateCampaign = useStore((s) => s.regenerateCampaign)
+  const generation = useStore((s) => s.generation)
+
+  const [editing, setEditing] = useState(false)
+  const [confirmRedraft, setConfirmRedraft] = useState(false)
+
   const ch = campaign[kind]
+  const running = generation.status === 'running'
+  const editedChannels = CHANNEL_ORDER.filter((k) => campaign[k].edited)
+
+  async function redraft() {
+    setConfirmRedraft(false)
+    await regenerateCampaign(campaign.id)
+  }
 
   return (
     <div className="animate-fade-up">
       {/* Minimal header */}
       <div className="mb-4">
         <div className="flex items-center justify-between gap-3">
-          <MicroLabel tone="violet">{CHANNEL_LABEL[kind]}</MicroLabel>
+          <span className="flex items-center gap-2">
+            <MicroLabel tone="violet">{CHANNEL_LABEL[kind]}</MicroLabel>
+            {ch.edited && <MicroLabel className="text-amber">Edited</MicroLabel>}
+          </span>
           {onBack && (
             <button
               type="button"
@@ -53,12 +74,34 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
         <h2 className="mt-2 font-display text-[20px] font-bold leading-snug tracking-tight text-text">
           {campaign.name}
         </h2>
+
+        {/* Preview / Edit toggle */}
+        <div className="mt-3 inline-flex rounded-lg border border-border p-0.5">
+          {(['preview', 'edit'] as const).map((mode) => {
+            const active = (mode === 'edit') === editing
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setEditing(mode === 'edit')}
+                className={cn(
+                  'rounded-[6px] px-3 py-1 text-[12.5px] font-medium capitalize transition-colors',
+                  active
+                    ? 'bg-[rgba(170,152,248,0.16)] text-violet'
+                    : 'text-text-muted hover:text-text-2',
+                )}
+              >
+                {mode}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* The rendered preview */}
-      <div>{children}</div>
+      {/* The rendered preview, or the editor */}
+      <div>{editing ? <ChannelEditor campaign={campaign} kind={kind} /> : children}</div>
 
-      {/* Minimal actions: status, and schedule for email only */}
+      {/* Actions: status, schedule (email only), re-draft */}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.07)] pt-5">
         <Menu
           trigger={
@@ -119,7 +162,46 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
             )}
           </Menu>
         )}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={running}
+          onClick={() => (editedChannels.length ? setConfirmRedraft(true) : void redraft())}
+        >
+          <IconSparkle size={14} />
+          {running ? 'Drafting…' : 'Re-draft all three'}
+        </Button>
       </div>
+
+      {/* A manual edit is never silently overwritten. */}
+      {confirmRedraft && (
+        <div className="mt-3 rounded-xl border border-[rgba(240,180,90,0.35)] bg-[rgba(240,180,90,0.07)] p-4 animate-fade-up">
+          <MicroLabel className="text-amber">Overwrite manual edits?</MicroLabel>
+          <p className="mt-2 text-[13px] leading-relaxed text-text-2">
+            Re-drafting replaces all three channel versions from the original source material.
+            You have edited{' '}
+            <strong className="font-semibold text-text">
+              {editedChannels.map((k) => CHANNEL_LABEL[k]).join(', ')}
+            </strong>
+            {editedChannels.length === 1 ? ' — that edit' : ' — those edits'} will be lost.
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setConfirmRedraft(false)}>
+              Keep my edits
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => void redraft()}>
+              Overwrite and re-draft
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {generation.status === 'error' && (
+        <p className="mt-3 rounded-xl border border-[rgba(255,120,120,0.3)] bg-[rgba(255,120,120,0.07)] px-4 py-3 text-[13px] leading-relaxed text-[#ffb4b4]">
+          {generation.message}
+        </p>
+      )}
     </div>
   )
 }

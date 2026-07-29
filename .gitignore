@@ -27,3 +27,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Local secrets for `wrangler pages dev` — holds OPENAI_API_KEY
+.dev.vars
+.wrangler

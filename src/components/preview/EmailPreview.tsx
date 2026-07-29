@@ -1,4 +1,5 @@
 import { type EmailContent } from '../../types'
+import { BRAND } from '../../config'
 import { MicroLabel } from '../MicroLabel'
 import { IconEmail } from '../icons'
 
@@ -27,7 +28,7 @@ export function EmailPreview({ content }: { content: EmailContent }) {
         <p className="text-[15px] font-semibold text-text">{content.subject}</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
           <MicroLabel className="text-text-dim">From</MicroLabel>
-          <span className="text-[12.5px] text-text-2">{content.from}</span>
+          <span className="text-[12.5px] text-text-2">{BRAND.emailFrom}</span>
         </div>
         <p className="mt-1.5 text-[12.5px] italic text-text-muted">{content.preheader}</p>
       </div>
