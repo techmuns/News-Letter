@@ -83,6 +83,16 @@ export function IconNote({ size = 18, className, strokeWidth = 1.6 }: IconProps)
   )
 }
 
+export function IconLink({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M9.5 14.5 14.5 9.5" />
+      <path d="M11 7.5 12.7 5.8a3 3 0 0 1 4.24 4.25L15.2 11.8" />
+      <path d="M13 16.5 11.3 18.2a3 3 0 0 1-4.24-4.25L8.8 12.2" />
+    </svg>
+  )
+}
+
 export function IconPlus({ size = 18, className, strokeWidth = 1.8 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

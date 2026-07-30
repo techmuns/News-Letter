@@ -3,7 +3,7 @@ import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
-import { IconPlus, IconNote } from '../icons'
+import { IconPlus, IconNote, IconLink } from '../icons'
 
 function formatBytes(n: number): string {
   if (!n) return ''
@@ -19,8 +19,11 @@ function formatBytes(n: number): string {
 export function DropZone() {
   const addFiles = useStore((s) => s.addFiles)
   const addNote = useStore((s) => s.addNote)
+  const addLink = useStore((s) => s.addLink)
   const [dragging, setDragging] = useState(false)
   const [note, setNote] = useState('')
+  const [link, setLink] = useState('')
+  const [linkError, setLinkError] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -58,6 +61,26 @@ export function DropZone() {
     addNote(text)
     setNote('')
     flashMsg('Note dropped into the pile')
+  }
+
+  function submitLink() {
+    const url = link.trim()
+    if (!url) return
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      setLinkError('Enter a full URL, e.g. https://example.com/article')
+      return
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      setLinkError('Only http(s) links are supported')
+      return
+    }
+    setLinkError(null)
+    addLink(parsed.toString())
+    setLink('')
+    flashMsg('Link dropped into the pile — will be crawled when turned into content')
   }
 
   return (
@@ -111,6 +134,38 @@ export function DropZone() {
               Browse files
             </Button>
           </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <IconLink size={15} className="text-violet-dim" />
+            <MicroLabel>Or paste a link to crawl</MicroLabel>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              value={link}
+              onChange={(e) => {
+                setLink(e.target.value)
+                if (linkError) setLinkError(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  submitLink()
+                }
+              }}
+              type="url"
+              inputMode="url"
+              placeholder="https://…"
+              className={cn(
+                'min-w-0 flex-1 rounded-xl border border-border bg-[rgba(255,255,255,0.02)] px-4 py-2.5',
+                'text-[14px] text-text placeholder:text-text-dim',
+                'focus-violet transition-all duration-[350ms] ease-premium',
+              )}
+            />
+            <Button variant="subtle" size="sm" onClick={submitLink} disabled={!link.trim()}>
+              <IconPlus size={15} /> Add link
+            </Button>
+          </div>
+          {linkError && <p className="mt-2 text-[12px] text-pink">{linkError}</p>}
         </div>
       </div>
 

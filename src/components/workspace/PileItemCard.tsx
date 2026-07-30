@@ -2,12 +2,13 @@ import { cn } from '../../lib/cn'
 import { relativeTime } from '../../lib/date'
 import { type WorkspaceItem, type WorkspaceItemType } from '../../types'
 import { Card } from '../Card'
-import { IconPdf, IconScreenshot, IconNote, IconCheck } from '../icons'
+import { IconPdf, IconScreenshot, IconNote, IconLink, IconCheck } from '../icons'
 
 const TYPE_ICON: Record<WorkspaceItemType, { Icon: typeof IconPdf; tint: string }> = {
   pdf: { Icon: IconPdf, tint: 'text-amber' },
   screenshot: { Icon: IconScreenshot, tint: 'text-green' },
   note: { Icon: IconNote, tint: 'text-violet' },
+  url: { Icon: IconLink, tint: 'text-violet' },
 }
 
 interface PileItemCardProps {

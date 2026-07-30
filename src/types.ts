@@ -52,7 +52,7 @@ export function statusTone(status: ChannelStatus): StatusTone {
   }
 }
 
-export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note'
+export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note' | 'url'
 
 export interface WorkspaceItem {
   id: string
@@ -62,6 +62,8 @@ export interface WorkspaceItem {
   preview: string
   /** data URL for image items (screenshots) — shown as a thumbnail */
   imageUrl?: string
+  /** source link for 'url' items — scraped (via Firecrawl) when turned into content */
+  sourceUrl?: string
   addedBy: string
   createdAt: string // ISO
 }

@@ -4,10 +4,13 @@ An **intelligence console** for turning Munshot's own dashboards, data and resea
 into investor-grade content, published across three channels: **LinkedIn**, **email
 newsletter**, and **long-form article**.
 
-> **Phase 1 = the UI shell on mock data.** No real integrations, no real agent, no
-> real uploads processing, no publishing. Everything is mocked. The goal is the
-> *look*, the *navigable structure*, and the *four spaces* populated with realistic
-> content — a foundation later phases plug real pipelines into.
+> **Phase 1 = the UI shell on mock data**, with one real pipeline wired in early:
+> **"Turn into content"** now calls Firecrawl (to crawl any linked source) and
+> Genspark (to draft the LinkedIn/Email/Article copy) when their API keys are
+> configured — see [Real content pipeline](#real-content-pipeline-firecrawl--genspark)
+> below. Everything else (uploads processing, publishing, scheduling) is still
+> mocked. The goal is the *look*, the *navigable structure*, and the *four spaces*
+> populated with realistic content — a foundation later phases plug real pipelines into.
 
 ---
 
@@ -96,8 +99,49 @@ Client-side routes are handled by [`public/_redirects`](public/_redirects)
 
 ---
 
+## Real content pipeline (Firecrawl + Genspark)
+
+"Turn into content" runs through a small Cloudflare Pages Function
+([`functions/api/turn-into-content.ts`](functions/api/turn-into-content.ts)) instead
+of the frontend, so the API keys never reach the browser bundle:
+
+1. **Firecrawl** ([`functions/lib/firecrawl.ts`](functions/lib/firecrawl.ts)) crawls any
+   linked sources (paste a link in the Workspace drop zone) into clean markdown —
+   built against Firecrawl's [documented `/v2/scrape` endpoint](https://docs.firecrawl.dev/api-reference/endpoint/scrape).
+2. **Genspark** ([`functions/lib/genspark.ts`](functions/lib/genspark.ts)) drafts the
+   LinkedIn / Email / Article copy from the combined source material.
+   > ⚠️ Genspark has no publicly documented developer API — access is gated behind
+   > enterprise sales with no published REST spec. `functions/lib/genspark.ts` is
+   > written against a best-effort assumed contract (OpenAI-compatible chat
+   > completions) and isolated so it's the **only file to change** once you have
+   > your account's real endpoint/request/response shape.
+
+If either key is missing or a call fails, the Workspace falls back to the existing
+mocked template (a console warning notes why) — the UI never breaks.
+
+### Configuration
+
+Add these as **Cloudflare Pages** secrets (dashboard → project → **Settings →
+Environment variables**, or `wrangler pages secret put <NAME>`):
+
+- `FIRECRAWL_API_KEY`
+- `GENSPARK_API_KEY`
+
+For local testing, copy [`.dev.vars.example`](.dev.vars.example) to `.dev.vars`
+(gitignored), fill in real keys, then:
+
+```bash
+npm run build
+npm run functions:dev   # wrangler pages dev — serves dist/ + functions/ together
+```
+
+`npm run dev` (plain Vite) does **not** run the Pages Functions — calls to
+`/api/turn-into-content` will 404 and the Workspace silently falls back to mock
+drafts, which is expected for day-to-day UI work.
+
+---
+
 ## What Phase 1 deliberately does **not** build
 
-Real file parsing · a real LLM agent (the "Turn into content" action spawns pre-written
-mock drafts) · LinkedIn/email/CMS integrations · email sending · real auth. Those come
-in later phases and plug into this foundation.
+Real file/PDF parsing · publishing to LinkedIn/email/CMS · email sending · real auth.
+Those come in later phases and plug into this foundation.

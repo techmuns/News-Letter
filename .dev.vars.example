@@ -1,0 +1,9 @@
+# Local dev secrets for Cloudflare Pages Functions (functions/api/turn-into-content.ts).
+# Copy to `.dev.vars` (gitignored) and fill in real keys, then run:
+#   npm run build && npm run functions:dev
+#
+# In production these are set as Cloudflare Pages encrypted environment
+# variables instead (dashboard → project → Settings → Environment variables).
+
+FIRECRAWL_API_KEY=
+GENSPARK_API_KEY=

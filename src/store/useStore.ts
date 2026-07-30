@@ -26,7 +26,68 @@ export function typeFromName(name: string): WorkspaceItemType {
   return 'note'
 }
 
-const PROCESSING_MS = 2000
+/** Shape returned by the /api/turn-into-content Pages Function on success. */
+interface TurnIntoContentResponse {
+  name: string
+  topic: string
+  linkedin: { headline: string; body: string }
+  email: {
+    subject: string
+    preheader: string
+    idea: string
+    story: string
+    takeaway: string
+    ctaLabel: string
+  }
+  article: {
+    title: string
+    deck: string
+    sections: { heading?: string; body: string }[]
+    ctaTitle: string
+    ctaBody: string
+    ctaLabel: string
+  }
+}
+
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length
+}
+
+/** Maps the pipeline response onto the app's channel content shapes. */
+function draftsToContent(drafts: TurnIntoContentResponse) {
+  const articleWords = drafts.article.sections.reduce((n, s) => n + wordCount(s.body), 0)
+  return {
+    linkedin: {
+      authorName: 'Munshot',
+      authorHandle: 'Intelligence for institutional investors',
+      authorAvatar: 'M',
+      reactions: 0,
+      comments: 0,
+      reposts: 0,
+      headline: drafts.linkedin.headline,
+      body: drafts.linkedin.body,
+    },
+    email: {
+      subject: drafts.email.subject,
+      from: 'Munshot',
+      preheader: drafts.email.preheader,
+      idea: drafts.email.idea,
+      story: drafts.email.story,
+      takeaway: drafts.email.takeaway,
+      ctaLabel: drafts.email.ctaLabel,
+    },
+    article: {
+      title: drafts.article.title,
+      deck: drafts.article.deck,
+      hero: drafts.topic.toUpperCase(),
+      readMinutes: Math.max(2, Math.round(articleWords / 200)),
+      sections: drafts.article.sections,
+      ctaTitle: drafts.article.ctaTitle,
+      ctaBody: drafts.article.ctaBody,
+      ctaLabel: drafts.article.ctaLabel,
+    },
+  }
+}
 
 interface StoreState {
   items: WorkspaceItem[]
@@ -43,8 +104,15 @@ interface StoreState {
     addedBy?: string,
   ) => void
   removeItem: (id: string) => void
+  /** Adds a link to be crawled (via Firecrawl) when turned into content. */
+  addLink: (url: string, addedBy?: string) => void
 
-  /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
+  /**
+   * Creates a Campaign + 3 channel drafts from the selected items.
+   * Seeds the campaign instantly from a mock template (so the UI never
+   * blocks), then tries the real Firecrawl → Genspark pipeline in the
+   * background and swaps in real content if it succeeds.
+   */
   turnIntoContent: (itemIds: string[]) => string
 
   // --- Campaign / channel actions ---
@@ -107,15 +175,29 @@ export const useStore = create<StoreState>()(
       removeItem: (id) =>
         set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
 
+      addLink: (url, addedBy = 'You') => {
+        const item: WorkspaceItem = {
+          id: uid('item'),
+          type: 'url',
+          title: url,
+          preview: 'Link · will be crawled when turned into content',
+          sourceUrl: url,
+          addedBy,
+          createdAt: new Date().toISOString(),
+        }
+        set((s) => ({ items: [item, ...s.items] }))
+      },
+
       turnIntoContent: (itemIds) => {
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
         const id = uid('camp')
         const now = new Date().toISOString()
         // Prefer a picture from the selected items; fall back to the template hero.
         const items = get().items
-        const heroFromSelection = itemIds
-          .map((iid) => items.find((it) => it.id === iid)?.imageUrl)
-          .find(Boolean)
+        const selectedItems = itemIds
+          .map((iid) => items.find((it) => it.id === iid))
+          .filter((it): it is WorkspaceItem => Boolean(it))
+        const heroFromSelection = selectedItems.map((it) => it.imageUrl).find(Boolean)
         const campaign: Campaign = {
           id,
           name: tpl.name,
@@ -128,6 +210,8 @@ export const useStore = create<StoreState>()(
           linkedin: { kind: 'linkedin', status: 'In Review', edited: false, approved: false, content: tpl.linkedin },
           email: { kind: 'email', status: 'In Review', edited: false, approved: false, content: tpl.email },
           article: { kind: 'article', status: 'In Review', edited: false, approved: false, content: tpl.article },
+          // Seeded from a mock template immediately; swapped for the real
+          // Firecrawl → Genspark drafts below if that pipeline succeeds.
           processing: true,
         }
         set((s) => ({
@@ -135,14 +219,51 @@ export const useStore = create<StoreState>()(
           genIndex: s.genIndex + 1,
           lastGeneratedId: id,
         }))
-        // Mocked processing: settle after a brief beat.
-        setTimeout(() => {
-          set((s) => ({
-            campaigns: s.campaigns.map((c) =>
-              c.id === id ? { ...c, processing: false } : c,
-            ),
-          }))
-        }, PROCESSING_MS)
+
+        fetch('/api/turn-into-content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: selectedItems.map((it) => ({
+              id: it.id,
+              type: it.type,
+              title: it.title,
+              preview: it.preview,
+              sourceUrl: it.sourceUrl,
+            })),
+          }),
+        })
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`pipeline responded ${res.status}`)
+            return (await res.json()) as TurnIntoContentResponse
+          })
+          .then((drafts) => {
+            const content = draftsToContent(drafts)
+            set((s) => ({
+              campaigns: s.campaigns.map((c) =>
+                c.id === id
+                  ? {
+                      ...c,
+                      name: drafts.name,
+                      topic: drafts.topic,
+                      linkedin: { ...c.linkedin, content: content.linkedin },
+                      email: { ...c.email, content: content.email },
+                      article: { ...c.article, content: content.article },
+                      processing: false,
+                    }
+                  : c,
+              ),
+            }))
+          })
+          .catch((err) => {
+            // No pipeline configured (e.g. local dev) or it failed — keep the
+            // mock draft already seeded above so the UI never breaks.
+            console.warn('Real content pipeline unavailable, kept mock draft:', err)
+            set((s) => ({
+              campaigns: s.campaigns.map((c) => (c.id === id ? { ...c, processing: false } : c)),
+            }))
+          })
+
         return id
       },
 
