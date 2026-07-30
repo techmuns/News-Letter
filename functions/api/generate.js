@@ -18,7 +18,14 @@
 // origin and this route holds OPENAI_API_KEY. With no key configured the route
 // says so and the app falls back to its deterministic composer.
 
-const DEFAULT_MODEL = 'gpt-4o'
+// gpt-4o-mini is the default because it reads images, costs little, and — the
+// part that matters here — is available to almost every project, including the
+// new or restricted ones that don't have gpt-4o switched on yet. Any deployment
+// can still point OPENAI_MODEL at a different model its key can use.
+const DEFAULT_MODEL = 'gpt-4o-mini'
+// If a chosen model is refused because the key's project can't reach it, the
+// call retries once on this one instead of failing the whole draft.
+const FALLBACK_MODEL = 'gpt-4o-mini'
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
 
 /* ---- what this costs ----------------------------------------
@@ -56,7 +63,10 @@ function json(body, status = 200) {
 function config(env) {
   const detail = String(env.OPENAI_IMAGE_DETAIL || DEFAULT_IMAGE_DETAIL).toLowerCase()
   return {
-    key: env.OPENAI_API_KEY,
+    // Trim whitespace and any wrapping quotes. A key pasted into the dashboard
+    // with a trailing newline or surrounding quotes is the most common reason a
+    // valid key still comes back 401 — this stops that class of failure.
+    key: (env.OPENAI_API_KEY || '').trim().replace(/^["']+|["']+$/g, '') || undefined,
     model: env.OPENAI_MODEL || DEFAULT_MODEL,
     baseUrl: (env.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, ''),
     maxImages: Math.max(1, Number(env.OPENAI_MAX_IMAGES) || DEFAULT_MAX_IMAGES),
@@ -104,7 +114,7 @@ async function chat(cfg, { system, content, maxTokens }) {
     ],
   }
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -145,6 +155,17 @@ async function chat(cfg, { system, content, maxTokens }) {
     }
     if (res.status === 400 && /temperature/.test(detail) && body.temperature !== undefined) {
       delete body.temperature
+      continue
+    }
+    // The key's project can't use this model (e.g. a project without gpt-4o
+    // enabled). Retry once on the fallback, which nearly every project can
+    // reach; when we're already on it, fall through and surface the real error.
+    if (
+      (res.status === 403 || res.status === 404) &&
+      /access to model|not have access|does not exist|model_not_found/i.test(detail) &&
+      body.model !== FALLBACK_MODEL
+    ) {
+      body.model = FALLBACK_MODEL
       continue
     }
     throw new Error(openAiMessage(res.status, detail))

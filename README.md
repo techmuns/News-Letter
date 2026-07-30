@@ -111,7 +111,7 @@ work too). Add them as **plaintext** except the key, which should be **Encrypted
 | Variable | Required | Default | What it does |
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | **yes** | — | Your OpenAI key (`sk-…`). Mark it **Encrypt**. |
-| `OPENAI_MODEL` | no | `gpt-4o` | Any vision-capable chat model your key can use. |
+| `OPENAI_MODEL` | no | `gpt-4o-mini` | Any vision-capable chat model your key can use. A model the key's project can't reach falls back to `gpt-4o-mini` automatically. |
 | `OPENAI_BASE_URL` | no | `https://api.openai.com/v1` | Point at a compatible gateway or proxy. |
 | `OPENAI_MAX_IMAGES` | no | `3` | Images per request — each one is billed. |
 | `OPENAI_IMAGE_DETAIL` | no | `auto` | `low` \| `auto` \| `high`. The biggest cost lever — see below. |
@@ -171,8 +171,9 @@ OPENAI_MAX_DOC_CHARS=6000
 slide with large type it reads fine; on a dense table in 9pt it will start
 missing digits, and a wrong figure is worse than an expensive one. Test your
 actual demo document at `low` before the demo, and fall back to `auto` if it
-misreads. `gpt-4o-mini` is also worth testing as `OPENAI_MODEL` — cheaper per
-token, but verify it on a real report page rather than assuming.
+misreads. `gpt-4o-mini` is the default `OPENAI_MODEL` — much cheaper per token
+and vision-capable — but verify it on a real report page: the writing is far
+cheaper, while an image can still cost about the same as it would on `gpt-4o`.
 
 Two things stop a runaway rather than trim a bill:
 
@@ -209,7 +210,7 @@ second one rather than asking you to take its word for it:
 3. **On the edge.** `npx wrangler pages deployment tail` streams the function's
    logs; failures log as `[api/generate] compose <reason>`.
 4. **Is it wired up at all?** `curl https://<your-site>/api/generate` returns
-   `{"configured":true,"model":"gpt-4o",…}` when the key is set.
+   `{"configured":true,"model":"gpt-4o-mini",…}` when the key is set.
 
 ### What it will not do
 
