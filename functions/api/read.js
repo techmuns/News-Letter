@@ -8,9 +8,14 @@
 // It only ever returns text it received. There is no summarising here — the
 // playbook's rule is that a claim carries its source, so what the composer
 // quotes has to be a verbatim span of the page.
+//
+// With FIRECRAWL_API_KEY set, the page is scraped through Firecrawl instead of
+// a raw fetch — it renders JS-heavy pages and gets past bot walls the regex
+// stripper below can't. No key: falls back to the direct fetch, unchanged.
 
 const MAX_BYTES = 3_000_000
 const MAX_CHARS = 200_000
+const FIRECRAWL_URL = 'https://api.firecrawl.dev/v1/scrape'
 
 /** Blocks the obvious internal targets so this can't be used to probe a network. */
 function isPublicHttpUrl(raw) {
@@ -107,11 +112,36 @@ function decode(s) {
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
 }
 
-export async function onRequestGet({ request }) {
-  const target = new URL(request.url).searchParams.get('url')
-  if (!target) return json({ error: 'No url given.' }, 400)
-  if (!isPublicHttpUrl(target)) return json({ error: 'That address cannot be read.' }, 400)
+/**
+ * Firecrawl's hosted scraper: renders JS, gets past most bot walls, and hands
+ * back clean markdown instead of raw HTML for this route to strip by hand.
+ * Any failure here just falls through to the direct fetch below — a Firecrawl
+ * outage or a bad key degrades the read, it doesn't break it.
+ */
+async function firecrawlRead(key, target) {
+  const res = await fetch(FIRECRAWL_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url: target, formats: ['markdown'], onlyMainContent: true }),
+  })
+  if (!res.ok) return null
 
+  const data = await res.json().catch(() => null)
+  const markdown = data?.data?.markdown
+  if (typeof markdown !== 'string' || !markdown.trim()) return null
+
+  const title = data?.data?.metadata?.title
+  return {
+    text: markdown.trim().slice(0, MAX_CHARS),
+    title: typeof title === 'string' && title.trim() ? title.trim() : undefined,
+  }
+}
+
+/** The plain fetch + regex-strip path — what this route did before Firecrawl. */
+async function directRead(target) {
   let res
   try {
     res = await fetch(target, {
@@ -126,26 +156,48 @@ export async function onRequestGet({ request }) {
       cf: { cacheTtl: 300, cacheEverything: true },
     })
   } catch {
-    return json({ error: 'That page could not be reached.' }, 502)
+    return { error: json({ error: 'That page could not be reached.' }, 502) }
   }
 
-  if (!res.ok) return json({ error: `That page returned ${res.status}.` }, 502)
+  if (!res.ok) return { error: json({ error: `That page returned ${res.status}.` }, 502) }
 
   const type = res.headers.get('content-type') ?? ''
   if (!/text\/html|text\/plain|application\/xhtml/i.test(type)) {
-    return json({ error: `That link is ${type.split(';')[0] || 'not a web page'} — download it and drop the file instead.` }, 415)
+    return {
+      error: json(
+        { error: `That link is ${type.split(';')[0] || 'not a web page'} — download it and drop the file instead.` },
+        415,
+      ),
+    }
   }
 
   const length = Number(res.headers.get('content-length') ?? 0)
-  if (length > MAX_BYTES) return json({ error: 'That page is too large to read.' }, 413)
+  if (length > MAX_BYTES) return { error: json({ error: 'That page is too large to read.' }, 413) }
 
   const html = await res.text()
-  if (html.length > MAX_BYTES) return json({ error: 'That page is too large to read.' }, 413)
+  if (html.length > MAX_BYTES) return { error: json({ error: 'That page is too large to read.' }, 413) }
 
-  const { text, title } = /text\/plain/i.test(type)
+  const result = /text\/plain/i.test(type)
     ? { text: html.slice(0, MAX_CHARS), title: undefined }
     : readableText(html)
+  return { result, resolvedUrl: res.url }
+}
 
+export async function onRequestGet({ request, env }) {
+  const target = new URL(request.url).searchParams.get('url')
+  if (!target) return json({ error: 'No url given.' }, 400)
+  if (!isPublicHttpUrl(target)) return json({ error: 'That address cannot be read.' }, 400)
+
+  const firecrawlKey = (env.FIRECRAWL_API_KEY || '').trim().replace(/^["']+|["']+$/g, '')
+  if (firecrawlKey) {
+    const viaFirecrawl = await firecrawlRead(firecrawlKey, target).catch(() => null)
+    if (viaFirecrawl) return json({ ...viaFirecrawl, url: target })
+    // Falls through to the direct fetch below rather than failing the request.
+  }
+
+  const direct = await directRead(target)
+  if (direct.error) return direct.error
+  const { text, title } = direct.result
   if (!text) return json({ error: 'No readable text on that page.' })
-  return json({ text, title, url: res.url })
+  return json({ text, title, url: direct.resolvedUrl })
 }

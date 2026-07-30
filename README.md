@@ -119,6 +119,7 @@ work too). Add them as **plaintext** except the key, which should be **Encrypted
 | `OPENAI_READ_ON_UPLOAD` | no | `true` | `false` reads an upload only at generation time — one billed call instead of two. |
 | `OPENAI_MAX_OUTPUT_TOKENS` | no | `3000` | Safety ceiling on the answer. Not a budget — you pay for what is generated. |
 | `OPENAI_ORG` / `OPENAI_PROJECT` | no | — | Sent as `OpenAI-Organization` / `OpenAI-Project` headers. |
+| `FIRECRAWL_API_KEY` | no | — | When set, pasted links are read through [Firecrawl](https://firecrawl.dev) instead of a raw fetch — handles JS-rendered pages and bot walls the plain reader can't. Unset: `/api/read` behaves exactly as before. |
 
 > **The name matters.** It must be exactly `OPENAI_API_KEY`. Do **not** prefix it
 > with `VITE_` — anything named `VITE_*` is compiled into the JavaScript the
