@@ -67,6 +67,13 @@ export const IMG_IPO = chartImg('#5b46b8', '#9d8cf5')
 export const IMG_INSURANCE = chartImg('#2f7d5b', '#47d6a1')
 export const IMG_FRAMEWORK = chartImg('#7d5bb8', '#c9a3f5')
 
+/** Hero placeholder matching a campaign's product pointer. */
+export function heroForPromo(promoId: string): string {
+  if (promoId === 'promo-drhp') return IMG_IPO
+  if (promoId === 'promo-sector') return IMG_INSURANCE
+  return IMG_FRAMEWORK
+}
+
 /* ============================================================
    Workspace pile — raw ingredients the team dropped in.
    ============================================================ */

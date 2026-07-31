@@ -52,7 +52,7 @@ export function statusTone(status: ChannelStatus): StatusTone {
   }
 }
 
-export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note'
+export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note' | 'post'
 
 export interface WorkspaceItem {
   id: string
@@ -64,6 +64,20 @@ export interface WorkspaceItem {
   imageUrl?: string
   addedBy: string
   createdAt: string // ISO
+  /** set on 'post' items: the real, scraped source this came from */
+  source?: CampaignSource
+  /** roster voice id, for 'post' items */
+  voiceId?: string
+}
+
+/** A real, published piece a campaign was built from — always attributed. */
+export interface CampaignSource {
+  author: string
+  authorRole: string
+  outlet: string
+  title: string
+  url: string
+  publishedAt?: string
 }
 
 /* ---- Channel-specific content shapes ---- */
@@ -135,6 +149,8 @@ export interface Campaign {
   createdAt: string // ISO
   /** workspace items this campaign was generated from */
   sourceItemIds: string[]
+  /** real published pieces behind this campaign — shown as attribution */
+  sources?: CampaignSource[]
   /** hero image (data URL) carried into LinkedIn + the article hero */
   heroImage?: string
   linkedin: ChannelVersion<LinkedInContent>

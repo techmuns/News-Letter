@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
 import { Button } from '../components/Button'
 import { DropZone } from '../components/workspace/DropZone'
+import { SignalFeed } from '../components/workspace/SignalFeed'
 import { PileItemCard } from '../components/workspace/PileItemCard'
 import { CampaignsRail } from '../components/workspace/CampaignsRail'
 import { IconSparkle, IconClose } from '../components/icons'
@@ -12,6 +13,7 @@ export function Workspace() {
   const items = useStore((s) => s.items)
   const campaigns = useStore((s) => s.campaigns)
   const turnIntoContent = useStore((s) => s.turnIntoContent)
+  const generationNotice = useStore((s) => s.generationNotice)
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [highlightId, setHighlightId] = useState<string | null>(null)
@@ -37,10 +39,14 @@ export function Workspace() {
       <PageHeader
         eyebrow="01"
         title="Workspace"
-        subtitle="Drop raw material as it comes — PDFs, screenshots, a stray thought. Select a few pieces and turn them into content."
+        subtitle="Drop raw material as it comes — PDFs, screenshots, a stray thought. Or let the auto-generator pull in what real finance writers just published. Select a few pieces and turn them into content."
       />
 
       <DropZone />
+
+      <div className="mt-4">
+        <SignalFeed />
+      </div>
 
       <div className="mt-7 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
         {/* The pile */}
@@ -67,6 +73,10 @@ export function Workspace() {
                 </Button>
               </div>
             </div>
+          )}
+
+          {generationNotice && (
+            <p className="mt-3 text-[12px] leading-relaxed text-amber">{generationNotice}</p>
           )}
 
           {items.length === 0 ? (

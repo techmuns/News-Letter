@@ -10,7 +10,7 @@ import { formatDate, weekdayIn } from '../../lib/date'
 import { MicroLabel } from '../MicroLabel'
 import { StatusChip } from '../StatusChip'
 import { Menu, MenuItem } from '../Menu'
-import { IconCalendar } from '../icons'
+import { IconCalendar, IconExternal } from '../icons'
 
 const SETTABLE_STATUSES: ChannelStatus[] = CHANNEL_STATUS_FLOW.filter((s) => s !== 'Scheduled')
 
@@ -57,6 +57,37 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
 
       {/* The rendered preview */}
       <div>{children}</div>
+
+      {/* Attribution — whoever's words this was built from, and where to check them.
+          Sits with the approver, not just inside the copy. */}
+      {campaign.sources && campaign.sources.length > 0 && (
+        <div className="mt-5 rounded-xl border border-border bg-[rgba(255,255,255,0.02)] p-4">
+          <MicroLabel className="text-text-dim">Sourced from</MicroLabel>
+          <ul className="mt-2.5 flex flex-col gap-2">
+            {campaign.sources.map((source) => (
+              <li key={source.url} className="text-[12.5px] leading-relaxed text-text-muted">
+                <span className="text-text-2">{source.author}</span>
+                <span className="text-text-dim"> · {source.authorRole}</span>
+                <br />
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 text-violet-dim underline decoration-dotted underline-offset-2 transition-colors hover:text-violet"
+                >
+                  {source.title}
+                  <IconExternal size={11} />
+                </a>
+                <span className="text-text-dim">
+                  {' '}
+                  — {source.outlet}
+                  {source.publishedAt && `, ${source.publishedAt}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Minimal actions: status, and schedule for email only */}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.07)] pt-5">

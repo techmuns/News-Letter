@@ -150,6 +150,33 @@ export function IconArrowRight({ size = 18, className, strokeWidth = 1.7 }: Icon
   )
 }
 
+export function IconGlobe({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.6 2.6 2.6 15 0 18-2.6-3-2.6-15.4 0-18Z" />
+    </svg>
+  )
+}
+
+export function IconRefresh({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M20 11a8 8 0 1 0-.9 4.6" />
+      <path d="M20 5v6h-6" />
+    </svg>
+  )
+}
+
+export function IconExternal({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M14 4h6v6M20 4l-8.5 8.5" />
+      <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </svg>
+  )
+}
+
 /** Icon for a channel kind. */
 export function ChannelIcon({ kind, ...props }: { kind: ChannelKind } & IconProps) {
   if (kind === 'linkedin') return <IconLinkedIn {...props} />
