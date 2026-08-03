@@ -3,6 +3,7 @@ import { cn } from '../../lib/cn'
 import { useStore } from '../../store/useStore'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
+import { LinkedInImport } from './LinkedInImport'
 import { IconPlus, IconNote } from '../icons'
 
 function formatBytes(n: number): string {
@@ -112,6 +113,10 @@ export function DropZone() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="mt-5">
+        <LinkedInImport />
       </div>
 
       <input

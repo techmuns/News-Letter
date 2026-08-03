@@ -46,21 +46,77 @@ One **master Campaign** → **three linked channel versions** (LinkedIn / Email 
 
 ```bash
 npm install
+cp .env.example .env   # then paste your Firecrawl key in (optional — see below)
 npm run dev      # http://localhost:5173
 npm run build    # typecheck + production build to dist/
 npm run preview  # preview the production build
 ```
 
+> `npm run preview` serves the built SPA only — it does **not** run Pages
+> Functions, so `/api/scrape` is unavailable there. Use `npm run dev` to
+> exercise scraping locally.
+
+---
+
+## Pulling real LinkedIn posts (Firecrawl)
+
+The Workspace drop zone has a second input: paste a LinkedIn **post permalink**,
+a **profile** (`/in/…`) or a **company** (`/company/…`) URL and the posts land in
+the pile as real source material, ready to select and turn into content. Each
+scraped item keeps its permalink, author and engagement counts, and links back to
+the original rather than replacing it.
+
+### The key never touches the browser
+
+`FIRECRAWL_API_KEY` is deliberately **not** a `VITE_` variable — Vite inlines
+those into the client bundle, where anyone could read it off the deployed site.
+Instead the browser calls our own `/api/scrape`, which holds the key server-side:
+
+| | serves `/api/scrape` | reads the key from |
+|---|---|---|
+| `npm run dev` | Vite middleware in [`vite.config.ts`](vite.config.ts) | `.env` (gitignored) |
+| deployed | [`functions/api/scrape.ts`](functions/api/scrape.ts) | Pages env var |
+
+Both call the same handler in `src/lib/firecrawl.server.ts`, so local and
+production cannot drift apart. To set it in production: Cloudflare dashboard →
+your Pages project → **Settings → Environment variables** → add
+`FIRECRAWL_API_KEY`. Wrangler uploads the root `functions/` directory
+automatically, so no workflow change is needed.
+
+### LinkedIn blocks scrapers — expect partial results
+
+This is worth stating plainly rather than discovering in a demo: LinkedIn
+answers unauthenticated scrapers with a sign-in wall, and it returns that wall
+as a **200, not an error**. So the feature is built to be honest about it:
+
+- An authwall is detected and **never filed into the pile as content**.
+- **Post permalinks are the most reliable** thing to scrape. Profile and company
+  feed pages are gated much harder — a profile scrape that returns nothing is a
+  normal outcome, not a bug.
+- A profile/company scrape costs **one Firecrawl credit per post** plus one for
+  the index page, which is why the count is capped (3/5/10, default 5).
+- Partial failures are surfaced, not swallowed — "2 of 5 posts came back blocked
+  or empty" appears under the input.
+
+If a URL is not a LinkedIn URL, it is rejected client-side before any credit is
+spent.
+
 ### Project structure
 
 ```
+functions/
+  api/scrape.ts        POST /api/scrape — Cloudflare Pages Function (production)
 src/
   components/          reusable primitives (Card, StatusDot, ChannelChips, Menu…)
-    workspace/         Workspace pieces (DropZone, PileItemCard, CampaignsRail)
+    workspace/         Workspace pieces (DropZone, PileItemCard, CampaignsRail,
+                       LinkedInImport)
     preview/           channel renderers (LinkedInPost, EmailPreview, ArticlePreview)
   spaces/              the four routed spaces
   store/useStore.ts    shared Zustand store + mocked actions
   data/mockData.ts     seeded, value-first mock content
+  lib/linkedin.ts      LinkedIn URL parsing + Firecrawl output → post (pure)
+  lib/firecrawl.server.ts   Firecrawl client — SERVER ONLY, holds the key
+  lib/scrapeApi.ts     browser client for /api/scrape
   types.ts             Campaign / ChannelVersion / WorkspaceItem model
 ```
 
@@ -99,5 +155,9 @@ Client-side routes are handled by [`public/_redirects`](public/_redirects)
 ## What Phase 1 deliberately does **not** build
 
 Real file parsing · a real LLM agent (the "Turn into content" action spawns pre-written
-mock drafts) · LinkedIn/email/CMS integrations · email sending · real auth. Those come
+mock drafts) · publishing to LinkedIn/email/CMS · email sending · real auth. Those come
 in later phases and plug into this foundation.
+
+**Now real:** pulling posts *in* from LinkedIn via Firecrawl (above). Everything
+downstream of the pile — generation, the three channel drafts — is still mocked, so a
+scraped post currently seeds a pre-written campaign rather than one written from it.

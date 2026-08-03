@@ -13,6 +13,7 @@ import {
   GENERATABLE,
   PROMOTIONS,
 } from '../data/mockData'
+import { postTitle, type ScrapedPost } from '../lib/linkedin'
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
@@ -42,6 +43,9 @@ interface StoreState {
     files: { name: string; sizeLabel?: string; imageUrl?: string }[],
     addedBy?: string,
   ) => void
+  /** Files real LinkedIn posts into the pile, skipping ones already there.
+      Returns how many were new. */
+  addScrapedPosts: (posts: ScrapedPost[], addedBy?: string) => number
   removeItem: (id: string) => void
 
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
@@ -102,6 +106,34 @@ export const useStore = create<StoreState>()(
           }
         })
         if (newItems.length) set((s) => ({ items: [...newItems, ...s.items] }))
+      },
+
+      addScrapedPosts: (posts, addedBy = 'Firecrawl') => {
+        // Re-scraping a profile returns posts already in the pile; the URL is
+        // the identity, so the second pass is a no-op rather than a duplicate.
+        const existing = new Set(
+          get().items.map((i) => i.sourceUrl).filter((u): u is string => !!u),
+        )
+        const fresh = posts.filter((p) => !existing.has(p.url))
+        if (fresh.length === 0) return 0
+
+        const newItems: WorkspaceItem[] = fresh.map((p) => ({
+          id: uid('item'),
+          type: 'linkedin',
+          title: postTitle(p),
+          preview: p.text.split('\n')[0] ?? p.text,
+          body: p.text,
+          sourceUrl: p.url,
+          sourceAuthor: p.author,
+          engagement:
+            p.reactions === undefined && p.comments === undefined && p.reposts === undefined
+              ? undefined
+              : { reactions: p.reactions, comments: p.comments, reposts: p.reposts },
+          addedBy,
+          createdAt: new Date().toISOString(),
+        }))
+        set((s) => ({ items: [...newItems, ...s.items] }))
+        return fresh.length
       },
 
       removeItem: (id) =>

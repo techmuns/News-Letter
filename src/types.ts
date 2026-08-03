@@ -52,7 +52,7 @@ export function statusTone(status: ChannelStatus): StatusTone {
   }
 }
 
-export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note'
+export type WorkspaceItemType = 'pdf' | 'screenshot' | 'note' | 'linkedin'
 
 export interface WorkspaceItem {
   id: string
@@ -64,6 +64,15 @@ export interface WorkspaceItem {
   imageUrl?: string
   addedBy: string
   createdAt: string // ISO
+  /** full text, for scraped items whose preview is only the opening line */
+  body?: string
+  /** where a scraped item came from — the permalink, kept so the pile
+      always points back at the original rather than a copy of it */
+  sourceUrl?: string
+  /** the LinkedIn author a scraped post belongs to */
+  sourceAuthor?: string
+  /** engagement as it stood when the post was scraped */
+  engagement?: { reactions?: number; comments?: number; reposts?: number }
 }
 
 /* ---- Channel-specific content shapes ---- */
