@@ -7,6 +7,17 @@ name: LLM preflight
 #   2. A single structured live call that prints which provider and model
 #      answered. A bad key fails here in seconds instead of mid-run.
 #
+# IMPORTANT: BEDROCK_API_KEY currently lives in Cloudflare, not GitHub.
+# Cloudflare secrets are encrypted and readable only from `context.env` inside a
+# Pages Function at runtime — GitHub Actions cannot see them. So layer 2 below
+# is SKIPPED unless someone also adds BEDROCK_API_KEY under
+# Settings -> Secrets and variables -> Actions.
+#
+# The live preflight that can see the Cloudflare secret is the deployed
+# endpoint instead:
+#   GET /api/llm-health           bindings only, free, safe to poll
+#   GET /api/llm-health?live=1    one real call, needs x-preflight-token
+#
 # Reuse it as a gate from any workflow that has an LLM step:
 #
 #   jobs:
@@ -81,6 +92,14 @@ jobs:
       - name: Report missing credentials
         if: env.BEDROCK_API_KEY == '' && env.OPENAI_API_KEY == ''
         run: |
-          echo "::warning::No BEDROCK_API_KEY or OPENAI_API_KEY visible to this run."
-          echo "Offline transport tests passed, but no live call was made."
-          echo "If this ran via workflow_call, the caller needs 'secrets: inherit'."
+          echo "::notice::No BEDROCK_API_KEY or OPENAI_API_KEY visible to this run."
+          echo "Offline transport tests passed; no live call was made."
+          echo ""
+          echo "This is expected while the secret lives only in Cloudflare —"
+          echo "GitHub Actions cannot read Cloudflare secrets. Use the deployed"
+          echo "endpoint as the live preflight instead:"
+          echo "  curl https://<deployment>/api/llm-health"
+          echo ""
+          echo "To enable the live check here as well, add BEDROCK_API_KEY under"
+          echo "Settings -> Secrets and variables -> Actions (and use"
+          echo "'secrets: inherit' if calling this workflow from another one)."

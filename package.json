@@ -11,7 +11,10 @@
     "lint": "tsc --noEmit",
     "llm:health": "node scripts/llm/healthcheck.mjs",
     "llm:test": "node scripts/test/run-offline-tests.mjs",
-    "llm:audit-schema": "node scripts/llm/audit-schemas.mjs"
+    "llm:audit-schema": "node scripts/llm/audit-schemas.mjs",
+    "llm:stub": "STUB_PORT=8899 node scripts/test/stub-server.mjs",
+    "pages:dev": "npm run build && wrangler pages dev --port 8788",
+    "pages:build-functions": "wrangler pages functions build --outfile=.wrangler/functions-bundle.js"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -29,6 +32,7 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.2",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "wrangler": "^4.118.0"
   }
 }

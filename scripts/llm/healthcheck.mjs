@@ -13,35 +13,17 @@
  */
 
 import { createLLMClient, describeConfig, LLMError, ConfigError } from './index.mjs'
+import { defaultEnv } from './config.mjs'
+import { HEALTH_SCHEMA, HEALTH_MESSAGES, HEALTH_MAX_TOKENS } from './health-schema.mjs'
 
-/**
- * Deliberately tiny: two scalar fields, no unsupported keywords, so the call
- * costs almost nothing and exercises the real structured-output path.
- */
-const HEALTH_SCHEMA = {
-  type: 'object',
-  properties: {
-    ok: { type: 'boolean', description: 'Always true.' },
-    echo: { type: 'string', description: 'The literal string "pong".' },
-  },
-  required: ['ok', 'echo'],
-  additionalProperties: false,
-}
-
-const HEALTH_MESSAGES = [
-  { role: 'user', content: 'Health check. Respond with ok=true and echo="pong". Nothing else.' },
-]
-
-export async function runHealthCheck({ env = process.env, fetch: fetchImpl } = {}) {
+export async function runHealthCheck({ env = defaultEnv(), fetch: fetchImpl } = {}) {
   const startedAt = Date.now()
   const llm = createLLMClient({ env, fetch: fetchImpl })
 
   const result = await llm.generateStructured({
     schema: HEALTH_SCHEMA,
     messages: HEALTH_MESSAGES,
-    // Small but with room for thinking tokens, which are on by default on
-    // Opus 5 in json_schema mode and count against max_tokens.
-    maxTokens: 2048,
+    maxTokens: HEALTH_MAX_TOKENS,
   })
 
   return {

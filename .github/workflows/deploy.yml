@@ -45,9 +45,33 @@ jobs:
       - name: Build
         run: npm run build
 
+      # wrangler.toml supplies compatibility_flags = ["nodejs_compat"], which the
+      # Pages Function in functions/ needs to load at all.
       - name: Deploy to Cloudflare Pages
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=munshot-content-system --branch=main
+
+      # Free, no model call: confirms the Cloudflare secret is actually bound to
+      # the deployed Function. Informational — a missing LLM binding must not
+      # fail a static site deploy.
+      - name: Check LLM bindings on the deployment
+        continue-on-error: true
+        run: |
+          URL="${{ steps.deploy.outputs.deployment-url }}"
+          if [ -z "$URL" ]; then
+            echo "::notice::No deployment URL returned; skipping binding check."
+            exit 0
+          fi
+          echo "Checking $URL/api/llm-health"
+          BODY=$(curl -fsS --max-time 30 "$URL/api/llm-health" || echo '{}')
+          echo "$BODY"
+          if echo "$BODY" | grep -q '"BEDROCK_API_KEY": true'; then
+            echo "::notice::BEDROCK_API_KEY is bound to the deployed Function."
+          else
+            echo "::warning::BEDROCK_API_KEY is NOT bound. Set it in Cloudflare -> \
+          Workers & Pages -> munshot-content-system -> Settings -> Variables and Secrets."
+          fi

@@ -12,7 +12,7 @@
  *   })
  */
 
-import { resolveConfig, describeConfig, ConfigError } from './config.mjs'
+import { resolveConfig, describeConfig, ConfigError, defaultEnv } from './config.mjs'
 import { auditSchema, stripSchema, formatFindings } from './schema.mjs'
 import { createBedrockClient, generateStructuredBedrock } from './bedrock.mjs'
 import { createOpenAIClient, generateStructuredOpenAI } from './openai.mjs'
@@ -25,7 +25,7 @@ export { ConfigError, LLMError, describeConfig, auditSchema, stripSchema, format
  * @param {NodeJS.ProcessEnv} [options.env]     environment to read config from
  * @param {typeof fetch} [options.fetch]        injectable fetch (used by the offline stub tests)
  */
-export function createLLMClient({ env = process.env, fetch: fetchImpl } = {}) {
+export function createLLMClient({ env = defaultEnv(), fetch: fetchImpl } = {}) {
   const config = resolveConfig(env)
 
   // Clients are created lazily so a missing fallback key never throws up front.

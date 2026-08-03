@@ -1,0 +1,20 @@
+# Local bindings for `npm run pages:dev`.
+#
+# Copy to .dev.vars (gitignored) — this is the local stand-in for the secrets
+# you set in the Cloudflare dashboard under Settings -> Variables and Secrets.
+
+BEDROCK_API_KEY=
+PREFLIGHT_TOKEN=local-preflight-token
+BEDROCK_REGION=us-east-1
+
+# Optional automatic fallback
+# OPENAI_API_KEY=
+
+# Set to "openai" to flip the primary provider back
+# LLM_PROVIDER=openai
+
+# Point the Function at the offline stub instead of real AWS:
+#   npm run llm:stub          (listens on 8899)
+#   npm run pages:dev
+# BEDROCK_BASE_URL=http://127.0.0.1:8899/anthropic
+# OPENAI_BASE_URL=http://127.0.0.1:8899/v1

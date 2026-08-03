@@ -159,8 +159,14 @@ function writeOpenAIError(res, status, type, message) {
  * @param {Record<string, object>} [options.models]  per-model Bedrock behaviour
  * @param {object} [options.openai]                  OpenAI behaviour
  * @param {object} [options.payload]                 structured payload to return
+ * @param {number} [options.port]                    fixed port (0 = ephemeral)
  */
-export async function startStub({ models = {}, openai = {}, payload = DEFAULT_TOOL_PAYLOAD } = {}) {
+export async function startStub({
+  models = {},
+  openai = {},
+  payload = DEFAULT_TOOL_PAYLOAD,
+  port: fixedPort = 0,
+} = {}) {
   /** Every request the stub saw — the tests assert against these. */
   const requests = []
 
@@ -260,7 +266,7 @@ export async function startStub({ models = {}, openai = {}, payload = DEFAULT_TO
     return writeOpenAIStream(res, { model: body.model, payload: openai.payload ?? payload })
   }
 
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  await new Promise((resolve) => server.listen(fixedPort, '127.0.0.1', resolve))
   const { port } = server.address()
 
   return {
@@ -277,6 +283,7 @@ export async function startStub({ models = {}, openai = {}, payload = DEFAULT_TO
 // Standalone mode, handy for poking at it with curl.
 if (import.meta.url === `file://${process.argv[1]}`) {
   const stub = await startStub({
+    port: Number(process.env.STUB_PORT) || 0,
     models: {
       'anthropic.claude-opus-5': { status: 403, errorType: 'permission_error' },
       'anthropic.claude-opus-4-8': { rejectOutputConfig: true },

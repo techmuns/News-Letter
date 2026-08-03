@@ -45,6 +45,14 @@ export class ConfigError extends Error {
 }
 
 /**
+ * `process` does not exist in the Workers runtime, so never touch it directly.
+ * Cloudflare Pages Functions pass their bindings in explicitly as `context.env`.
+ */
+export function defaultEnv() {
+  return globalThis.process?.env ?? {}
+}
+
+/**
  * Decide which provider to use and with what settings.
  *
  * Selection order:
@@ -54,7 +62,7 @@ export class ConfigError extends Error {
  * OpenAI stays wired up as an automatic fallback whenever its key is present
  * and it is not already the primary.
  */
-export function resolveConfig(env = process.env) {
+export function resolveConfig(env = defaultEnv()) {
   const bedrockKey = env.BEDROCK_API_KEY?.trim() || ''
   const openaiKey = env.OPENAI_API_KEY?.trim() || ''
 

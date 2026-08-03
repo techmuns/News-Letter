@@ -102,20 +102,34 @@ The app itself still runs on mock data, but the **transport** a real generation 
 will use is in place under [`scripts/llm/`](scripts/llm/README.md): Claude via Amazon
 Bedrock as primary, OpenAI kept intact as an automatic fallback.
 
+`BEDROCK_API_KEY` is stored as a **Cloudflare** secret, which only a Pages Function
+can read at runtime — GitHub Actions cannot see it. So the calls happen server-side
+in [`functions/`](functions/api/llm-health.js), and the key never reaches the browser.
+
 ```bash
 npm run llm:test     # offline transport tests — no API key, no network, no spend
-npm run llm:health   # one cheap live call; prints which provider and model answered
+npm run llm:stub     # stub Bedrock + OpenAI on :8899
+npm run pages:dev    # build + run the Function locally at :8788
+```
+
+Preflight on a deployment:
+
+```bash
+curl https://<deployment>/api/llm-health                  # free: is the secret bound?
+curl -H 'x-preflight-token: <token>' \
+     'https://<deployment>/api/llm-health?live=1'         # one cheap real call
 ```
 
 - Provider is chosen by which key is present; set `LLM_PROVIDER=openai` to flip back.
 - Bedrock auth is a bearer token in the `x-api-key` header — no SigV4, no AWS SDK.
 - Model chain `opus-5 → opus-4-8 → sonnet-5`, since Bedrock grants Opus 5 per-account.
 - Responses stream, so long outputs can't trip request timeouts.
-- Node-only: nothing here is imported by `src/`, so no key reaches the browser bundle.
+- [`wrangler.toml`](wrangler.toml) sets `nodejs_compat`; the Function won't load without it.
 
-Configuration lives in [`.env.example`](.env.example). CI wiring —including the
-preflight gate that makes a bad key cost seconds instead of a whole run— is in
-[`.github/workflows/llm-preflight.yml`](.github/workflows/llm-preflight.yml).
+Secrets go in Cloudflare → Workers & Pages → **munshot-content-system** → Settings →
+Variables and Secrets. Local equivalents are in [`.dev.vars.example`](.dev.vars.example)
+(Function) and [`.env.example`](.env.example) (Node CLI). Full detail:
+[`scripts/llm/README.md`](scripts/llm/README.md).
 
 ## What Phase 1 deliberately does **not** build
 

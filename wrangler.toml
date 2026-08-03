@@ -1,0 +1,24 @@
+# Cloudflare Pages project config.
+#
+# Exists for one reason: the Pages Function in functions/ bundles the Anthropic
+# SDK, whose credential-chain module statically imports node:fs and node:path
+# (for the ~/.config/anthropic OAuth profile path we never use). Without
+# nodejs_compat those imports throw at module load and every /api/* request
+# 500s — before any of our code runs.
+#
+# Compatibility flags are otherwise set per-project in the Cloudflare dashboard
+# under Settings -> Functions. Keeping them here means the requirement travels
+# with the repo instead of living only in someone's browser tab.
+
+name = "munshot-content-system"
+compatibility_date = "2025-05-05"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# Secrets are NOT set here — they live in the Cloudflare dashboard under
+# Settings -> Variables and Secrets, per environment:
+#   BEDROCK_API_KEY   (secret, required)
+#   PREFLIGHT_TOKEN   (secret, required for /api/llm-health?live=1)
+#   BEDROCK_REGION    (plain text, optional, defaults to us-east-1)
+#   OPENAI_API_KEY    (secret, optional, automatic fallback)
+#   LLM_PROVIDER      (plain text, optional, set to "openai" to flip back)
