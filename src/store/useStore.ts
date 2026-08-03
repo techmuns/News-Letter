@@ -14,6 +14,7 @@ import {
   PROMOTIONS,
 } from '../data/mockData'
 import { postTitle, type ScrapedPost } from '../lib/linkedin'
+import { composeFromSources } from '../lib/compose'
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
@@ -123,6 +124,9 @@ export const useStore = create<StoreState>()(
           title: postTitle(p),
           preview: p.text.split('\n')[0] ?? p.text,
           body: p.text,
+          // The post's own image doubles as the pile thumbnail and, once the
+          // item becomes a campaign, as that campaign's hero.
+          imageUrl: p.imageUrl,
           sourceUrl: p.url,
           sourceAuthor: p.author,
           engagement:
@@ -143,23 +147,49 @@ export const useStore = create<StoreState>()(
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
         const id = uid('camp')
         const now = new Date().toISOString()
-        // Prefer a picture from the selected items; fall back to the template hero.
         const items = get().items
-        const heroFromSelection = itemIds
-          .map((iid) => items.find((it) => it.id === iid)?.imageUrl)
-          .find(Boolean)
+        const selected = itemIds
+          .map((iid) => items.find((it) => it.id === iid))
+          .filter((it): it is WorkspaceItem => !!it)
+
+        // Real source material composes a real campaign; a selection with no
+        // usable text (a bare PDF, a screenshot) still falls back to a template
+        // so the action never produces an empty draft.
+        const composed = composeFromSources(selected)
+        const heroFromSelection = selected.map((it) => it.imageUrl).find(Boolean)
+
         const campaign: Campaign = {
           id,
-          name: tpl.name,
-          topic: tpl.topic,
+          name: composed?.name ?? tpl.name,
+          topic: composed?.topic ?? tpl.topic,
           createdAt: now,
           sourceItemIds: itemIds,
-          heroImage: heroFromSelection ?? tpl.heroImage,
-          promo: PROMOTIONS.find((p) => p.id === tpl.promoId),
+          heroImage: composed?.heroImage ?? heroFromSelection ?? tpl.heroImage,
+          // A templated campaign carries its scripted promo; a composed one is
+          // about the source, so a Munshot pitch is not bolted onto it.
+          promo: composed ? undefined : PROMOTIONS.find((p) => p.id === tpl.promoId),
           // Each channel awaits its own review before it distributes to its space.
-          linkedin: { kind: 'linkedin', status: 'In Review', edited: false, approved: false, content: tpl.linkedin },
-          email: { kind: 'email', status: 'In Review', edited: false, approved: false, content: tpl.email },
-          article: { kind: 'article', status: 'In Review', edited: false, approved: false, content: tpl.article },
+          linkedin: {
+            kind: 'linkedin',
+            status: 'In Review',
+            edited: false,
+            approved: false,
+            content: composed?.linkedin ?? tpl.linkedin,
+          },
+          email: {
+            kind: 'email',
+            status: 'In Review',
+            edited: false,
+            approved: false,
+            content: composed?.email ?? tpl.email,
+          },
+          article: {
+            kind: 'article',
+            status: 'In Review',
+            edited: false,
+            approved: false,
+            content: composed?.article ?? tpl.article,
+          },
           processing: true,
         }
         set((s) => ({
@@ -229,16 +259,27 @@ export const useStore = create<StoreState>()(
         })),
 
       regenerateChannel: (campaignId, kind) => {
-        const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]
+        const state = get()
+        const campaign = state.campaigns.find((c) => c.id === campaignId)
+        // Re-generate from the same source the campaign was built from, so a
+        // composed campaign does not silently turn into a stock template on
+        // its second pass.
+        const sources = (campaign?.sourceItemIds ?? [])
+          .map((iid) => state.items.find((it) => it.id === iid))
+          .filter((it): it is WorkspaceItem => !!it)
+        const composed = composeFromSources(sources)
+        const tpl = GENERATABLE[state.genIndex % GENERATABLE.length]
+        const content = composed?.[kind] ?? tpl[kind]
+
         set((s) => ({
-          genIndex: s.genIndex + 1,
+          genIndex: composed ? s.genIndex : s.genIndex + 1,
           campaigns: s.campaigns.map((c) =>
             c.id === campaignId
               ? {
                   ...c,
                   [kind]: {
                     ...c[kind],
-                    content: tpl[kind],
+                    content,
                     edited: false,
                     status: 'Draft' as ChannelStatus,
                   },

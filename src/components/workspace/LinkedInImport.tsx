@@ -109,8 +109,8 @@ export function LinkedInImport() {
         {target && phase.kind === 'idle' && (
           <MicroLabel className="text-text-dim">
             {target.kind === 'post'
-              ? 'Single post — the most reliable thing to scrape'
-              : `Recent posts from ${target.label} · feed pages are gated harder than permalinks`}
+              ? 'Single post — full text, author and engagement'
+              : `Recent posts from ${target.label} · LinkedIn walls ${target.kind} pages, so these are found via search — a post URL is more reliable`}
           </MicroLabel>
         )}
 

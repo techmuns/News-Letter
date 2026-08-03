@@ -20,8 +20,10 @@ import {
   type RawScrape,
   type ScrapedPost,
 } from './linkedin'
+export type { ScrapedPost }
 
 const FIRECRAWL_ENDPOINT = 'https://api.firecrawl.dev/v2/scrape'
+const FIRECRAWL_SEARCH_ENDPOINT = 'https://api.firecrawl.dev/v2/search'
 
 /** Posts pulled from one profile/company page, unless the caller says otherwise. */
 export const DEFAULT_POST_LIMIT = 5
@@ -68,7 +70,14 @@ async function firecrawlScrape(
       },
       body: JSON.stringify({
         url,
-        formats: opts.withLinks ? ['markdown', 'links'] : ['markdown'],
+        // rawHtml carries the schema.org JSON-LD block, which is where the
+        // complete post text, author, date, image and engagement live for a
+        // logged-out request. markdown is kept as the fallback for pages
+        // that render but carry no structured data.
+        formats: opts.withLinks ? ['markdown', 'rawHtml', 'links'] : ['markdown', 'rawHtml'],
+        // Applies to the markdown only — rawHtml is returned unmodified, so
+        // the JSON-LD survives either way. Keeping it on leaves the fallback
+        // markdown clean.
         onlyMainContent: true,
         // LinkedIn renders the post body client-side; without a beat the
         // markdown comes back as an empty shell.
@@ -108,6 +117,71 @@ async function firecrawlScrape(
   }
 
   return body.data ?? {}
+}
+
+/**
+ * Find post permalinks for a profile or company by searching the open web,
+ * rather than by reading a LinkedIn feed page.
+ *
+ * This exists because of a measured asymmetry: LinkedIn answers a logged-out
+ * request for a POST permalink with the full post (status 200, complete
+ * schema.org data), but answers the same request for a PROFILE with HTTP 999
+ * and for a COMPANY feed with its login page. Those permalinks are public and
+ * indexed — so we look them up, then scrape the pages that do work.
+ *
+ * Returns [] rather than throwing: search is a fallback, and a fallback that
+ * can sink the request is worse than one that quietly finds nothing.
+ */
+async function findPostUrlsViaSearch(
+  apiKey: string,
+  target: LinkedInTarget,
+  limit: number,
+): Promise<string[]> {
+  const slug = target.slug
+  if (!slug) return []
+
+  const readable = slug.replace(/-/g, ' ')
+  const query = `site:linkedin.com/posts/ ${readable}`
+
+  let res: Response
+  try {
+    res = await fetch(FIRECRAWL_SEARCH_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      // No scrapeOptions: we only want the URLs here. Scraping each one is a
+      // separate, deliberate step so the credit cost stays visible.
+      body: JSON.stringify({ query, limit: Math.min(limit * 3, 30), sources: ['web'] }),
+    })
+  } catch {
+    return []
+  }
+  if (!res.ok) return []
+
+  let body: { data?: { web?: { url?: string }[] } }
+  try {
+    body = (await res.json()) as { data?: { web?: { url?: string }[] } }
+  } catch {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const hit of body.data?.web ?? []) {
+    if (typeof hit.url !== 'string') continue
+    const found = classifyLinkedInUrl(hit.url)
+    if (!found || found.kind !== 'post') continue
+    // A search for "jane doe" also returns posts that merely mention her.
+    // The author's own slug is embedded in their permalinks, so require it.
+    if (!found.url.toLowerCase().includes(`/posts/${slug}`)) continue
+    if (seen.has(found.key)) continue
+    seen.add(found.key)
+    out.push(found.url)
+    if (out.length >= limit) break
+  }
+  return out
 }
 
 /** Run tasks with a small concurrency cap, preserving input order. */
@@ -161,14 +235,42 @@ export async function scrapeLinkedIn(
     return { target, posts: [post], warnings }
   }
 
-  // Profile / company: one scrape to find the permalinks, then one per post.
-  const index = await firecrawlScrape(apiKey, target.url, { withLinks: true })
-  const urls = extractPostUrls(index, capped)
+  // Profile / company. Two routes to the same place, because LinkedIn walls
+  // feed pages but not the permalinks themselves.
+  //
+  //   1. Read the feed page directly. Cheapest when it works, and it may —
+  //      Firecrawl's proxies are not the datacenter IP this was measured from.
+  //   2. If that comes back empty, look the permalinks up on the open web.
+  //
+  // Either way the posts themselves are then scraped individually, which is
+  // the route that reliably returns full content.
+  let urls: string[] = []
+  let viaSearch = false
+
+  try {
+    urls = extractPostUrls(await firecrawlScrape(apiKey, target.url, { withLinks: true }), capped)
+  } catch (err) {
+    // A blocked feed page is expected, not fatal — fall through to search.
+    // A key or credit problem is neither, and must still surface.
+    if (err instanceof ScrapeError && (err.status === 401 || err.status === 402)) throw err
+  }
+
+  if (urls.length === 0) {
+    urls = await findPostUrlsViaSearch(apiKey, target, capped)
+    viaSearch = urls.length > 0
+  }
+
   if (urls.length === 0) {
     warnings.push(
-      `No public posts were visible on that ${target.kind} page — LinkedIn gates feed pages harder than individual posts. Try pasting a specific post URL.`,
+      `LinkedIn served a sign-in wall for that ${target.kind} page, and no public posts for it turned up in search either. Individual post URLs are far more reliable — paste one of those.`,
     )
     return { target, posts: [], warnings }
+  }
+
+  if (viaSearch) {
+    warnings.push(
+      `LinkedIn blocked the ${target.kind} page directly, so these were found via web search — recent posts may be missing.`,
+    )
   }
 
   const settled = await mapLimit(urls, FANOUT_CONCURRENCY, async (url) => {

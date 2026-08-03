@@ -83,23 +83,41 @@ your Pages project → **Settings → Environment variables** → add
 `FIRECRAWL_API_KEY`. Wrangler uploads the root `functions/` directory
 automatically, so no workflow change is needed.
 
-### LinkedIn blocks scrapers — expect partial results
+### What logged-out LinkedIn actually serves
 
-This is worth stating plainly rather than discovering in a demo: LinkedIn
-answers unauthenticated scrapers with a sign-in wall, and it returns that wall
-as a **200, not an error**. So the feature is built to be honest about it:
+Measured, not assumed — a logged-out request to each page type:
 
-- An authwall is detected and **never filed into the pile as content**.
-- **Post permalinks are the most reliable** thing to scrape. Profile and company
-  feed pages are gated much harder — a profile scrape that returns nothing is a
-  normal outcome, not a bug.
-- A profile/company scrape costs **one Firecrawl credit per post** plus one for
-  the index page, which is why the count is capped (3/5/10, default 5).
-- Partial failures are surfaced, not swallowed — "2 of 5 posts came back blocked
-  or empty" appears under the input.
+| Target | Result | Consequence |
+|---|---|---|
+| **Post permalink** | `200` + full schema.org `SocialMediaPosting` | Complete post text, author, date, image, reactions — **the reliable path** |
+| **Profile** (`/in/…`) | `999` (LinkedIn's block status) | Feed page unreadable; permalinks found via search instead |
+| **Company** (`/company/…/posts/`) | `200`, but the body is the **login page** | Same — a 200 here means nothing |
 
-If a URL is not a LinkedIn URL, it is rejected client-side before any credit is
-spent.
+Two things follow from this, and both are built in:
+
+**Post pages carry their own structured data.** A logged-out post permalink
+includes a JSON-LD block with the complete `articleBody`, the author, the
+publish date, the post image and the engagement counts. That is parsed in
+preference to scraping rendered markdown, which is why a scraped post arrives
+with its real text rather than a truncated `og:description`.
+
+**Profiles and companies are walled, so their posts are found, not read.**
+LinkedIn blocks the feed page but serves the individual permalinks it links to.
+So a profile scrape tries the feed page first and, when that comes back empty,
+searches the open web for that author's post permalinks and scrapes those
+instead. It says so when it does: *"LinkedIn blocked the profile page, so these
+were found via web search — recent posts may be missing."*
+
+Everything else stays honest by default:
+
+- A sign-in wall is **never filed into the pile as content** — including the
+  company login page, which arrives as ~500KB and would slip past any
+  "walls are short" heuristic.
+- Partial failures are surfaced, not swallowed: *"2 of 5 posts came back
+  blocked or empty."*
+- A profile/company scrape costs **one Firecrawl credit per post** plus the
+  lookup, which is why the count is capped (3/5/10, default 5).
+- A non-LinkedIn URL is rejected client-side, before any credit is spent.
 
 ### Project structure
 
@@ -154,10 +172,20 @@ Client-side routes are handled by [`public/_redirects`](public/_redirects)
 
 ## What Phase 1 deliberately does **not** build
 
-Real file parsing · a real LLM agent (the "Turn into content" action spawns pre-written
-mock drafts) · publishing to LinkedIn/email/CMS · email sending · real auth. Those come
-in later phases and plug into this foundation.
+Real file parsing · publishing to LinkedIn/email/CMS · email sending · real auth.
+Those come in later phases and plug into this foundation.
 
-**Now real:** pulling posts *in* from LinkedIn via Firecrawl (above). Everything
-downstream of the pile — generation, the three channel drafts — is still mocked, so a
-scraped post currently seeds a pre-written campaign rather than one written from it.
+**Now real:** pulling posts *in* from LinkedIn via Firecrawl, and building the three
+channel drafts from that actual text — see [`src/lib/compose.ts`](src/lib/compose.ts).
+Select a scraped post, hit **Turn into content**, and the LinkedIn/email/article
+versions are composed from the post's own words, carrying its author attribution and
+its image as the campaign hero. A selection with no usable text (a bare PDF, a
+screenshot) still falls back to a mock template so the action never yields an empty
+draft.
+
+**The honest limit:** that composition is *deterministic* — it selects, restructures
+and attributes the source rather than writing new prose about it. There is no LLM in
+this repo (the only key it takes is Firecrawl's), which is why composed drafts land in
+**In Review** rather than **Ready**. `composeFromSources()` is a single pure function
+with no callers' assumptions baked in, so swapping it for a model call later changes
+nothing else in the app.
