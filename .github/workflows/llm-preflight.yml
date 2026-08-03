@@ -1,0 +1,86 @@
+name: LLM preflight
+
+# Cheap gate for anything that spends real money on the LLM.
+#
+# Two layers:
+#   1. Offline transport tests — no key, no network, always run.
+#   2. A single structured live call that prints which provider and model
+#      answered. A bad key fails here in seconds instead of mid-run.
+#
+# Reuse it as a gate from any workflow that has an LLM step:
+#
+#   jobs:
+#     preflight:
+#       uses: ./.github/workflows/llm-preflight.yml
+#       secrets: inherit          # required — secrets are NOT inherited by default
+#     expensive-job:
+#       needs: preflight
+#       ...
+#
+# `secrets: inherit` is what passes BEDROCK_API_KEY through. Without it the
+# live check is skipped and only the offline tests run.
+
+on:
+  workflow_call:
+    inputs:
+      region:
+        description: AWS region for the Bedrock endpoint
+        type: string
+        required: false
+        default: us-east-1
+  workflow_dispatch:
+    inputs:
+      region:
+        description: AWS region for the Bedrock endpoint
+        type: string
+        required: false
+        default: us-east-1
+  push:
+    paths:
+      - 'scripts/llm/**'
+      - 'scripts/test/**'
+      - '.github/workflows/llm-preflight.yml'
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      # Every step below that touches the LLM reads these. The secret exists in
+      # GitHub but the script cannot see it until the workflow passes it through.
+      BEDROCK_API_KEY: ${{ secrets.BEDROCK_API_KEY }}
+      BEDROCK_REGION: ${{ inputs.region || 'us-east-1' }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Set the LLM_PROVIDER repository variable to "openai" to flip back.
+      LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No credentials needed — runs against a local stub server.
+      - name: Transport tests (offline)
+        run: npm run llm:test
+
+      - name: Live health check
+        if: env.BEDROCK_API_KEY != '' || env.OPENAI_API_KEY != ''
+        env:
+          BEDROCK_API_KEY: ${{ secrets.BEDROCK_API_KEY }}
+          BEDROCK_REGION: ${{ inputs.region || 'us-east-1' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+        run: npm run llm:health
+
+      - name: Report missing credentials
+        if: env.BEDROCK_API_KEY == '' && env.OPENAI_API_KEY == ''
+        run: |
+          echo "::warning::No BEDROCK_API_KEY or OPENAI_API_KEY visible to this run."
+          echo "Offline transport tests passed, but no live call was made."
+          echo "If this ran via workflow_call, the caller needs 'secrets: inherit'."

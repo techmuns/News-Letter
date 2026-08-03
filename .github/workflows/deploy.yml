@@ -6,6 +6,23 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# No step in this workflow calls an LLM, so BEDROCK_API_KEY is deliberately not
+# wired into it — the build and the Cloudflare deploy have no use for it, and a
+# bad LLM key must not be able to block a static deploy. When an LLM-calling
+# step is added here, gate it on the preflight and pass the secret through:
+#
+#   jobs:
+#     preflight:
+#       uses: ./.github/workflows/llm-preflight.yml
+#       secrets: inherit
+#     deploy:
+#       needs: preflight
+#       steps:
+#         - name: <the step that calls the LLM>
+#           env:
+#             BEDROCK_API_KEY: ${{ secrets.BEDROCK_API_KEY }}
+#             BEDROCK_REGION: us-east-1
+#             OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 jobs:
   deploy:
     runs-on: ubuntu-latest

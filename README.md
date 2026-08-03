@@ -96,8 +96,30 @@ Client-side routes are handled by [`public/_redirects`](public/_redirects)
 
 ---
 
+## LLM transport (Claude on Amazon Bedrock)
+
+The app itself still runs on mock data, but the **transport** a real generation step
+will use is in place under [`scripts/llm/`](scripts/llm/README.md): Claude via Amazon
+Bedrock as primary, OpenAI kept intact as an automatic fallback.
+
+```bash
+npm run llm:test     # offline transport tests — no API key, no network, no spend
+npm run llm:health   # one cheap live call; prints which provider and model answered
+```
+
+- Provider is chosen by which key is present; set `LLM_PROVIDER=openai` to flip back.
+- Bedrock auth is a bearer token in the `x-api-key` header — no SigV4, no AWS SDK.
+- Model chain `opus-5 → opus-4-8 → sonnet-5`, since Bedrock grants Opus 5 per-account.
+- Responses stream, so long outputs can't trip request timeouts.
+- Node-only: nothing here is imported by `src/`, so no key reaches the browser bundle.
+
+Configuration lives in [`.env.example`](.env.example). CI wiring —including the
+preflight gate that makes a bad key cost seconds instead of a whole run— is in
+[`.github/workflows/llm-preflight.yml`](.github/workflows/llm-preflight.yml).
+
 ## What Phase 1 deliberately does **not** build
 
 Real file parsing · a real LLM agent (the "Turn into content" action spawns pre-written
 mock drafts) · LinkedIn/email/CMS integrations · email sending · real auth. Those come
-in later phases and plug into this foundation.
+in later phases and plug into this foundation — the LLM transport above is the first
+of those pieces to land.
