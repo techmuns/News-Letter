@@ -71,7 +71,7 @@ src/
   data/mockData.ts     seeded, value-first mock content
   types.ts             Campaign / ChannelVersion / WorkspaceItem model
 functions/
-  api/generate.js      Cloudflare Pages Function — the only place OpenAI is called
+  api/generate.js      Cloudflare Pages Function — the only place a model is called (OpenAI or Bedrock)
   api/read.js          server-side article reader for pasted links
 ```
 
@@ -135,6 +135,37 @@ For local development, put the same values in a `.dev.vars` file at the repo roo
 OPENAI_API_KEY=sk-…
 OPENAI_MODEL=gpt-4o
 ```
+
+### Failover to AWS Bedrock
+
+OpenAI does not have to be the only way in. When AWS Bedrock credentials are
+present, the route uses **Anthropic's Claude on Bedrock** as an automatic
+**failover**: any OpenAI failure — a `429` rate limit or exhausted quota, a
+`5xx`, a rejected key, a network drop — silently retries the *same* request
+(the document, the images and the write-up all travel again) on Bedrock instead
+of dropping to the local composer. Set `AI_PROVIDER=bedrock` to skip OpenAI
+altogether and call Bedrock first — the right setting when the OpenAI key is out
+of quota.
+
+Bedrock is vision-capable too, so `analyze` and `compose` run through it
+unchanged. No SDK is added: the request is signed with **AWS Signature V4** using
+the Web Crypto API already in the Workers runtime.
+
+| Variable | Required | Default | What it does |
+| --- | --- | --- | --- |
+| `BEDROCK_ACCESS_KEY_ID` | for Bedrock | — | AWS access key id. Falls back to `AWS_ACCESS_KEY_ID`. Mark it **Encrypt**. |
+| `BEDROCK_SECRET_ACCESS_KEY` | for Bedrock | — | AWS secret access key. Falls back to `AWS_SECRET_ACCESS_KEY`. Mark it **Encrypt**. |
+| `BEDROCK_REGION` | no | `us-east-1` | Region the model is enabled in. Falls back to `AWS_REGION` / `AWS_DEFAULT_REGION`. |
+| `BEDROCK_MODEL` | no | `anthropic.claude-3-5-sonnet-20240620-v1:0` | Any Bedrock model your account has enabled, including a cross-region inference-profile id like `us.anthropic.claude-3-5-sonnet-20241022-v2:0`. |
+| `BEDROCK_SESSION_TOKEN` | no | — | Only for temporary (STS) credentials. Falls back to `AWS_SESSION_TOKEN`. |
+| `AI_PROVIDER` | no | `openai` | `openai` = OpenAI first, Bedrock on failure. `bedrock` = Bedrock only. |
+
+The IAM identity behind the key needs `bedrock:InvokeModel` on the model, and
+the model has to be enabled in that region (Bedrock console → **Model access**).
+Some newer models are on-demand only through a `us.`/`eu.` inference-profile id;
+if a call comes back saying the model needs one, set `BEDROCK_MODEL` to the
+profile id. Every generated draft's **Read by the model** card shows which model
+actually answered, so a failover to Bedrock is visible rather than silent.
 
 ### What it costs, and how to keep it cheap
 
