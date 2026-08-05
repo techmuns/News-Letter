@@ -4,10 +4,15 @@ An **intelligence console** for turning Munshot's own dashboards, data and resea
 into investor-grade content, published across three channels: **LinkedIn**, **email
 newsletter**, and **long-form article**.
 
-> **Phase 1 = the UI shell on mock data.** No real integrations, no real agent, no
-> real uploads processing, no publishing. Everything is mocked. The goal is the
-> *look*, the *navigable structure*, and the *four spaces* populated with realistic
-> content — a foundation later phases plug real pipelines into.
+> **Phase 1 = the UI shell on mock data.** The four spaces below (Workspace, LinkedIn,
+> Email, Articles) are the design surface on seeded mock content — no real integrations.
+
+> **⚡ Phase 2 = the live engine, in the `Discover` + `Studio` tabs.** **Discover** finds
+> recent *public* LinkedIn finance posts (web search via Tavily/Serper — no LinkedIn API, ToS-safe);
+> pick one and it lands in **Studio**, where real AI writes a short, branded **LinkedIn post**
+> and a matching **email newsletter** → publish to the Munshot LinkedIn page (**via Buffer**)
+> and email your list. Backed by Cloudflare Pages Functions in [`functions/api/`](functions/api).
+> **Wiring guide: [`SETUP.md`](SETUP.md).**
 
 ---
 
@@ -67,6 +72,11 @@ src/
 ---
 
 ## Deployment — configure once, automated forever
+
+> **Now deploys as a Cloudflare Worker** (`news-letter`) with static assets, configured in
+> [`wrangler.jsonc`](wrangler.jsonc): `npx wrangler deploy` builds the SPA (`npm run build`) and
+> serves it alongside the `/api/*` Worker in [`worker/index.ts`](worker/index.ts). The Pages
+> GitHub Action below is legacy/unused. Keys + redeploy steps: [`SETUP.md`](SETUP.md).
 
 Every push to **`main`** builds and deploys to **Cloudflare Pages** via
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Build command is

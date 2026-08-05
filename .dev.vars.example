@@ -1,0 +1,35 @@
+# Copy this file to `.dev.vars` for local `wrangler pages dev`.
+# In production, set these in the Cloudflare dashboard instead
+# (Workers & Pages -> your project -> Settings -> Variables and Secrets).
+# See SETUP.md for where each value comes from. Never commit real secrets.
+
+# --- Discover (find public LinkedIn posts via web search) ---
+# Recommended: Tavily (easy signup, free tier, no card) — https://tavily.com
+TAVILY_API_KEY=
+# Alternative provider (used only if TAVILY_API_KEY is blank) — https://serper.dev
+# SERPER_API_KEY=
+
+# --- AI generation (Anthropic Claude) ---
+ANTHROPIC_API_KEY=sk-ant-...
+# Optional model override (defaults to claude-opus-5)
+# GEN_MODEL=claude-sonnet-5
+
+# --- LinkedIn publishing (via Buffer) ---
+# Token from https://publish.buffer.com/settings/api
+BUFFER_ACCESS_TOKEN=
+# The Buffer channel id for the Munshot LinkedIn page (see SETUP.md)
+BUFFER_LINKEDIN_CHANNEL_ID=
+# Optional: enables the /api/buffer-channels helper to list your channels
+# BUFFER_ORG_ID=
+
+# --- Email newsletter ---
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=
+# SENDGRID_API_KEY=            # only if EMAIL_PROVIDER=sendgrid
+EMAIL_FROM=Munshot Intelligence <news@yourdomain.com>
+# Optional default recipient list (comma / newline separated)
+EMAIL_RECIPIENTS=
+
+# --- Security (recommended in production) ---
+# If set, the UI must send this in the "App secret" field to publish/send.
+APP_SECRET=
