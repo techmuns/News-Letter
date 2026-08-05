@@ -105,14 +105,15 @@ If a step errors, the exact reason is shown inline (e.g. "No Discover key set �
 
 ## 8. Run it locally (optional)
 
-Pure UI (no live backend): `npm run dev` → http://localhost:5173 (the Studio buttons will report "backend not reachable", which is expected).
-
-Full stack with the API:
-
 ```bash
-cp .dev.vars.example .dev.vars   # fill in your keys
-npm run dev:api                  # builds, then serves the app + Worker API via `wrangler dev`
+cp .dev.vars.example .dev.vars   # fill in your keys (SERPER_API_KEY, etc.)
+npm run dev                      # → http://localhost:5173
 ```
+
+`npm run dev` serves the SPA **and** the `/api/*` Worker together (via
+`@cloudflare/vite-plugin`, reading `.dev.vars`), so Discover/Studio work
+end-to-end locally. `npm run deploy` builds and deploys the Worker. `.dev.vars`
+is gitignored.
 
 `.dev.vars` is gitignored — real keys never get committed.
 
