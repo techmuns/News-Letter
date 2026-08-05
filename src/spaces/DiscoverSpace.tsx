@@ -19,6 +19,16 @@ function toSource(p: DiscoveredPost): string {
   return `${p.author} — on LinkedIn:\n\n"${p.snippet}"\n\n(Source: ${p.url})`
 }
 
+/** Serper/Tavily connection pill — green when a Discover key is wired. */
+function ConnDot({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5">
+      <span className={cn('h-2 w-2 rounded-full', ok ? 'bg-[#54d98c]' : 'bg-text-dim')} />
+      <span className="text-[12.5px] text-text-2">{label}</span>
+    </div>
+  )
+}
+
 export function DiscoverSpace() {
   const navigate = useNavigate()
   const [topic, setTopic] = useState('')
@@ -55,6 +65,12 @@ export function DiscoverSpace() {
   }
 
   const disabled = loading || (!!health && !health.discover)
+  const provider = health?.discoverProvider === 'tavily' ? 'Tavily' : 'Serper'
+  const connLabel = !health
+    ? 'Checking…'
+    : health.discover
+      ? `${provider} connected`
+      : `${provider} key missing`
 
   return (
     <div>
@@ -62,6 +78,7 @@ export function DiscoverSpace() {
         eyebrow="S1 · Discover — live"
         title="Find today's standout finance post"
         subtitle="Searches public LinkedIn posts via Google (Serper) — by topic, or across a curated set of finance & fintech voices. Pick the one worth a Munshot take, then hand it to Studio."
+        right={<ConnDot ok={!!health?.discover} label={connLabel} />}
       />
 
       {/* search controls */}
@@ -110,7 +127,8 @@ export function DiscoverSpace() {
           )}
           {!!health && !health.discover && (
             <p className="text-[11.5px] text-text-dim">
-              Add <code>TAVILY_API_KEY</code> (free at tavily.com) to enable Discover — see SETUP.md.
+              Serper key missing — add <code>SERPER_API_KEY</code> (or <code>TAVILY_API_KEY</code>) and
+              redeploy. See SETUP.md.
             </p>
           )}
           {error && (
@@ -145,9 +163,9 @@ export function DiscoverSpace() {
 
       {posts && !loading && posts.length === 0 && (
         <Card className="grid min-h-[180px] place-items-center p-8 text-center">
-          <p className="max-w-[46ch] text-[14px] text-text-muted">
-            No public posts came back for that. Google indexes only public LinkedIn posts, so
-            coverage is partial — try a broader topic or the “Top creators” scan.
+          <p className="max-w-[48ch] text-[14px] text-text-muted">
+            No posts found — try another topic (or the “Top creators” scan). Search only sees{' '}
+            <em>public</em> LinkedIn posts, so coverage is partial.
           </p>
         </Card>
       )}
@@ -168,15 +186,20 @@ export function DiscoverSpace() {
                 </div>
                 <p className="line-clamp-4 text-[13.5px] leading-relaxed text-text-2">{p.snippet}</p>
                 <div className="mt-4 flex items-center justify-between gap-2">
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[12.5px] text-text-muted transition-colors hover:text-text-2"
-                  >
-                    <IconExternal size={14} />
-                    LinkedIn
-                  </a>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <a
+                      href={p.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[12.5px] text-text-muted transition-colors hover:text-text-2"
+                    >
+                      <IconExternal size={14} />
+                      LinkedIn
+                    </a>
+                    {!!p.comments && (
+                      <span className="micro text-text-dim">· {p.comments.toLocaleString()} comments</span>
+                    )}
+                  </div>
                   <Button variant="subtle" size="sm" onClick={() => useThis(p)}>
                     <IconSparkle size={14} />
                     Use this → draft mine

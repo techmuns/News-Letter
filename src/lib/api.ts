@@ -32,6 +32,7 @@ export interface DiscoveredPost {
   snippet: string
   url: string
   date: string
+  comments?: number
 }
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || '/api'

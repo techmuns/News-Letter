@@ -40,10 +40,12 @@ export interface DiscoveredPost {
   snippet: string
   url: string
   date: string
+  /** light engagement signal parsed from the title ("| N comments"); 0 if unknown */
+  comments?: number
 }
 
 /** Common shape both providers normalize to. */
-interface RawResult {
+export interface RawResult {
   title: string
   link: string
   snippet: string
@@ -122,11 +124,25 @@ function authorFrom(r: RawResult): string {
   return 'LinkedIn author'
 }
 
+/** Light engagement signal — pulls "| 123 comments" (or "123 comments") from text. */
+function parseComments(s: string): number {
+  const piped = s.match(/\|\s*([\d,]+)\s*comments?/i)
+  if (piped) return parseInt(piped[1].replace(/,/g, ''), 10) || 0
+  const bare = s.match(/\b([\d,]+)\s*comments?\b/i)
+  return bare ? parseInt(bare[1].replace(/,/g, ''), 10) || 0 : 0
+}
+
 function toPost(r: RawResult): DiscoveredPost | null {
   if (!/linkedin\.com\/(posts|pulse)\//i.test(r.link)) return null
   const snippet = r.snippet.trim()
   if (!snippet) return null
-  return { author: authorFrom(r), snippet, url: r.link, date: r.date }
+  return {
+    author: authorFrom(r),
+    snippet,
+    url: r.link,
+    date: r.date,
+    comments: parseComments(r.title) || parseComments(r.snippet),
+  }
 }
 
 function dedupeByUrl(posts: DiscoveredPost[]): DiscoveredPost[] {
@@ -152,8 +168,9 @@ function keywordScore(p: DiscoveredPost): number {
   return FINANCE_KW.reduce((n, k) => n + (hay.includes(k) ? 1 : 0), 0)
 }
 
-/** Best-effort recency: parses "5 days ago" / "Jan 10, 2026"; unknown → 0 (sinks). */
-function recencyScore(date: string): number {
+/** Best-effort recency: parses "5 days ago" / "Jan 10, 2026"; unknown → 0 (sinks).
+    `now` is passed in (computed once per ranking) so equal dates tie deterministically. */
+function recencyScore(date: string, now: number): number {
   if (!date) return 0
   const rel = date.toLowerCase().match(/(\d+)\s*(hour|day|week|month)s?\s*ago/)
   if (rel) {
@@ -161,7 +178,7 @@ function recencyScore(date: string): number {
     const unit = rel[2]
     const ms =
       unit === 'hour' ? 3.6e6 : unit === 'day' ? 8.64e7 : unit === 'week' ? 6.048e8 : 2.628e9
-    return Date.now() - n * ms
+    return now - n * ms
   }
   const t = Date.parse(date)
   return isNaN(t) ? 0 : t
@@ -219,11 +236,20 @@ export async function searchPosts(env: Env, input: SearchInput): Promise<Discove
     }
   }
 
+  return rankResults(raw)
+}
+
+/** Pure step (map → dedupe → rank), exported for testing.
+    Ranking: recency → engagement (comments) → finance-keyword match. */
+export function rankResults(raw: RawResult[]): DiscoveredPost[] {
+  const now = Date.now()
   const posts = dedupeByUrl(raw.map(toPost).filter((p): p is DiscoveredPost => p !== null))
-  posts.sort((a, b) => {
-    const rd = recencyScore(b.date) - recencyScore(a.date)
-    if (rd !== 0) return rd
-    return keywordScore(b) - keywordScore(a)
+  const scored = posts.map((p) => ({ p, rec: recencyScore(p.date, now), kw: keywordScore(p) }))
+  scored.sort((a, b) => {
+    if (a.rec !== b.rec) return b.rec - a.rec // recency first
+    const cd = (b.p.comments || 0) - (a.p.comments || 0) // then engagement
+    if (cd !== 0) return cd
+    return b.kw - a.kw // then finance-keyword match
   })
-  return posts.slice(0, 15)
+  return scored.slice(0, 15).map((s) => s.p)
 }
