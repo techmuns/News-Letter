@@ -73,10 +73,11 @@ src/
 
 ## Deployment — configure once, automated forever
 
-> **Now deploys as a Cloudflare Worker** (`news-letter`) with static assets, configured in
-> [`wrangler.jsonc`](wrangler.jsonc): `npx wrangler deploy` builds the SPA (`npm run build`) and
-> serves it alongside the `/api/*` Worker in [`worker/index.ts`](worker/index.ts). The Pages
-> GitHub Action below is legacy/unused. Keys + redeploy steps: [`SETUP.md`](SETUP.md).
+> **Deploys as a Cloudflare Worker** (`news-letter`) via **`@cloudflare/vite-plugin`**:
+> `npm run build` (Vite 6) bundles the SPA **and** the `/api/*` Worker in
+> [`worker/index.ts`](worker/index.ts); `npx wrangler deploy` ships it (config in
+> [`wrangler.jsonc`](wrangler.jsonc)). The Pages GitHub Action below is legacy/unused.
+> Keys + redeploy steps: [`SETUP.md`](SETUP.md).
 
 Every push to **`main`** builds and deploys to **Cloudflare Pages** via
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Build command is
@@ -101,8 +102,10 @@ That's it. From then on, every push to `main` deploys automatically — no manua
 > `npm run build` and output directory `dist`. Then delete `.github/workflows/deploy.yml`.
 > Both approaches are "configure once."
 
-Client-side routes are handled by [`public/_redirects`](public/_redirects)
-(`/* /index.html 200`).
+Client-side (SPA) routes are handled by `assets.not_found_handling:
+"single-page-application"` in [`wrangler.jsonc`](wrangler.jsonc) — no
+`_redirects` file (that Pages-era rule is rejected by Workers as a redirect
+loop).
 
 ---
 

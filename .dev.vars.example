@@ -4,10 +4,15 @@
 # See SETUP.md for where each value comes from. Never commit real secrets.
 
 # --- Discover (find public LinkedIn posts via web search) ---
-# Recommended: Tavily (easy signup, free tier, no card) — https://tavily.com
-TAVILY_API_KEY=
-# Alternative provider (used only if TAVILY_API_KEY is blank) — https://serper.dev
-# SERPER_API_KEY=
+# Provider priority: Google -> Tavily -> Serper (first one set wins).
+# Recommended: Google Custom Search JSON API (free 100 queries/day). Needs BOTH:
+#   API key      -> https://console.cloud.google.com (enable "Custom Search API")
+#   Engine (cx)  -> https://programmablesearchengine.google.com ("Search entire web" ON)
+GOOGLE_API_KEY=
+GOOGLE_CSE_ID=
+# Alternatives (used only if the Google pair is blank):
+# SERPER_API_KEY=          # serper.dev — also drives the creators leaderboard
+# TAVILY_API_KEY=          # tavily.com — topic/tracked search only (no leaderboard)
 
 # --- AI generation (Anthropic Claude) ---
 ANTHROPIC_API_KEY=sk-ant-...
