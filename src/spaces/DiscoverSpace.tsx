@@ -152,12 +152,19 @@ export function DiscoverSpace() {
   }
 
   const searchDisabled = loading || (!!health && !health.discover)
-  const provider = health?.discoverProvider === 'tavily' ? 'Tavily' : 'Serper'
+  const providerName =
+    health?.discoverProvider === 'google'
+      ? 'Google'
+      : health?.discoverProvider === 'tavily'
+        ? 'Tavily'
+        : health?.discoverProvider === 'serper'
+          ? 'Serper'
+          : null
   const connLabel = !health
     ? 'Checking…'
-    : health.discover
-      ? `${provider} connected`
-      : `${provider} key missing`
+    : health.discover && providerName
+      ? `${providerName} connected`
+      : 'Search key missing'
 
   const leaderboard = discovered ?? tracked
 
@@ -213,8 +220,8 @@ export function DiscoverSpace() {
 
           {!!health && !health.discover && (
             <p className="text-[11.5px] text-text-dim">
-              Serper key missing — add <code>SERPER_API_KEY</code> (or <code>TAVILY_API_KEY</code>) and
-              redeploy. See SETUP.md.
+              Search key missing — add <code>GOOGLE_API_KEY</code> + <code>GOOGLE_CSE_ID</code> (or{' '}
+              <code>SERPER_API_KEY</code> / <code>TAVILY_API_KEY</code>) and redeploy. See SETUP.md.
             </p>
           )}
           {error && (
@@ -253,8 +260,8 @@ export function DiscoverSpace() {
 
           {!!health && !health.creators && (
             <p className="mt-2 text-[11.5px] text-text-dim">
-              Auto-discovery needs <code>SERPER_API_KEY</code> (it reads the post handle + comment
-              counts Google exposes).
+              Auto-discovery needs <code>GOOGLE_API_KEY</code> + <code>GOOGLE_CSE_ID</code> (or{' '}
+              <code>SERPER_API_KEY</code>) — it reads the post handle + comment counts Google exposes.
             </p>
           )}
           {creatorsError && (

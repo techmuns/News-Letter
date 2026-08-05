@@ -1,14 +1,15 @@
 /* "Discover" — find public LinkedIn finance posts to riff on, and auto-discover
    the finance creators worth tracking.
 
-   Provider-agnostic search: uses Tavily when TAVILY_API_KEY is set, else
-   Serper/Google when SERPER_API_KEY is set. Creator discovery is Serper-only
-   (it needs the `/posts/<handle>_…` URL shape + "| N comments" titles).
+   Provider-agnostic search, in priority order: Google Custom Search JSON API
+   (GOOGLE_API_KEY + GOOGLE_CSE_ID) → Tavily → Serper. Creator discovery needs
+   the `/posts/<handle>_…` URL shape + "| N comments" titles, so it uses Google
+   or Serper (both are Google's index), never Tavily.
 
    ToS-safe: we only read PUBLIC search results constrained to linkedin.com —
    no LinkedIn API, no feed scraping, no engagement metrics beyond the public
    comment counts Google surfaces. */
-import type { Env } from './env'
+import { discoverProviderName, type DiscoverProvider, type Env } from './env'
 import { ApiError } from './http'
 
 /* Fallback finance / fintech handles used by creators mode when the caller
@@ -125,6 +126,76 @@ async function serper(
   }))
 }
 
+/** Freshness → Google CSE `dateRestrict` (d1 = past day, w1 = week, m1 = month). */
+function freshnessToDateRestrict(f?: Freshness): string {
+  return f === 'day' ? 'd1' : f === 'month' ? 'm1' : 'w1'
+}
+
+/** Best-effort publish date for recency ranking: CSE metatags, else a date
+    prefix Google often puts at the start of the snippet ("5 days ago", "Jun 5, 2024"). */
+function googleItemDate(item: any): string {
+  const mt = item?.pagemap?.metatags?.[0] || {}
+  const iso =
+    mt['article:published_time'] || mt['article:modified_time'] || mt['og:updated_time'] || ''
+  if (iso) return String(iso)
+  const s = String(item?.snippet || '')
+  const rel = s.match(/^\s*(\d+\s+(?:hour|day|week|month)s?\s+ago)/i)
+  if (rel) return rel[1]
+  const abs = s.match(/^\s*([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})/)
+  return abs ? abs[1] : ''
+}
+
+async function google(
+  key: string,
+  cx: string,
+  q: string,
+  num: number,
+  freshness: Freshness = 'week',
+): Promise<RawResult[]> {
+  const params = new URLSearchParams({
+    key,
+    cx,
+    q,
+    num: String(Math.min(Math.max(num, 1), 10)), // CSE JSON API caps `num` at 10
+    gl: 'in',
+    dateRestrict: freshnessToDateRestrict(freshness),
+  })
+  const res = await fetch(`https://www.googleapis.com/customsearch/v1?${params.toString()}`)
+  if (!res.ok) {
+    const t = await res.text().catch(() => '')
+    throw new ApiError(
+      `Google CSE error ${res.status}: ${t.slice(0, 200)}`,
+      res.status === 401 || res.status === 403 ? 401 : 502,
+    )
+  }
+  const data: any = await res.json().catch(() => ({}))
+  const items: any[] = Array.isArray(data?.items) ? data.items : []
+  return items.map((r) => ({
+    title: String(r?.title || ''),
+    link: String(r?.link || ''),
+    snippet: String(r?.snippet || ''),
+    date: googleItemDate(r),
+  }))
+}
+
+/** A provider-bound raw search: (query, num, freshness) → RawResult[]. */
+type RawSearch = (q: string, num: number, freshness: Freshness) => Promise<RawResult[]>
+
+/** Bind the chosen provider's fetch into one uniform search function. */
+function boundSearch(env: Env, provider: DiscoverProvider): RawSearch {
+  if (provider === 'google') {
+    const key = env.GOOGLE_API_KEY!
+    const cx = env.GOOGLE_CSE_ID!
+    return (q, num, f) => google(key, cx, q, num, f)
+  }
+  if (provider === 'tavily') {
+    const key = env.TAVILY_API_KEY!
+    return (q, num, f) => tavily(key, q, num, f)
+  }
+  const key = env.SERPER_API_KEY!
+  return (q, num, f) => serper(key, q, num, f)
+}
+
 /* ---------- parsing + ranking ---------- */
 
 function prettifyHandle(h: string): string {
@@ -215,11 +286,10 @@ function recencyScore(date: string, now: number): number {
 /* ---------- post search ---------- */
 
 export async function searchPosts(env: Env, input: SearchInput): Promise<DiscoveredPost[]> {
-  const useTavily = Boolean(env.TAVILY_API_KEY)
-  const useSerper = !useTavily && Boolean(env.SERPER_API_KEY)
-  if (!useTavily && !useSerper) {
+  const provider = discoverProviderName(env)
+  if (provider === 'none') {
     throw new ApiError(
-      'No Discover key set — add SERPER_API_KEY (or TAVILY_API_KEY). See SETUP.md.',
+      'No Discover key set — add GOOGLE_API_KEY + GOOGLE_CSE_ID (or SERPER_API_KEY / TAVILY_API_KEY). See SETUP.md.',
       400,
     )
   }
@@ -232,28 +302,29 @@ export async function searchPosts(env: Env, input: SearchInput): Promise<Discove
     .filter(Boolean)
     .slice(0, MAX_CREATOR_QUERIES)
   const raw: RawResult[] = []
+  const search = boundSearch(env, provider)
 
-  if (useTavily) {
-    const key = env.TAVILY_API_KEY!
+  if (provider === 'tavily') {
+    // Tavily has no `site:` operator — use natural-language finance queries.
     if (mode === 'creators') {
       if (trackedHandles.length) {
-        raw.push(...(await tavily(key, `${prettifyHandle(trackedHandles[0])} finance`, 6, fresh)))
+        raw.push(...(await search(`${prettifyHandle(trackedHandles[0])} finance`, 6, fresh)))
         const rest = await Promise.all(
-          trackedHandles.slice(1).map((h) => tavily(key, `${prettifyHandle(h)} finance`, 6, fresh).catch(() => [])),
+          trackedHandles.slice(1).map((h) => search(`${prettifyHandle(h)} finance`, 6, fresh).catch(() => [])),
         )
         for (const b of rest) raw.push(...b)
       }
     } else {
       const q = t ? `${t} finance` : 'finance cash flow profitability fundraising "unit economics"'
-      raw.push(...(await tavily(key, q, 20, fresh)))
+      raw.push(...(await search(q, 20, fresh)))
     }
   } else {
-    const key = env.SERPER_API_KEY!
+    // Google or Serper — identical site:linkedin.com/posts dorks + comment parsing.
     if (mode === 'creators') {
       if (trackedHandles.length) {
-        raw.push(...(await serper(key, `site:linkedin.com/posts/${trackedHandles[0]}`, 10, fresh)))
+        raw.push(...(await search(`site:linkedin.com/posts/${trackedHandles[0]}`, 10, fresh)))
         const rest = await Promise.all(
-          trackedHandles.slice(1).map((h) => serper(key, `site:linkedin.com/posts/${h}`, 10, fresh).catch(() => [])),
+          trackedHandles.slice(1).map((h) => search(`site:linkedin.com/posts/${h}`, 10, fresh).catch(() => [])),
         )
         for (const b of rest) raw.push(...b)
       }
@@ -261,8 +332,8 @@ export async function searchPosts(env: Env, input: SearchInput): Promise<Discove
       const topicPart = t ? `${t} OR ` : ''
       const q1 = `site:linkedin.com/posts (${topicPart}finance OR "cash flow" OR profitability OR margins OR fundraising OR "unit economics")`
       const q2 = `site:linkedin.com/pulse ${t || 'finance'}`
-      raw.push(...(await serper(key, q1, 20, fresh)))
-      raw.push(...(await serper(key, q2, 20, fresh).catch(() => [])))
+      raw.push(...(await search(q1, 20, fresh)))
+      raw.push(...(await search(q2, 20, fresh).catch(() => [])))
     }
   }
 
@@ -316,19 +387,22 @@ export function aggregateCreators(raw: RawResult[]): Creator[] {
 
 /** Run broad finance searches and rank the finance creators that surface most. */
 export async function discoverCreators(env: Env, freshness: Freshness = 'week'): Promise<Creator[]> {
-  const key = env.SERPER_API_KEY
-  if (!key) {
+  // Needs the /posts/<handle>_… + "| N comments" shape → Google CSE or Serper.
+  const provider: DiscoverProvider | null =
+    env.GOOGLE_API_KEY && env.GOOGLE_CSE_ID ? 'google' : env.SERPER_API_KEY ? 'serper' : null
+  if (!provider) {
     throw new ApiError(
-      'Creator discovery needs SERPER_API_KEY (Serper exposes the post handle + comment counts). See SETUP.md.',
+      'Creator discovery needs GOOGLE_API_KEY + GOOGLE_CSE_ID (or SERPER_API_KEY). See SETUP.md.',
       400,
     )
   }
+  const search = boundSearch(env, provider)
   const raw: RawResult[] = []
   // First call un-caught so a bad key surfaces clearly; the rest are best-effort.
-  raw.push(...(await serper(key, `site:linkedin.com/posts ${DISCOVERY_TOPICS[0]}`, 20, freshness)))
+  raw.push(...(await search(`site:linkedin.com/posts ${DISCOVERY_TOPICS[0]}`, 20, freshness)))
   const rest = await Promise.all(
     DISCOVERY_TOPICS.slice(1).map((topic) =>
-      serper(key, `site:linkedin.com/posts ${topic}`, 20, freshness).catch(() => []),
+      search(`site:linkedin.com/posts ${topic}`, 20, freshness).catch(() => []),
     ),
   )
   for (const b of rest) raw.push(...b)

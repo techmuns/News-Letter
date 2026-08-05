@@ -15,13 +15,16 @@ You supply the accounts and keys; the code is done. There are **four things to w
 
 ---
 
-## 1. Serper (Discover — find posts + creators) → `SERPER_API_KEY`
+## 1. Search provider (Discover — find posts + creators) → `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`
 
-Discover queries a web-search API for **public** LinkedIn posts (constrained to `linkedin.com`), so there's no LinkedIn API and no scraping. It's provider-agnostic, but **Serper (Google) is recommended** because only it exposes the data the creator-leaderboard needs:
+Discover queries a web-search API for **public** LinkedIn posts (constrained to `linkedin.com`), so there's no LinkedIn API and no scraping. It's provider-agnostic — the code uses whichever you've wired, in priority order **Google → Tavily → Serper**.
 
-1. Sign up at **https://serper.dev** (Google Search API; free tier ~2,500 searches, no card) and copy the key → `SERPER_API_KEY`. **Serper is recommended** because it exposes the post handle (`/posts/<handle>_…`) and the public comment counts — which power the **auto-discovered creators leaderboard**.
-2. _(Alternative)_ Prefer **Tavily**? Sign up at **https://tavily.com**, copy the `tvly-` key → `TAVILY_API_KEY`, and leave `SERPER_API_KEY` blank. Tavily wins if both are set. **Note:** the auto-discover leaderboard is **Serper-only** (Tavily doesn't return the handle/comment shape it needs); topic + tracked-creator search work on either.
-3. In **Discover** you get two things for free once the key is set:
+**Recommended: Google Custom Search JSON API** (free tier 100 queries/day, no card). It exposes the post handle (`/posts/<handle>_…`) and public comment counts that power the **auto-discovered creators leaderboard**. Two IDs to grab:
+
+1. **API key:** [Google Cloud Console](https://console.cloud.google.com) → enable the **Custom Search API** → **Credentials → Create credentials → API key** → copy → `GOOGLE_API_KEY`.
+2. **Search-engine ID:** [Programmable Search Engine](https://programmablesearchengine.google.com) → **Add** → turn **“Search the entire web” ON** (required, so `site:linkedin.com` works) → copy the **Search engine ID** → `GOOGLE_CSE_ID`. Health then shows `discoverProvider: "google"`.
+3. _(Alternatives — set any one; Google wins if several are present.)_ **Serper** (`SERPER_API_KEY`, serper.dev) is Google under the hood and also drives the leaderboard. **Tavily** (`TAVILY_API_KEY`, tavily.com) handles topic/tracked search but **not** the leaderboard (its results lack the handle/comment shape).
+4. In **Discover** you get two things for free once a key is set:
    - **Top creators (leaderboard):** click **“Find top creators”** — it runs ~10 broad finance searches, extracts the handles that surface most (with total public comments), and ranks the **top ~30**. Add/remove any with one click; **Top creators** mode then scans exactly your tracked list. Refresh weekly or on demand.
    - **Freshness toggle:** **Past week** (default) or **Today** — applied to every search.
 
@@ -95,7 +98,9 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 
 | Variable | Required | What it is |
 |---|---|---|
-| `SERPER_API_KEY` | ✅ (Discover) | Serper/Google key (serper.dev) — required for the creators leaderboard; or `TAVILY_API_KEY` for topic/tracked search only |
+| `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | ✅ (Discover) | Google Custom Search key + engine id — recommended; drives the creators leaderboard |
+| `SERPER_API_KEY` | alt | Serper/Google key (serper.dev) — alternative that also drives the leaderboard |
+| `TAVILY_API_KEY` | alt | Tavily key — alternative for topic/tracked search only (no leaderboard) |
 | `ANTHROPIC_API_KEY` | ✅ | Claude key for generation |
 | `GEN_MODEL` | — | Model override (default `claude-opus-5`) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
