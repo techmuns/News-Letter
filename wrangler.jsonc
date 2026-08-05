@@ -3,11 +3,15 @@
   "name": "news-letter",
   "main": "worker/index.ts",
   "compatibility_date": "2024-11-01",
-  // The @cloudflare/vite-plugin auto-populates assets.directory with the client
-  // build output. Non-/api routes fall through to the worker, which serves the
-  // SPA via env.ASSETS (single-page-application handling returns index.html).
+  // The CI runs `npx wrangler deploy` with no separate build step, so build here.
+  // `npm run build` (Vite + @cloudflare/vite-plugin) emits the client into
+  // dist/client and bundles the worker.
+  "build": {
+    "command": "npm run build"
+  },
   "assets": {
     "binding": "ASSETS",
+    "directory": "./dist/client",
     "not_found_handling": "single-page-application"
   }
 }
