@@ -8,7 +8,7 @@ newsletter**, and **long-form article**.
 > Email, Articles) are the design surface on seeded mock content — no real integrations.
 
 > **⚡ Phase 2 = the live engine, in the `Discover` + `Studio` tabs.** **Discover** finds
-> recent *public* LinkedIn finance posts (Serper/Google search — no LinkedIn API, ToS-safe);
+> recent *public* LinkedIn finance posts (web search via Tavily/Serper — no LinkedIn API, ToS-safe);
 > pick one and it lands in **Studio**, where real AI writes a short, branded **LinkedIn post**
 > and a matching **email newsletter** → publish to the Munshot LinkedIn page (**via Buffer**)
 > and email your list. Backed by Cloudflare Pages Functions in [`functions/api/`](functions/api).

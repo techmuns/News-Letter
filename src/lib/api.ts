@@ -17,6 +17,7 @@ export interface GeneratedContent {
 export interface HealthFlags {
   ok: boolean
   discover: boolean
+  discoverProvider?: string
   ai: boolean
   linkedin: boolean
   email: boolean

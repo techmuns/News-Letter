@@ -105,12 +105,12 @@ export function DiscoverSpace() {
           {mode === 'creators' && (
             <p className="text-[11.5px] text-text-dim">
               Searches recent public posts from the curated handle list (edit it in{' '}
-              <code>functions/api/_lib/serper.ts</code>).
+              <code>functions/api/_lib/discover.ts</code>).
             </p>
           )}
           {!!health && !health.discover && (
             <p className="text-[11.5px] text-text-dim">
-              Add <code>SERPER_API_KEY</code> (free at serper.dev) to enable Discover — see SETUP.md.
+              Add <code>TAVILY_API_KEY</code> (free at tavily.com) to enable Discover — see SETUP.md.
             </p>
           )}
           {error && (

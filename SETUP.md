@@ -3,26 +3,28 @@
 This is the **wiring guide** for the real pipeline behind the **Discover** and **Studio** tabs. The app now has:
 
 - a small backend (**Cloudflare Pages Functions** under [`functions/api/`](functions/api)) that keeps every key server-side,
-- **Discover** — find recent public LinkedIn finance posts by topic or across curated creators (via Serper / Google search),
+- **Discover** — find recent public LinkedIn finance posts by topic or across curated creators (via web search — Tavily or Serper),
 - **AI generation** — a standout post + a Munshot dashboard data point → a short, branded **LinkedIn post** and a matching **email newsletter**,
 - **LinkedIn publishing via Buffer** (posts to the Munshot company page — no LinkedIn app-review wait),
 - **Email sending** to your network list.
 
-You supply the accounts and keys; the code is done. There are **four things to wire** (Serper, Anthropic, Buffer, Email) plus one recommended security key. Budget ~25 minutes.
+You supply the accounts and keys; the code is done. There are **four things to wire** (Tavily, Anthropic, Buffer, Email) plus one recommended security key. Budget ~25 minutes.
 
 > **How you actually use it each day:** open **Discover**, search a topic (or scan your top creators), click **“Use this → draft mine”** on the standout post → it lands in **Studio** with the post prefilled. Add one Munshot data point, hit **Generate**, tweak the two previews, then **Publish** (LinkedIn) and **Send to list** (email). Google indexes only *public* LinkedIn posts (no like/comment counts), so Discover ranks by recency + curated creators — great for surfacing ideas, and fully ToS-safe (public search, not feed scraping).
 
 ---
 
-## 1. Serper (Discover — find posts) → `SERPER_API_KEY`
+## 1. Tavily (Discover — find posts) → `TAVILY_API_KEY`
 
-Serper returns Google search results as JSON. We query it for **public** LinkedIn posts (`site:linkedin.com/posts …`), so there's no LinkedIn API and no scraping.
+Discover queries a web-search API for **public** LinkedIn posts (constrained to `linkedin.com`), so there's no LinkedIn API and no scraping. It's provider-agnostic — **Tavily is the recommended one** (easy signup, free tier, no credit card):
 
-1. Sign up at **https://serper.dev** (free tier includes a generous one-time query credit).
-2. Copy your API key from the dashboard → set it as `SERPER_API_KEY`.
-3. Tune the curated creator list any time in [`functions/api/_lib/serper.ts`](functions/api/_lib/serper.ts) (`CURATED_HANDLES`). Each handle costs one Serper query in "Top creators" mode.
+1. Sign up at **https://tavily.com** (email or Google; free tier includes ~1,000 credits/month).
+2. Copy the API key from the dashboard — it starts with `tvly-` → set it as `TAVILY_API_KEY`.
+3. Tune the curated creator list any time in [`functions/api/_lib/discover.ts`](functions/api/_lib/discover.ts) (`CURATED_HANDLES`). Each handle costs one search in "Top creators" mode.
 
-> Coverage note: Google only indexes public posts and exposes no engagement metrics, so Discover ranks by recency + finance-keyword match, not by likes. That's expected — it's an idea finder, not a feed reader.
+> **Prefer Serper (Google) instead?** Set `SERPER_API_KEY` (from serper.dev) and leave `TAVILY_API_KEY` blank — the code uses whichever is present (Tavily wins if both are set).
+
+> Coverage note: web search indexes only public posts and exposes no engagement metrics, so Discover ranks by recency + finance-keyword match, not by likes. That's expected — it's an idea finder, not a feed reader.
 
 ## 2. Anthropic (AI generation) → `ANTHROPIC_API_KEY`
 
@@ -73,7 +75,7 @@ Your publish/send endpoints spend money and post publicly, so lock them down: se
 
 | Variable | Required | What it is |
 |---|---|---|
-| `SERPER_API_KEY` | ✅ (Discover) | Serper/Google search key (serper.dev) |
+| `TAVILY_API_KEY` | ✅ (Discover) | Tavily search key (tavily.com); or `SERPER_API_KEY` |
 | `ANTHROPIC_API_KEY` | ✅ | Claude key for generation |
 | `GEN_MODEL` | — | Model override (default `claude-opus-5`) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
@@ -95,7 +97,7 @@ Your publish/send endpoints spend money and post publicly, so lock them down: se
 4. **Publish** → check it appears in your Buffer queue / on the Munshot LinkedIn page.
 5. Put your own address in **Recipients** → **Send to list** → confirm it lands in your inbox.
 
-If a step errors, the exact reason is shown inline (e.g. "SERPER_API_KEY is not set").
+If a step errors, the exact reason is shown inline (e.g. "No Discover key set — add TAVILY_API_KEY").
 
 ---
 

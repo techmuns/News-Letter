@@ -1,6 +1,6 @@
 /* POST /api/search-posts — Discover step: find public LinkedIn finance posts.
    Body: { topic?: string, mode?: 'topic' | 'creators' } → { posts: DiscoveredPost[] } */
-import { searchPosts } from './_lib/serper'
+import { searchPosts } from './_lib/discover'
 import { checkAuth, guard, json, preflight, readJson, type Ctx } from './_lib/http'
 
 export const onRequestOptions = () => preflight()
