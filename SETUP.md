@@ -68,10 +68,12 @@ Your publish/send endpoints spend money and post publicly, so lock them down: se
 
 ## 6. Where to paste the keys
 
-**Cloudflare dashboard → Workers & Pages → `munshot-content-system` → Settings → Variables and Secrets.**
+This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jsonc`](wrangler.jsonc); the API lives in [`worker/index.ts`](worker/index.ts)). Add keys in:
 
-- Add each variable, choose **Secret** (encrypted) for anything sensitive, and apply to **Production** (and **Preview** if you use preview deploys).
-- **Redeploy** (push to `main`, or re-run the deploy) so Functions pick up the new values.
+**Cloudflare dashboard → Workers & Pages → `news-letter` → Settings → Variables and Secrets.**
+
+- Add each variable; choose **Secret** (encrypted) for anything sensitive. **Save.**
+- **Redeploy** so the Worker picks up the new values — push to your connected branch, or re-run the latest deployment from the dashboard. New variables only apply to a *fresh* deployment.
 
 | Variable | Required | What it is |
 |---|---|---|
@@ -109,7 +111,7 @@ Full stack with the API:
 
 ```bash
 cp .dev.vars.example .dev.vars   # fill in your keys
-npm run dev:api                  # builds, then serves app + functions via wrangler
+npm run dev:api                  # builds, then serves the app + Worker API via `wrangler dev`
 ```
 
 `.dev.vars` is gitignored — real keys never get committed.

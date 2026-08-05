@@ -9,7 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "dev:api": "npm run build && npx --yes wrangler pages dev dist --compatibility-date=2024-11-01"
+    "dev:api": "npm run build && npx --yes wrangler dev"
   },
   "dependencies": {
     "react": "^18.3.1",

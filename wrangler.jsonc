@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "news-letter",
+  "main": "worker/index.ts",
+  "compatibility_date": "2024-11-01",
+  // Build the SPA (tsc + vite) before deploying; wrangler bundles the worker itself.
+  "build": {
+    "command": "npm run build"
+  },
+  // Serve the built client from dist/. Non-/api routes fall through to the
+  // worker, which returns index.html via this binding (SPA client routing).
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+}
