@@ -4,10 +4,14 @@ An **intelligence console** for turning Munshot's own dashboards, data and resea
 into investor-grade content, published across three channels: **LinkedIn**, **email
 newsletter**, and **long-form article**.
 
-> **Phase 1 = the UI shell on mock data.** No real integrations, no real agent, no
-> real uploads processing, no publishing. Everything is mocked. The goal is the
-> *look*, the *navigable structure*, and the *four spaces* populated with realistic
-> content — a foundation later phases plug real pipelines into.
+> **Phase 1 = the UI shell on mock data.** The four spaces below (Workspace, LinkedIn,
+> Email, Articles) are the design surface on seeded mock content — no real integrations.
+
+> **⚡ Phase 2 = the live engine, in the `Studio` tab.** Paste a standout finance post +
+> a Munshot dashboard data point → real AI writes a short, branded **LinkedIn post** and a
+> matching **email newsletter** → publish to the Munshot LinkedIn page (**via Buffer**) and
+> email your list. Backed by Cloudflare Pages Functions in [`functions/api/`](functions/api).
+> **Wiring guide: [`SETUP.md`](SETUP.md).**
 
 ---
 

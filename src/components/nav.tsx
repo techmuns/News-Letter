@@ -6,6 +6,7 @@ import {
   IconLinkedIn,
   IconEmail,
   IconArticle,
+  IconSparkle,
 } from './icons'
 
 export interface NavItem {
@@ -17,6 +18,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  { n: '00', label: 'Studio', to: ROUTES.studio, Icon: IconSparkle },
   { n: '01', label: 'Workspace', to: ROUTES.workspace, end: true, Icon: IconWorkspace },
   { n: '02', label: 'LinkedIn', to: ROUTES.linkedin, Icon: IconLinkedIn },
   { n: '03', label: 'Email', to: ROUTES.email, Icon: IconEmail },
