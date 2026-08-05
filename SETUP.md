@@ -1,27 +1,38 @@
 # Munshot Content System — Live automation setup
 
-This is the **wiring guide** for the real pipeline behind the **Studio** tab. The app now has:
+This is the **wiring guide** for the real pipeline behind the **Discover** and **Studio** tabs. The app now has:
 
 - a small backend (**Cloudflare Pages Functions** under [`functions/api/`](functions/api)) that keeps every key server-side,
-- **AI generation** — paste a standout finance post + a Munshot dashboard data point → a short, branded **LinkedIn post** and a matching **email newsletter**,
+- **Discover** — find recent public LinkedIn finance posts by topic or across curated creators (via Serper / Google search),
+- **AI generation** — a standout post + a Munshot dashboard data point → a short, branded **LinkedIn post** and a matching **email newsletter**,
 - **LinkedIn publishing via Buffer** (posts to the Munshot company page — no LinkedIn app-review wait),
 - **Email sending** to your network list.
 
-You supply the accounts and keys; the code is done. There are **three things to wire** (Anthropic, Buffer, Email) plus one recommended security key. Budget ~20 minutes.
+You supply the accounts and keys; the code is done. There are **four things to wire** (Serper, Anthropic, Buffer, Email) plus one recommended security key. Budget ~25 minutes.
 
-> **How you actually use it each day:** open **Studio**, paste the best finance post you saw today + one Munshot data point, hit **Generate**, glance at the two previews, tweak if needed, then **Publish** (LinkedIn) and **Send to list** (email). LinkedIn does not offer an API to *auto-scan* other people's posts, so picking the standout post is the one manual step — everything after it is automated.
+> **How you actually use it each day:** open **Discover**, search a topic (or scan your top creators), click **“Use this → draft mine”** on the standout post → it lands in **Studio** with the post prefilled. Add one Munshot data point, hit **Generate**, tweak the two previews, then **Publish** (LinkedIn) and **Send to list** (email). Google indexes only *public* LinkedIn posts (no like/comment counts), so Discover ranks by recency + curated creators — great for surfacing ideas, and fully ToS-safe (public search, not feed scraping).
 
 ---
 
-## 1. Anthropic (AI generation) → `ANTHROPIC_API_KEY`
+## 1. Serper (Discover — find posts) → `SERPER_API_KEY`
+
+Serper returns Google search results as JSON. We query it for **public** LinkedIn posts (`site:linkedin.com/posts …`), so there's no LinkedIn API and no scraping.
+
+1. Sign up at **https://serper.dev** (free tier includes a generous one-time query credit).
+2. Copy your API key from the dashboard → set it as `SERPER_API_KEY`.
+3. Tune the curated creator list any time in [`functions/api/_lib/serper.ts`](functions/api/_lib/serper.ts) (`CURATED_HANDLES`). Each handle costs one Serper query in "Top creators" mode.
+
+> Coverage note: Google only indexes public posts and exposes no engagement metrics, so Discover ranks by recency + finance-keyword match, not by likes. That's expected — it's an idea finder, not a feed reader.
+
+## 2. Anthropic (AI generation) → `ANTHROPIC_API_KEY`
 
 1. Go to **console.anthropic.com → Settings → API Keys → Create Key**.
 2. Copy the key (starts with `sk-ant-`).
-3. Set it as `ANTHROPIC_API_KEY` (see [§4 Where to paste](#4-where-to-paste-the-keys)).
+3. Set it as `ANTHROPIC_API_KEY` (see [§6 Where to paste](#6-where-to-paste-the-keys)).
 
 _Optional:_ `GEN_MODEL` overrides the model (default `claude-opus-5`; `claude-sonnet-5` is faster/cheaper).
 
-## 2. Buffer (LinkedIn publishing) → `BUFFER_ACCESS_TOKEN` + `BUFFER_LINKEDIN_CHANNEL_ID`
+## 3. Buffer (LinkedIn publishing) → `BUFFER_ACCESS_TOKEN` + `BUFFER_LINKEDIN_CHANNEL_ID`
 
 Buffer already has an approved LinkedIn integration, so this sidesteps LinkedIn's own Community-Management-API approval (which takes days–weeks).
 
@@ -38,7 +49,7 @@ Buffer already has an approved LinkedIn integration, so this sidesteps LinkedIn'
 
 **Images:** Buffer attaches images **by public URL only** (no direct upload). In Studio, paste a publicly-hosted image URL (e.g. a dashboard screenshot) into "Post image URL". Leave blank for a text-only post. _(Auto-generating a hosted branded graphic per post is the natural next step — it needs an image host like Cloudflare R2.)_
 
-## 3. Email (newsletter) → `RESEND_API_KEY` + `EMAIL_FROM` (+ `EMAIL_RECIPIENTS`)
+## 4. Email (newsletter) → `RESEND_API_KEY` + `EMAIL_FROM` (+ `EMAIL_RECIPIENTS`)
 
 Default provider is **Resend** (simplest). To use SendGrid instead, set `EMAIL_PROVIDER=sendgrid` and `SENDGRID_API_KEY`.
 
@@ -47,13 +58,13 @@ Default provider is **Resend** (simplest). To use SendGrid instead, set `EMAIL_P
 3. Set `EMAIL_FROM`, e.g. `Munshot Intelligence <news@munshot.io>`.
 4. _Optional:_ set `EMAIL_RECIPIENTS` to your default network list (comma/newline separated). You can also paste recipients per-send in Studio. Recipients are always **BCC'd**, so they never see each other.
 
-## 4. Security (recommended) → `APP_SECRET`
+## 5. Security (recommended) → `APP_SECRET`
 
 Your publish/send endpoints spend money and post publicly, so lock them down: set `APP_SECRET` to any long random string. When set, Studio shows an **"App secret"** field — paste the same value there once (stored in your browser). Without `APP_SECRET` the endpoints are open (fine for local testing, not for a public URL).
 
 ---
 
-## 4. Where to paste the keys
+## 6. Where to paste the keys
 
 **Cloudflare dashboard → Workers & Pages → `munshot-content-system` → Settings → Variables and Secrets.**
 
@@ -62,6 +73,7 @@ Your publish/send endpoints spend money and post publicly, so lock them down: se
 
 | Variable | Required | What it is |
 |---|---|---|
+| `SERPER_API_KEY` | ✅ (Discover) | Serper/Google search key (serper.dev) |
 | `ANTHROPIC_API_KEY` | ✅ | Claude key for generation |
 | `GEN_MODEL` | — | Model override (default `claude-opus-5`) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
@@ -75,19 +87,19 @@ Your publish/send endpoints spend money and post publicly, so lock them down: se
 
 ---
 
-## 5. Test it
+## 7. Test it
 
-1. Open your deployed site → **Studio** tab.
-2. The **Connections** panel should show green dots for **AI**, **LinkedIn (Buffer)**, **Email** once wired. (Any grey dot names the missing key.)
-3. Paste a finance post + a dashboard data point → **Generate**. You should see a LinkedIn post and a newsletter preview in a few seconds.
+1. Open your deployed site → **Discover** tab. Search a topic (e.g. "unit economics") or flip to **Top creators** → recent posts should appear. Click **“Use this → draft mine”** on one.
+2. You land in **Studio** with that post prefilled. The **Connections** panel should show green dots for **AI**, **LinkedIn (Buffer)**, **Email** once wired (Discover shows its own status on its tab). Any grey dot names the missing key.
+3. Add an optional dashboard data point → **Generate**. A LinkedIn post and newsletter preview appear in a few seconds.
 4. **Publish** → check it appears in your Buffer queue / on the Munshot LinkedIn page.
 5. Put your own address in **Recipients** → **Send to list** → confirm it lands in your inbox.
 
-If a step errors, the exact reason is shown inline (e.g. "BUFFER_LINKEDIN_CHANNEL_ID is not set").
+If a step errors, the exact reason is shown inline (e.g. "SERPER_API_KEY is not set").
 
 ---
 
-## 6. Run it locally (optional)
+## 8. Run it locally (optional)
 
 Pure UI (no live backend): `npm run dev` → http://localhost:5173 (the Studio buttons will report "backend not reachable", which is expected).
 
@@ -107,6 +119,7 @@ npm run dev:api                  # builds, then serves app + functions via wrang
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/health` | GET | which integrations are wired (booleans only) |
+| `/api/search-posts` | POST | Discover: find public LinkedIn posts via Serper |
 | `/api/generate` | POST | source → `{ linkedin, email }` |
 | `/api/publish-linkedin` | POST | push a post to the LinkedIn page via Buffer |
 | `/api/send-email` | POST | send the newsletter to the list |
@@ -114,6 +127,6 @@ npm run dev:api                  # builds, then serves app + functions via wrang
 
 ## Honest limits (so there are no surprises)
 
-- **"Scan the top-20 influencers automatically" isn't possible via any official LinkedIn API** — there's no endpoint to read other people's posts. The workflow is *curate the standout post → the engine does the rest*. (A paid scraper could feed this later, but it breaks LinkedIn's ToS.)
+- **No official LinkedIn API can auto-read other people's posts.** Discover works around this the only ToS-safe way — Google's index of *public* LinkedIn posts (via Serper) — so coverage is partial and there are **no engagement metrics** (likes/comments). It ranks by recency + curated creators, which is ideal for surfacing ideas; you still pick the standout post, then the engine does the rest. (A paid scraper could widen coverage but breaks LinkedIn's ToS — deliberately not used.)
 - **Company-page auto-posting works today only because Buffer holds the approved integration.** LinkedIn's own API would require Community-Management-API approval first.
 - **Email "from your domain"** needs one-time DNS verification; sandbox sending works immediately.

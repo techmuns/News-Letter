@@ -3,6 +3,10 @@
 # (Workers & Pages -> your project -> Settings -> Variables and Secrets).
 # See SETUP.md for where each value comes from. Never commit real secrets.
 
+# --- Discover (find public LinkedIn posts via Serper / Google search) ---
+# Free key from https://serper.dev  (reads public Google results — ToS-safe)
+SERPER_API_KEY=
+
 # --- AI generation (Anthropic Claude) ---
 ANTHROPIC_API_KEY=sk-ant-...
 # Optional model override (defaults to claude-opus-5)

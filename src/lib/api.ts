@@ -16,6 +16,7 @@ export interface GeneratedContent {
 
 export interface HealthFlags {
   ok: boolean
+  discover: boolean
   ai: boolean
   linkedin: boolean
   email: boolean
@@ -23,6 +24,13 @@ export interface HealthFlags {
   authRequired: boolean
   model: string
   hasDefaultRecipients: boolean
+}
+
+export interface DiscoveredPost {
+  author: string
+  snippet: string
+  url: string
+  date: string
 }
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
@@ -68,6 +76,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<HealthFlags>('/health'),
+  searchPosts: (input: { topic?: string; mode?: 'topic' | 'creators' }) =>
+    request<{ ok: true; posts: DiscoveredPost[] }>('/search-posts', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   generate: (input: { sourceText: string; dashboardSnippet?: string; tone?: string }) =>
     request<{ ok: true; content: GeneratedContent }>('/generate', {
       method: 'POST',

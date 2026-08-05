@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { Button } from '../components/Button'
@@ -78,8 +79,12 @@ function toIsoUtc(local: string): string | undefined {
 /* --- the space ----------------------------------------------------------- */
 
 export function StudioSpace() {
-  // inputs
-  const [sourceText, setSourceText] = useState('')
+  // inputs — sourceText may be prefilled when arriving from the Discover tab
+  const location = useLocation()
+  const [sourceText, setSourceText] = useState<string>(() => {
+    const s = (location.state as { prefillSource?: string } | null)?.prefillSource
+    return typeof s === 'string' ? s : ''
+  })
   const [snippet, setSnippet] = useState('')
   const [tone, setTone] = useState(TONES[0])
   const [imageUrl, setImageUrl] = useState('')
@@ -224,7 +229,7 @@ export function StudioSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="00 · Studio — live"
+        eyebrow="S2 · Studio — live"
         title="Turn a standout finance post into a Munshot post + email"
         subtitle="Paste the post you want to riff on and a dashboard data point. The engine writes a short, branded LinkedIn post and a matching newsletter — then publishes to your LinkedIn page (via Buffer) and emails your list."
       />

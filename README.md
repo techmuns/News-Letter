@@ -7,10 +7,11 @@ newsletter**, and **long-form article**.
 > **Phase 1 = the UI shell on mock data.** The four spaces below (Workspace, LinkedIn,
 > Email, Articles) are the design surface on seeded mock content — no real integrations.
 
-> **⚡ Phase 2 = the live engine, in the `Studio` tab.** Paste a standout finance post +
-> a Munshot dashboard data point → real AI writes a short, branded **LinkedIn post** and a
-> matching **email newsletter** → publish to the Munshot LinkedIn page (**via Buffer**) and
-> email your list. Backed by Cloudflare Pages Functions in [`functions/api/`](functions/api).
+> **⚡ Phase 2 = the live engine, in the `Discover` + `Studio` tabs.** **Discover** finds
+> recent *public* LinkedIn finance posts (Serper/Google search — no LinkedIn API, ToS-safe);
+> pick one and it lands in **Studio**, where real AI writes a short, branded **LinkedIn post**
+> and a matching **email newsletter** → publish to the Munshot LinkedIn page (**via Buffer**)
+> and email your list. Backed by Cloudflare Pages Functions in [`functions/api/`](functions/api).
 > **Wiring guide: [`SETUP.md`](SETUP.md).**
 
 ---

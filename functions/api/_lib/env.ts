@@ -9,6 +9,10 @@
    ============================================================ */
 
 export interface Env {
+  // --- Discover (find public LinkedIn posts via Serper / Google search) ---
+  /** Free key from serper.dev — reads public Google results, ToS-safe. */
+  SERPER_API_KEY?: string
+
   // --- AI generation (Anthropic Claude) ---
   ANTHROPIC_API_KEY?: string
   /** Optional model override. Defaults to claude-opus-5. */
@@ -43,6 +47,7 @@ export function configuredFlags(env: Env) {
   const provider = (env.EMAIL_PROVIDER || 'resend').toLowerCase()
   const emailKey = provider === 'sendgrid' ? env.SENDGRID_API_KEY : env.RESEND_API_KEY
   return {
+    discover: Boolean(env.SERPER_API_KEY),
     ai: Boolean(env.ANTHROPIC_API_KEY),
     linkedin: Boolean(env.BUFFER_ACCESS_TOKEN && env.BUFFER_LINKEDIN_CHANNEL_ID),
     email: Boolean(emailKey && env.EMAIL_FROM),

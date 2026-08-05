@@ -100,6 +100,23 @@ export function IconSparkle({ size = 18, className, strokeWidth = 1.6 }: IconPro
   )
 }
 
+export function IconSearch({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  )
+}
+
+export function IconExternal({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M14 5h5v5M19 5l-8 8M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4" />
+    </svg>
+  )
+}
+
 export function IconCalendar({ size = 18, className, strokeWidth = 1.6 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>
