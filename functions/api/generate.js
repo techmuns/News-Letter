@@ -1,7 +1,8 @@
 // Cloudflare Pages Function — the one place a model is called.
 //
-// Two things happen here, both against a vision-capable OpenAI model, and both
-// in a single request each:
+// Two things happen here, both against a vision-capable model — OpenAI by
+// default, with AWS Bedrock (Anthropic's Claude) as an automatic failover when
+// its credentials are set — and both in a single request each:
 //
 //   mode: 'analyze'  one uploaded image + the author's instructions → what the
 //                    document actually says. This is how a screenshot, a slide
@@ -14,9 +15,10 @@
 // parts on one user message, so the model reads the document before it writes a
 // word of the post. Nothing in the payload is a filename standing in for a file.
 //
-// The key never reaches the browser: the client posts to this route on our own
-// origin and this route holds OPENAI_API_KEY. With no key configured the route
-// says so and the app falls back to its deterministic composer.
+// No credential reaches the browser: the client posts to this route on our own
+// origin and this route holds the OpenAI key and the AWS Bedrock credentials.
+// With neither configured the route says so and the app falls back to its
+// deterministic composer.
 
 // gpt-4o-mini is the default because it reads images, costs little, and — the
 // part that matters here — is available to almost every project, including the
@@ -27,6 +29,15 @@ const DEFAULT_MODEL = 'gpt-4o-mini'
 // call retries once on this one instead of failing the whole draft.
 const FALLBACK_MODEL = 'gpt-4o-mini'
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
+
+// AWS Bedrock is the failover — or, with AI_PROVIDER=bedrock, the primary. The
+// model is Anthropic's Claude on Bedrock, which reads images too, so the same
+// analyze/compose calls work through it unchanged. Any deployment can point
+// BEDROCK_MODEL at whatever its account has enabled (including a us./eu. cross-
+// region inference-profile id).
+const DEFAULT_BEDROCK_MODEL = 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+const DEFAULT_BEDROCK_REGION = 'us-east-1'
+const BEDROCK_ANTHROPIC_VERSION = 'bedrock-2023-05-31'
 
 /* ---- what this costs ----------------------------------------
    Every call here is billed per token, and images are the
@@ -60,13 +71,45 @@ function json(body, status = 200) {
   })
 }
 
+// Trim whitespace and any wrapping quotes off a pasted secret. A key saved with
+// a trailing newline or surrounding quotes is the most common reason a valid
+// credential still comes back 401/403 — this stops that whole class of failure.
+function clean(v) {
+  return (v || '').trim().replace(/^["']+|["']+$/g, '')
+}
+
+/**
+ * AWS Bedrock config, or undefined when no credentials are set.
+ *
+ * Accepts the BEDROCK_* names first and the conventional AWS_* names as a
+ * fallback, so a deployment that already carries AWS keys works without
+ * renaming anything. Only the access key id and secret are required; the region
+ * and model have sensible defaults and a session token is optional.
+ */
+function bedrockConfig(env) {
+  const accessKeyId = clean(env.BEDROCK_ACCESS_KEY_ID || env.AWS_ACCESS_KEY_ID)
+  const secretAccessKey = clean(env.BEDROCK_SECRET_ACCESS_KEY || env.AWS_SECRET_ACCESS_KEY)
+  if (!accessKeyId || !secretAccessKey) return undefined
+  return {
+    accessKeyId,
+    secretAccessKey,
+    sessionToken: clean(env.BEDROCK_SESSION_TOKEN || env.AWS_SESSION_TOKEN) || undefined,
+    region:
+      clean(env.BEDROCK_REGION || env.AWS_REGION || env.AWS_DEFAULT_REGION) ||
+      DEFAULT_BEDROCK_REGION,
+    model: clean(env.BEDROCK_MODEL) || DEFAULT_BEDROCK_MODEL,
+  }
+}
+
 function config(env) {
   const detail = String(env.OPENAI_IMAGE_DETAIL || DEFAULT_IMAGE_DETAIL).toLowerCase()
   return {
-    // Trim whitespace and any wrapping quotes. A key pasted into the dashboard
-    // with a trailing newline or surrounding quotes is the most common reason a
-    // valid key still comes back 401 — this stops that class of failure.
-    key: (env.OPENAI_API_KEY || '').trim().replace(/^["']+|["']+$/g, '') || undefined,
+    key: clean(env.OPENAI_API_KEY) || undefined,
+    // 'openai' (default) calls OpenAI first and only falls over to Bedrock on a
+    // failure; 'bedrock' skips OpenAI entirely — the right setting when the
+    // OpenAI key is out of quota.
+    provider: String(env.AI_PROVIDER || 'openai').toLowerCase() === 'bedrock' ? 'bedrock' : 'openai',
+    bedrock: bedrockConfig(env),
     model: env.OPENAI_MODEL || DEFAULT_MODEL,
     baseUrl: (env.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, ''),
     maxImages: Math.max(1, Number(env.OPENAI_MAX_IMAGES) || DEFAULT_MAX_IMAGES),
@@ -94,13 +137,45 @@ function imagePart(cfg, img) {
 /* ---- the model call ------------------------------------------ */
 
 /**
- * One chat completion, JSON back.
+ * The model call, with failover — the one entry point analyze/compose use.
+ *
+ * OpenAI is the default primary and AWS Bedrock is the failover: any OpenAI
+ * failure (a 429 rate limit or exhausted quota, a 5xx, a dead key, a network
+ * drop) retries the same request on Bedrock when Bedrock credentials are set.
+ * With AI_PROVIDER=bedrock, Bedrock is called directly and OpenAI is skipped.
+ * Both providers read images, so the caller never has to care which answered.
+ */
+async function chat(cfg, request) {
+  if (cfg.provider === 'bedrock') {
+    if (!cfg.bedrock) throw new Error('AI_PROVIDER=bedrock, but no Bedrock credentials are set.')
+    return callBedrock(cfg, request)
+  }
+  if (cfg.key) {
+    try {
+      return await callOpenAI(cfg, request)
+    } catch (err) {
+      if (cfg.bedrock) {
+        // The whole point of the failover: an OpenAI outage becomes a Bedrock
+        // call instead of a dead draft. Logged so the edge tail shows the switch.
+        console.error('[api/generate] OpenAI failed, failing over to Bedrock:', err?.message)
+        return await callBedrock(cfg, request)
+      }
+      throw err
+    }
+  }
+  // No OpenAI key, but Bedrock is configured — use it as the sole provider.
+  if (cfg.bedrock) return callBedrock(cfg, request)
+  throw new Error('No model provider is configured.')
+}
+
+/**
+ * One OpenAI chat completion, JSON back.
  *
  * `temperature` and `max_tokens` are rejected by some newer models, so a 400
  * naming one of them is retried once without it rather than surfacing as
  * "generation failed" to the author.
  */
-async function chat(cfg, { system, content, maxTokens }) {
+async function callOpenAI(cfg, { system, content, maxTokens }) {
   const body = {
     model: cfg.model,
     temperature: 0.4,
@@ -168,7 +243,7 @@ async function chat(cfg, { system, content, maxTokens }) {
       body.model = FALLBACK_MODEL
       continue
     }
-    throw new Error(openAiMessage(res.status, detail))
+    throw Object.assign(new Error(openAiMessage(res.status, detail)), { status: res.status })
   }
   throw new Error('The model rejected the request.')
 }
@@ -187,6 +262,236 @@ function openAiMessage(status, detail) {
   }
   if (status === 429) return 'OpenAI rate limit or quota reached — try again shortly.'
   return message || `OpenAI returned ${status}.`
+}
+
+/* ---- AWS Bedrock (SigV4-signed, no SDK) ----------------------
+
+   Cloudflare Workers can't run the AWS SDK, so the request is signed by hand
+   with the Web Crypto API already in the runtime. The signing is the one part
+   of this file that is wrong-until-proven-right, so signRequest is exported and
+   checked against AWS's published SigV4 test vector (see the test alongside).
+   ------------------------------------------------------------ */
+
+const AWS_ENC = new TextEncoder()
+
+function toHex(buf) {
+  const bytes = new Uint8Array(buf)
+  let out = ''
+  for (let i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, '0')
+  return out
+}
+
+export async function sha256Hex(input) {
+  const bytes = typeof input === 'string' ? AWS_ENC.encode(input) : input
+  return toHex(await crypto.subtle.digest('SHA-256', bytes))
+}
+
+async function hmacRaw(key, msg) {
+  const keyBytes = typeof key === 'string' ? AWS_ENC.encode(key) : key
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBytes,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  return crypto.subtle.sign('HMAC', cryptoKey, AWS_ENC.encode(msg))
+}
+
+/**
+ * The AWS SigV4 Authorization header for one request.
+ *
+ * `headers` is the list of [lowercase-name, value] pairs to sign, already in
+ * the order they should be canonicalised (sorted by name). Exported so the
+ * signing math can be pinned to AWS's own test vectors rather than trusted.
+ */
+export async function signRequest({
+  method,
+  canonicalUri,
+  canonicalQuery = '',
+  headers,
+  payloadHash,
+  accessKeyId,
+  secretAccessKey,
+  region,
+  service,
+  amzDate,
+  dateStamp,
+}) {
+  const canonicalHeaders = headers.map(([n, v]) => `${n}:${v}\n`).join('')
+  const signedHeaders = headers.map(([n]) => n).join(';')
+  const canonicalRequest = [
+    method,
+    canonicalUri,
+    canonicalQuery,
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join('\n')
+
+  const scope = `${dateStamp}/${region}/${service}/aws4_request`
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    amzDate,
+    scope,
+    await sha256Hex(canonicalRequest),
+  ].join('\n')
+
+  const kDate = await hmacRaw(`AWS4${secretAccessKey}`, dateStamp)
+  const kRegion = await hmacRaw(kDate, region)
+  const kService = await hmacRaw(kRegion, service)
+  const kSigning = await hmacRaw(kService, 'aws4_request')
+  const signature = toHex(await hmacRaw(kSigning, stringToSign))
+
+  return {
+    signedHeaders,
+    signature,
+    authorization: `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+  }
+}
+
+/** ISO time → the two AWS date forms: 20060102T150405Z and 20060102. */
+function awsDateStamps(date) {
+  const amzDate = date.toISOString().replace(/[:-]|\.\d{3}/g, '')
+  return { amzDate, dateStamp: amzDate.slice(0, 8) }
+}
+
+/** OpenAI chat parts → Anthropic Messages content (text blocks + base64 images). */
+export function toAnthropicMessages(content) {
+  const parts = []
+  for (const p of content) {
+    if (p.type === 'text') {
+      parts.push({ type: 'text', text: p.text })
+    } else if (p.type === 'image_url') {
+      const url = (p.image_url && p.image_url.url) || ''
+      const m = /^data:(image\/[a-z]+);base64,(.+)$/i.exec(url)
+      if (!m) continue
+      let mediaType = m[1].toLowerCase()
+      // Anthropic names it image/jpeg; a data URL may say image/jpg.
+      if (mediaType === 'image/jpg') mediaType = 'image/jpeg'
+      parts.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: m[2] } })
+    }
+  }
+  return [{ role: 'user', content: parts }]
+}
+
+/**
+ * Claude is told to return JSON only; this rescues the occasional reply that
+ * arrives fenced in ```json or with a stray sentence around the object.
+ */
+export function parseJsonLoose(text) {
+  if (typeof text !== 'string') return null
+  const trimmed = text.trim()
+  const attempts = [trimmed, trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')]
+  const start = trimmed.indexOf('{')
+  const end = trimmed.lastIndexOf('}')
+  if (start >= 0 && end > start) attempts.push(trimmed.slice(start, end + 1))
+  for (const a of attempts) {
+    try {
+      return JSON.parse(a)
+    } catch {
+      /* try the next shape */
+    }
+  }
+  return null
+}
+
+/** One Bedrock InvokeModel call, JSON back — same return shape as callOpenAI. */
+async function callBedrock(cfg, { system, content, maxTokens }) {
+  const b = cfg.bedrock
+  const host = `bedrock-runtime.${b.region}.amazonaws.com`
+  const canonicalUri = `/model/${encodeURIComponent(b.model)}/invoke`
+  const body = JSON.stringify({
+    anthropic_version: BEDROCK_ANTHROPIC_VERSION,
+    max_tokens: maxTokens,
+    temperature: 0.4,
+    system,
+    messages: toAnthropicMessages(content),
+  })
+
+  const { amzDate, dateStamp } = awsDateStamps(new Date())
+  const payloadHash = await sha256Hex(body)
+  // Sorted by header name: content-type < host < x-amz-date < x-amz-security-token.
+  const signedPairs = [
+    ['content-type', 'application/json'],
+    ['host', host],
+    ['x-amz-date', amzDate],
+    ...(b.sessionToken ? [['x-amz-security-token', b.sessionToken]] : []),
+  ]
+  const { authorization } = await signRequest({
+    method: 'POST',
+    canonicalUri,
+    headers: signedPairs,
+    payloadHash,
+    accessKeyId: b.accessKeyId,
+    secretAccessKey: b.secretAccessKey,
+    region: b.region,
+    service: 'bedrock',
+    amzDate,
+    dateStamp,
+  })
+
+  const res = await fetch(`https://${host}${canonicalUri}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-Amz-Date': amzDate,
+      Authorization: authorization,
+      ...(b.sessionToken ? { 'X-Amz-Security-Token': b.sessionToken } : {}),
+    },
+    body,
+  })
+
+  if (!res.ok) {
+    const detail = await res.text()
+    throw Object.assign(new Error(bedrockMessage(res.status, detail, b.model)), {
+      status: res.status,
+    })
+  }
+
+  const data = await res.json()
+  if (data?.stop_reason === 'max_tokens') {
+    throw new Error('The answer hit the output token limit — raise OPENAI_MAX_OUTPUT_TOKENS.')
+  }
+  const text = Array.isArray(data?.content)
+    ? data.content
+        .filter((x) => x && x.type === 'text')
+        .map((x) => x.text)
+        .join('')
+    : ''
+  const parsed = parseJsonLoose(text)
+  if (!parsed) throw new Error('The model did not return usable JSON.')
+  return {
+    parsed,
+    // Normalised to the OpenAI usage shape so the trace card reads the same.
+    usage: data?.usage
+      ? { prompt_tokens: data.usage.input_tokens, completion_tokens: data.usage.output_tokens }
+      : null,
+    model: data?.model || b.model,
+  }
+}
+
+/** Turns a Bedrock error body into a line the author can act on. */
+function bedrockMessage(status, detail, model) {
+  let message = ''
+  try {
+    const parsed = JSON.parse(detail)
+    message = parsed?.message || parsed?.Message || ''
+  } catch {
+    message = ''
+  }
+  if (status === 403) {
+    return `AWS Bedrock denied the request (403) — check the credentials and that the IAM policy allows bedrock:InvokeModel.${message ? ` ${message}` : ''}`
+  }
+  if (status === 404) {
+    return `AWS Bedrock has no model "${model}" in this region — set BEDROCK_MODEL / BEDROCK_REGION to one your account has enabled.`
+  }
+  if (/inference profile|on-demand|not authoriz|access to the model|isn't authorized/i.test(message)) {
+    return `AWS Bedrock can't use "${model}" on-demand — enable model access in the Bedrock console, or set BEDROCK_MODEL to an inference-profile id (e.g. us.anthropic.claude-3-5-sonnet-20241022-v2:0). ${message}`
+  }
+  if (status === 429) return 'AWS Bedrock is throttling (429) — try again shortly.'
+  return message || `AWS Bedrock returned ${status}.`
 }
 
 /* ---- payload validation -------------------------------------- */
@@ -490,25 +795,42 @@ const str = (v) => (typeof v === 'string' ? v.trim() : '')
 /** Lets the app know whether a real model is wired up before it offers it. */
 export function onRequestGet({ env }) {
   const cfg = config(env)
+  const usingBedrock = cfg.provider === 'bedrock' && !!cfg.bedrock
+  const configured = !!cfg.key || !!cfg.bedrock
+  // The model the next call will actually use: Bedrock's when it is primary or
+  // the only provider, OpenAI's otherwise.
+  const activeModel = usingBedrock
+    ? cfg.bedrock.model
+    : cfg.key
+      ? cfg.model
+      : cfg.bedrock
+        ? cfg.bedrock.model
+        : null
   return json({
-    configured: !!cfg.key,
-    model: cfg.key ? cfg.model : null,
+    configured,
+    model: activeModel,
+    provider: usingBedrock ? 'bedrock' : cfg.key ? 'openai' : cfg.bedrock ? 'bedrock' : null,
+    // OpenAI is primary and Bedrock is standing by to catch a failure.
+    bedrockFailover: !!cfg.key && !!cfg.bedrock && cfg.provider !== 'bedrock',
     maxImages: cfg.maxImages,
     imageDetail: cfg.imageDetail,
     // The browser needs this one: it decides whether an upload is read on the
     // spot or left for generation time, which is the difference between two
     // billed calls and one.
     readOnUpload: cfg.readOnUpload,
-    reason: cfg.key ? '' : 'OPENAI_API_KEY is not set on this deployment.',
+    reason: configured
+      ? ''
+      : 'No model is configured: set OPENAI_API_KEY, or Bedrock credentials (BEDROCK_ACCESS_KEY_ID / BEDROCK_SECRET_ACCESS_KEY).',
   })
 }
 
 export async function onRequestPost({ request, env }) {
   const cfg = config(env)
-  if (!cfg.key) {
+  if (!cfg.key && !cfg.bedrock) {
     return json(
       {
-        error: 'OPENAI_API_KEY is not set on this deployment.',
+        error:
+          'No model is configured: set OPENAI_API_KEY, or Bedrock credentials (BEDROCK_ACCESS_KEY_ID / BEDROCK_SECRET_ACCESS_KEY).',
         unconfigured: true,
       },
       503,

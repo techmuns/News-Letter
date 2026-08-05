@@ -159,9 +159,14 @@ interface GenerationAttempt {
  * · no key is configured — the deterministic composer runs, as it always did,
  *   so the app still works on a deployment without OpenAI.
  *
- * A model error with real uploads in the group is a failure, not a fallback.
- * Silently composing a generic post there would hide the outage behind copy
- * that looks fine and says nothing about the document.
+ * A model error with real uploads — a rate limit, an exhausted quota, a
+ * transient outage — no longer dead-ends the author. The draft is composed
+ * locally from their write-up so there is always something to edit, and the
+ * outcome carries a visible notice saying the upload was not read this time.
+ * The notice is what keeps this honest: the fallback is never passed off as a
+ * post written from the document, but neither does an outage leave the screen
+ * empty. The raw reason travels with it too, so a *re*generate can choose to
+ * keep the draft the author already had rather than overwrite it.
  */
 async function runGeneration(p: GenerationRun): Promise<GenerationAttempt> {
   const input = {
@@ -223,7 +228,19 @@ async function runGeneration(p: GenerationRun): Promise<GenerationAttempt> {
   if (result.kind === 'unconfigured') {
     return { outcome: 'fallback', draft: composeDraft(input), notice: result.reason }
   }
-  if (uploaded) return { outcome: 'failed', reason: result.reason }
+  // A model error with uploads present. Compose from the write-up anyway so the
+  // author is never stranded, and carry both the raw reason (for a regenerate
+  // that wants to keep its current draft) and a notice that says plainly the
+  // upload was not read, so the local draft can't be mistaken for one written
+  // from the document.
+  if (uploaded) {
+    return {
+      outcome: 'failed',
+      reason: result.reason,
+      draft: composeDraft(input),
+      notice: `${result.reason} This draft was composed from your write-up — the upload was not read this time. Regenerate to try the model again.`,
+    }
+  }
   return { outcome: 'fallback', draft: composeDraft(input), notice: result.reason }
 }
 
@@ -825,7 +842,10 @@ export const useStore = create<StoreState>()(
           if (attempt.outcome === 'unreadable') {
             return { ok: false, reason: attempt.reason ?? '', unreadable: true }
           }
-          if (attempt.outcome === 'failed' || !attempt.draft) {
+          // Only a genuine dead end (no draft at all) stops here. A model outage
+          // still hands back a locally composed draft, surfaced with its notice
+          // below, so a first generation never leaves the author with nothing.
+          if (!attempt.draft) {
             return { ok: false, reason: attempt.reason ?? 'Generation failed.' }
           }
 
