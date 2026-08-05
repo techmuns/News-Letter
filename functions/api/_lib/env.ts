@@ -8,12 +8,23 @@
    Never hard-code secrets in the repo.
    ============================================================ */
 
+/** Minimal Workers KV surface (avoids a @cloudflare/workers-types dependency). */
+export interface KVLike {
+  get(key: string, opts?: any): Promise<any>
+  getWithMetadata(key: string, opts?: any): Promise<{ value: any; metadata: any } | null>
+  put(key: string, value: any, opts?: any): Promise<void>
+}
+
 export interface Env {
   // --- Discover (find public LinkedIn posts via web search) ---
   /** Tavily (recommended — easy signup, free tier). https://tavily.com */
   TAVILY_API_KEY?: string
   /** Serper/Google — alternative provider. https://serper.dev */
   SERPER_API_KEY?: string
+
+  // --- Auto-image hosting (Workers KV) — optional; publish falls back to a
+  //     pasted URL when absent. Create a namespace and bind it as STORE. */
+  STORE?: KVLike
 
   // --- AI generation (Anthropic Claude) ---
   ANTHROPIC_API_KEY?: string
@@ -51,6 +62,10 @@ export function configuredFlags(env: Env) {
   return {
     discover: Boolean(env.TAVILY_API_KEY || env.SERPER_API_KEY),
     discoverProvider: env.TAVILY_API_KEY ? 'tavily' : env.SERPER_API_KEY ? 'serper' : 'none',
+    /** creator auto-discovery needs Serper specifically (handle + comment counts) */
+    creators: Boolean(env.SERPER_API_KEY),
+    /** auto-image hosting available (KV bound) */
+    images: Boolean(env.STORE),
     ai: Boolean(env.ANTHROPIC_API_KEY),
     linkedin: Boolean(env.BUFFER_ACCESS_TOKEN && env.BUFFER_LINKEDIN_CHANNEL_ID),
     email: Boolean(emailKey && env.EMAIL_FROM),

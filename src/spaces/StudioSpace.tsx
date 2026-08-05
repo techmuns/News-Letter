@@ -15,6 +15,7 @@ import {
   type HealthFlags,
 } from '../lib/api'
 import { buildEmailHtml } from '../lib/emailTemplate'
+import { renderBrandedCard } from '../lib/brandedImage'
 import { type LinkedInContent, type EmailContent } from '../types'
 import { cn } from '../lib/cn'
 
@@ -93,6 +94,8 @@ export function StudioSpace() {
   const [draft, setDraft] = useState<GeneratedContent | null>(null)
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
+  /** auto-rendered branded card (headline baked in) — the default post image */
+  const [card, setCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
 
   // publish / send
   const [scheduleLocal, setScheduleLocal] = useState('')
@@ -115,11 +118,32 @@ export function StudioSpace() {
       .catch((e: Error) => setHealthError(e.message))
   }, [])
 
+  // Re-render the branded post image whenever the headline/topic changes.
+  useEffect(() => {
+    if (!draft) {
+      setCard(null)
+      return
+    }
+    let cancelled = false
+    renderBrandedCard({ headline: draft.linkedin.headline, topic: draft.topic })
+      .then((c) => {
+        if (!cancelled) setCard(c)
+      })
+      .catch(() => {
+        if (!cancelled) setCard(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [draft?.linkedin.headline, draft?.topic]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const fullLinkedInText = useMemo(() => {
     if (!draft) return ''
     const tags = normalizeTags(draft.linkedin.hashtags)
     return [draft.linkedin.body.trim(), tags.join(' ')].filter(Boolean).join('\n\n')
   }, [draft])
+
+  const effectiveImage = imageUrl.trim() || card?.dataUrl
 
   const liPreview: LinkedInContent | null = draft && {
     authorName: 'Munshot',
@@ -175,16 +199,33 @@ export function StudioSpace() {
     setPublishing(true)
     setPublishNote(null)
     try {
+      // A pasted URL wins; otherwise host the branded card (needs the KV STORE
+      // binding). No host available → publish text-only.
+      let finalImageUrl = imageUrl.trim() || undefined
+      let imageNote = ''
+      if (!finalImageUrl && card) {
+        if (health?.images) {
+          try {
+            finalImageUrl = (await api.uploadImage(card.blob)).url
+          } catch (e) {
+            imageNote = ` (image not hosted: ${(e as Error).message})`
+          }
+        } else {
+          imageNote = ' (text-only — add the KV STORE binding to auto-attach the branded image)'
+        }
+      }
       const r = await api.publishLinkedIn({
         text: fullLinkedInText,
-        imageUrl: imageUrl.trim() || undefined,
+        imageUrl: finalImageUrl,
         scheduledAt: toIsoUtc(scheduleLocal),
       })
       setPublishNote({
         kind: 'ok',
-        text: r.scheduled
-          ? `Scheduled on the Munshot LinkedIn page via Buffer${r.dueAt ? ` for ${new Date(r.dueAt).toLocaleString()}` : ''}.`
-          : 'Sent to Buffer — it will publish to the Munshot LinkedIn page at the next queue slot.',
+        text:
+          (r.scheduled
+            ? `Scheduled on the Munshot LinkedIn page via Buffer${r.dueAt ? ` for ${new Date(r.dueAt).toLocaleString()}` : ''}.`
+            : 'Sent to Buffer — it will publish to the Munshot LinkedIn page at the next queue slot.') +
+          imageNote,
       })
     } catch (e) {
       setPublishNote({ kind: 'err', text: (e as Error).message })
@@ -320,18 +361,19 @@ export function StudioSpace() {
                   </select>
                 </div>
                 <div>
-                  <Label>Post image URL (public)</Label>
+                  <Label>Custom image URL (optional)</Label>
                   <input
                     className={inputCls}
-                    placeholder="https://…/dashboard.png"
+                    placeholder="blank = auto-branded image"
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
                   />
                 </div>
               </div>
               <p className="text-[11.5px] leading-relaxed text-text-dim">
-                Buffer attaches images by public URL (no direct upload), so paste a publicly-hosted
-                image — e.g. a dashboard screenshot. Leave blank for a text-only post.
+                Every post gets an auto-generated <strong>branded image</strong> (hosted for you when
+                you publish). Leave the field blank to use it, or paste a public image URL to override.
+                {!!health && !health.images && ' Auto-image hosting needs the KV STORE binding — see SETUP.md.'}
               </p>
 
               <Button
@@ -376,7 +418,7 @@ export function StudioSpace() {
                 <MicroLabel tone="violet">LinkedIn post</MicroLabel>
               </div>
 
-              <LinkedInPost content={liPreview} image={imageUrl.trim() || undefined} topic={draft.topic} />
+              <LinkedInPost content={liPreview} image={effectiveImage} topic={draft.topic} plainImage />
 
               {/* editable fields */}
               <div className="mt-4 space-y-3">

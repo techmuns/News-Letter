@@ -8,10 +8,13 @@ export function LinkedInPost({
   content,
   image,
   topic,
+  plainImage = false,
 }: {
   content: LinkedInContent
   image?: string
   topic?: string
+  /** when true, show `image` as-is (it's already a complete branded graphic) */
+  plainImage?: boolean
 }) {
   return (
     <div>
@@ -38,8 +41,15 @@ export function LinkedInPost({
           {content.body}
         </div>
 
+        {/* a complete, pre-branded graphic — show it as-is */}
+        {image && plainImage && (
+          <div className="border-y border-[#e6e6e6]">
+            <img src={image} alt="" className="block w-full" />
+          </div>
+        )}
+
         {/* branded graphic: picture + catchy phrase on a Munshot template */}
-        {image && (
+        {image && !plainImage && (
           <div className="relative overflow-hidden border-y border-[#e6e6e6]">
             <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(28,25,38,0.95)_0%,rgba(28,25,38,0.82)_46%,rgba(42,37,64,0.62)_100%)]" />

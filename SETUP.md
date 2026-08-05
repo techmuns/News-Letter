@@ -2,29 +2,30 @@
 
 This is the **wiring guide** for the real pipeline behind the **Discover** and **Studio** tabs. The app now has:
 
-- a small backend (**Cloudflare Pages Functions** under [`functions/api/`](functions/api)) that keeps every key server-side,
-- **Discover** — find recent public LinkedIn finance posts by topic or across curated creators (via web search — Tavily or Serper),
+- a small backend (a **Cloudflare Worker** in [`worker/index.ts`](worker/index.ts), reusing the logic in [`functions/api/_lib/`](functions/api/_lib)) that keeps every key server-side,
+- **Discover** — find recent public LinkedIn finance posts by topic or across your tracked creators, plus a **one-click leaderboard** that auto-discovers the finance creators worth tracking (via web search — Serper or Tavily), with a **past-week / today** freshness toggle,
 - **AI generation** — a standout post + a Munshot dashboard data point → a short, branded **LinkedIn post** and a matching **email newsletter**,
+- **Auto-image** — a branded Munshot graphic is rendered per post and (optionally) hosted so **Buffer attaches it automatically**,
 - **LinkedIn publishing via Buffer** (posts to the Munshot company page — no LinkedIn app-review wait),
 - **Email sending** to your network list.
 
-You supply the accounts and keys; the code is done. There are **four things to wire** (Tavily, Anthropic, Buffer, Email) plus one recommended security key. Budget ~25 minutes.
+You supply the accounts and keys; the code is done. There are **four things to wire** (Serper, Anthropic, Buffer, Email), one optional KV namespace for auto-images, plus one recommended security key. Budget ~25 minutes.
 
 > **How you actually use it each day:** open **Discover**, search a topic (or scan your top creators), click **“Use this → draft mine”** on the standout post → it lands in **Studio** with the post prefilled. Add one Munshot data point, hit **Generate**, tweak the two previews, then **Publish** (LinkedIn) and **Send to list** (email). Google indexes only *public* LinkedIn posts (no like/comment counts), so Discover ranks by recency + curated creators — great for surfacing ideas, and fully ToS-safe (public search, not feed scraping).
 
 ---
 
-## 1. Tavily (Discover — find posts) → `TAVILY_API_KEY`
+## 1. Serper (Discover — find posts + creators) → `SERPER_API_KEY`
 
-Discover queries a web-search API for **public** LinkedIn posts (constrained to `linkedin.com`), so there's no LinkedIn API and no scraping. It's provider-agnostic — **Tavily is the recommended one** (easy signup, free tier, no credit card):
+Discover queries a web-search API for **public** LinkedIn posts (constrained to `linkedin.com`), so there's no LinkedIn API and no scraping. It's provider-agnostic, but **Serper (Google) is recommended** because only it exposes the data the creator-leaderboard needs:
 
-1. Sign up at **https://tavily.com** (email or Google; free tier includes ~1,000 credits/month).
-2. Copy the API key from the dashboard — it starts with `tvly-` → set it as `TAVILY_API_KEY`.
-3. Tune the curated creator list any time in [`functions/api/_lib/discover.ts`](functions/api/_lib/discover.ts) (`CURATED_HANDLES`). Each handle costs one search in "Top creators" mode.
+1. Sign up at **https://serper.dev** (Google Search API; free tier ~2,500 searches, no card) and copy the key → `SERPER_API_KEY`. **Serper is recommended** because it exposes the post handle (`/posts/<handle>_…`) and the public comment counts — which power the **auto-discovered creators leaderboard**.
+2. _(Alternative)_ Prefer **Tavily**? Sign up at **https://tavily.com**, copy the `tvly-` key → `TAVILY_API_KEY`, and leave `SERPER_API_KEY` blank. Tavily wins if both are set. **Note:** the auto-discover leaderboard is **Serper-only** (Tavily doesn't return the handle/comment shape it needs); topic + tracked-creator search work on either.
+3. In **Discover** you get two things for free once the key is set:
+   - **Top creators (leaderboard):** click **“Find top creators”** — it runs ~10 broad finance searches, extracts the handles that surface most (with total public comments), and ranks the **top ~30**. Add/remove any with one click; **Top creators** mode then scans exactly your tracked list. Refresh weekly or on demand.
+   - **Freshness toggle:** **Past week** (default) or **Today** — applied to every search.
 
-> **Prefer Serper (Google) instead?** Set `SERPER_API_KEY` (from serper.dev) and leave `TAVILY_API_KEY` blank — the code uses whichever is present (Tavily wins if both are set).
-
-> Coverage note: web search indexes only public posts and exposes no engagement metrics, so Discover ranks by recency + finance-keyword match, not by likes. That's expected — it's an idea finder, not a feed reader.
+> Coverage note: web search indexes only public posts, so Discover ranks by recency + public comment count + finance-keyword match. That's expected — it's an idea finder, not a feed reader, and fully ToS-safe (public search, no feed scraping).
 
 ## 2. Anthropic (AI generation) → `ANTHROPIC_API_KEY`
 
@@ -49,7 +50,24 @@ Buffer already has an approved LinkedIn integration, so this sidesteps LinkedIn'
    - Or set `BUFFER_ORG_ID` and hit `/api/buffer-channels` on your deployed site — it lists them for you.
    - Paste that id → `BUFFER_LINKEDIN_CHANNEL_ID`.
 
-**Images:** Buffer attaches images **by public URL only** (no direct upload). In Studio, paste a publicly-hosted image URL (e.g. a dashboard screenshot) into "Post image URL". Leave blank for a text-only post. _(Auto-generating a hosted branded graphic per post is the natural next step — it needs an image host like Cloudflare R2.)_
+**Images:** Buffer attaches images **by public URL only** (no direct upload). Studio now **auto-renders a branded Munshot graphic** for every post (the headline on a Munshot template) — see the auto-image section below. You can still paste your own **Custom image URL** (e.g. a dashboard screenshot) to override it, or leave both off for a text-only post.
+
+### Auto-image (optional but recommended) → Workers KV `STORE` binding
+
+To let Buffer attach the auto-rendered graphic, it must be hosted at a public URL. The app renders the PNG in the browser, uploads it to **Workers KV**, and serves it at `/img/<id>` — all free, no R2/billing. One-time setup:
+
+1. Create the namespace (free):
+   ```bash
+   npx wrangler kv namespace create STORE
+   ```
+   It prints an `id` like `"id": "a1b2c3…"`.
+2. Open [`wrangler.jsonc`](wrangler.jsonc), find the commented `kv_namespaces` line at the bottom, paste your id, and **un-comment it** (drop the leading `// ,` so it becomes a real sibling of `"assets"`):
+   ```jsonc
+   ,"kv_namespaces": [{ "binding": "STORE", "id": "a1b2c3…" }]
+   ```
+3. Commit + push (or redeploy). `/api/health` then shows `"images": true`, and **Publish** uploads the branded graphic and hands Buffer the URL automatically.
+
+Until you do this the app runs fine — Studio just posts **text-only** (or whatever Custom image URL you paste). **Don't commit a fake id** — the deploy validates the namespace and would fail.
 
 ## 4. Email (newsletter) → `RESEND_API_KEY` + `EMAIL_FROM` (+ `EMAIL_RECIPIENTS`)
 
@@ -77,7 +95,7 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 
 | Variable | Required | What it is |
 |---|---|---|
-| `TAVILY_API_KEY` | ✅ (Discover) | Tavily search key (tavily.com); or `SERPER_API_KEY` |
+| `SERPER_API_KEY` | ✅ (Discover) | Serper/Google key (serper.dev) — required for the creators leaderboard; or `TAVILY_API_KEY` for topic/tracked search only |
 | `ANTHROPIC_API_KEY` | ✅ | Claude key for generation |
 | `GEN_MODEL` | — | Model override (default `claude-opus-5`) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
@@ -93,13 +111,14 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 
 ## 7. Test it
 
-1. Open your deployed site → **Discover** tab. Search a topic (e.g. "unit economics") or flip to **Top creators** → recent posts should appear. Click **“Use this → draft mine”** on one.
-2. You land in **Studio** with that post prefilled. The **Connections** panel should show green dots for **AI**, **LinkedIn (Buffer)**, **Email** once wired (Discover shows its own status on its tab). Any grey dot names the missing key.
-3. Add an optional dashboard data point → **Generate**. A LinkedIn post and newsletter preview appear in a few seconds.
-4. **Publish** → check it appears in your Buffer queue / on the Munshot LinkedIn page.
-5. Put your own address in **Recipients** → **Send to list** → confirm it lands in your inbox.
+1. Open your deployed site → **Discover** tab. Flip to **Top creators** → click **“Find top creators”** → a ranked leaderboard of finance handles appears (name + “N posts · M comments”). Toggle a few **on**. Try the **Past week / Today** freshness switch.
+2. Back in **Topic** mode, search e.g. "unit economics" (or run **Top creators** now that you've tracked some) → recent posts appear. Click **“Use this → draft mine”** on one.
+3. You land in **Studio** with that post prefilled and a **branded image preview** already rendered under the post. The **Connections** panel shows green dots for **AI**, **LinkedIn (Buffer)**, **Email**, and (if you did the KV step) **Image**. Any grey dot names the missing key.
+4. Add an optional dashboard data point → **Generate**. A LinkedIn post and newsletter preview appear in a few seconds; the branded image updates to the new headline.
+5. **Publish** → check it appears in your Buffer queue / on the Munshot LinkedIn page. With the KV binding on, the post carries the branded image; without it, it's text-only (or your Custom image URL).
+6. Put your own address in **Recipients** → **Send to list** → confirm it lands in your inbox.
 
-If a step errors, the exact reason is shown inline (e.g. "No Discover key set — add TAVILY_API_KEY").
+If a step errors, the exact reason is shown inline (e.g. "No Discover key set — add SERPER_API_KEY", or "Image storage not configured" if you skipped the KV step).
 
 ---
 
@@ -123,8 +142,11 @@ is gitignored.
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/health` | GET | which integrations are wired (booleans only) |
-| `/api/search-posts` | POST | Discover: find public LinkedIn posts via Serper |
+| `/api/health` | GET | which integrations are wired (booleans only, incl. `creators`, `images`) |
+| `/api/search-posts` | POST | Discover: find public LinkedIn posts (topic or tracked handles) |
+| `/api/discover-creators` | POST | Discover: auto-rank the top finance creators to track |
+| `/api/upload-image` | POST | store the branded PNG in KV → returns its public URL |
+| `/img/<id>` | GET | serve a stored image (this is the URL handed to Buffer) |
 | `/api/generate` | POST | source → `{ linkedin, email }` |
 | `/api/publish-linkedin` | POST | push a post to the LinkedIn page via Buffer |
 | `/api/send-email` | POST | send the newsletter to the list |
@@ -132,6 +154,6 @@ is gitignored.
 
 ## Honest limits (so there are no surprises)
 
-- **No official LinkedIn API can auto-read other people's posts.** Discover works around this the only ToS-safe way — Google's index of *public* LinkedIn posts (via Serper) — so coverage is partial and there are **no engagement metrics** (likes/comments). It ranks by recency + curated creators, which is ideal for surfacing ideas; you still pick the standout post, then the engine does the rest. (A paid scraper could widen coverage but breaks LinkedIn's ToS — deliberately not used.)
+- **No official LinkedIn API can auto-read other people's posts.** Discover works around this the only ToS-safe way — Google's index of *public* LinkedIn posts (via Serper) — so coverage is partial. The only engagement signal available is the **public comment count** Google surfaces (no likes/reactions); that's what ranks the creator leaderboard and orders results. You still pick the standout post, then the engine does the rest. (A paid scraper could widen coverage but breaks LinkedIn's ToS — deliberately not used.)
 - **Company-page auto-posting works today only because Buffer holds the approved integration.** LinkedIn's own API would require Community-Management-API approval first.
 - **Email "from your domain"** needs one-time DNS verification; sandbox sending works immediately.

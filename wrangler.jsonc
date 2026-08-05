@@ -3,15 +3,22 @@
   "name": "news-letter",
   "main": "worker/index.ts",
   "compatibility_date": "2024-11-01",
-  // The CI runs `npx wrangler deploy` with no separate build step, so build here.
-  // `npm run build` (Vite + @cloudflare/vite-plugin) emits the client into
-  // dist/client and bundles the worker.
-  "build": {
-    "command": "npm run build"
-  },
+  "build": { "command": "npm run build" },
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist/client",
     "not_found_handling": "single-page-application"
   }
+
+  // ── Auto-image hosting (optional) ────────────────────────────────────────
+  // The branded PNG is stored in Workers KV and served at /img/<id>, then that
+  // public URL is handed to Buffer. To turn this on (one time, free):
+  //   1. Run:  npx wrangler kv namespace create STORE
+  //   2. Copy the printed id into the block below and UN-comment it (drop the
+  //      leading "// ," so it becomes a real sibling of "assets").
+  //   3. Commit + push (or redeploy) — /api/health then shows "images": true.
+  // Until then the app runs fine; Studio just posts text-only (or you can paste
+  // a Custom image URL manually). Do NOT commit a fake id — deploy will fail.
+  //
+  // ,"kv_namespaces": [{ "binding": "STORE", "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE" }]
 }
