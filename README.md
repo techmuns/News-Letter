@@ -102,8 +102,10 @@ That's it. From then on, every push to `main` deploys automatically — no manua
 > `npm run build` and output directory `dist`. Then delete `.github/workflows/deploy.yml`.
 > Both approaches are "configure once."
 
-Client-side routes are handled by [`public/_redirects`](public/_redirects)
-(`/* /index.html 200`).
+Client-side (SPA) routes are handled by `assets.not_found_handling:
+"single-page-application"` in [`wrangler.jsonc`](wrangler.jsonc) — no
+`_redirects` file (that Pages-era rule is rejected by Workers as a redirect
+loop).
 
 ---
 
