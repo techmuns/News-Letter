@@ -16,9 +16,7 @@ export interface GeneratedContent {
 
 export interface HealthFlags {
   ok: boolean
-  discover: boolean
-  discoverProvider?: string
-  creators: boolean
+  dailyPulse: boolean
   images: boolean
   ai: boolean
   linkedin: boolean
@@ -29,22 +27,27 @@ export interface HealthFlags {
   hasDefaultRecipients: boolean
 }
 
-export interface DiscoveredPost {
-  author: string
-  snippet: string
-  url: string
-  date: string
-  comments?: number
-}
+export type PulseGroup = 'index' | 'currency' | 'commodity' | 'holding'
 
-export interface Creator {
-  handle: string
+export interface PulseItem {
+  id: string
+  group: PulseGroup
   name: string
-  appearances: number
-  totalComments: number
+  ticker: string
+  current: number
+  unit?: string
+  sector?: string
+  /** percent change: 1-day, 5-day, 1-month */
+  d1: number
+  d5: number
+  m1: number
+  spark: number[]
 }
 
-export type Freshness = 'day' | 'week' | 'month'
+export interface PulseFeed {
+  fetchedAt: string
+  items: PulseItem[]
+}
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
 
@@ -89,21 +92,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<HealthFlags>('/health'),
-  searchPosts: (input: {
-    topic?: string
-    mode?: 'topic' | 'creators'
-    handles?: string[]
-    freshness?: Freshness
-  }) =>
-    request<{ ok: true; posts: DiscoveredPost[] }>('/search-posts', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
-  discoverCreators: (input: { freshness?: Freshness }) =>
-    request<{ ok: true; creators: Creator[] }>('/discover-creators', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
+  /** Latest Daily Market Pulse snapshot — pickable market moves for Studio. */
+  dailyPulse: () => request<{ ok: true } & PulseFeed>('/daily-pulse'),
   /** Upload the rendered branded PNG; returns an absolute public URL for Buffer. */
   uploadImage: async (blob: Blob): Promise<{ url: string; path: string }> => {
     const secret = getAppSecret()

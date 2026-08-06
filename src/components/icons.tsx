@@ -109,6 +109,14 @@ export function IconSearch({ size = 18, className, strokeWidth = 1.7 }: IconProp
   )
 }
 
+export function IconPulse({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
+  return (
+    <svg {...base(size, className)} strokeWidth={strokeWidth}>
+      <path d="M2 12h3.5l2.5-7 4 14 2.5-7H22" />
+    </svg>
+  )
+}
+
 export function IconExternal({ size = 18, className, strokeWidth = 1.7 }: IconProps) {
   return (
     <svg {...base(size, className)} strokeWidth={strokeWidth}>

@@ -16,15 +16,11 @@ export interface KVLike {
 }
 
 export interface Env {
-  // --- Discover (find public LinkedIn posts via web search) ---
-  /** Google Custom Search JSON API (recommended). BOTH are required.
-      https://developers.google.com/custom-search/v1/overview */
-  GOOGLE_API_KEY?: string
-  GOOGLE_CSE_ID?: string
-  /** Serper/Google — alternative provider. https://serper.dev */
-  SERPER_API_KEY?: string
-  /** Tavily — alternative provider (topic/tracked search only). https://tavily.com */
-  TAVILY_API_KEY?: string
+  // --- Daily Pulse (content source) ---
+  /** Optional override for the Daily Market Pulse feed URL. Defaults to the
+      public `public/data/live.json` on techmuns/DailyMarketPulse (HEAD ref).
+      Point it at the deployed dashboard's …/data/live.json to pin the source. */
+  DAILY_PULSE_URL?: string
 
   // --- Auto-image hosting (Workers KV) — optional; publish falls back to a
   //     pasted URL when absent. Create a namespace and bind it as STORE. */
@@ -58,33 +54,14 @@ export interface Env {
   APP_SECRET?: string
 }
 
-export type DiscoverProvider = 'google' | 'tavily' | 'serper' | 'none'
-
-/** Which search provider Discover uses, in priority order: Google → Tavily → Serper.
-    Shared by configuredFlags (health) and discover.ts so they never disagree. */
-export function discoverProviderName(env: Env): DiscoverProvider {
-  if (env.GOOGLE_API_KEY && env.GOOGLE_CSE_ID) return 'google'
-  if (env.TAVILY_API_KEY) return 'tavily'
-  if (env.SERPER_API_KEY) return 'serper'
-  return 'none'
-}
-
-/** Creator auto-discovery needs the /posts/<handle>_… + comment-count shape that
-    Google's index gives — Google CSE or Serper (both Google), never Tavily. */
-export function creatorsAvailable(env: Env): boolean {
-  return Boolean((env.GOOGLE_API_KEY && env.GOOGLE_CSE_ID) || env.SERPER_API_KEY)
-}
-
 /** Non-secret view of what's wired up — booleans only, never the values.
     Powers the "connection status" panel in the UI so you can verify the wiring. */
 export function configuredFlags(env: Env) {
   const provider = (env.EMAIL_PROVIDER || 'resend').toLowerCase()
   const emailKey = provider === 'sendgrid' ? env.SENDGRID_API_KEY : env.RESEND_API_KEY
-  const dp = discoverProviderName(env)
   return {
-    discover: dp !== 'none',
-    discoverProvider: dp,
-    creators: creatorsAvailable(env),
+    /** Daily Pulse feed is a public source — always available (no key needed). */
+    dailyPulse: true,
     /** auto-image hosting available (KV bound) */
     images: Boolean(env.STORE),
     ai: Boolean(env.ANTHROPIC_API_KEY),

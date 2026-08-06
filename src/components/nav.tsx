@@ -7,7 +7,7 @@ import {
   IconEmail,
   IconArticle,
   IconSparkle,
-  IconSearch,
+  IconPulse,
 } from './icons'
 
 export interface NavItem {
@@ -19,7 +19,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { n: 'S1', label: 'Discover', to: ROUTES.discover, Icon: IconSearch },
+  { n: 'S1', label: 'Daily Pulse', to: ROUTES.pulse, Icon: IconPulse },
   { n: 'S2', label: 'Studio', to: ROUTES.studio, Icon: IconSparkle },
   { n: '01', label: 'Workspace', to: ROUTES.workspace, end: true, Icon: IconWorkspace },
   { n: '02', label: 'LinkedIn', to: ROUTES.linkedin, Icon: IconLinkedIn },

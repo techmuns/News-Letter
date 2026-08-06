@@ -1,34 +1,29 @@
 # Munshot Content System — Live automation setup
 
-This is the **wiring guide** for the real pipeline behind the **Discover** and **Studio** tabs. The app now has:
+This is the **wiring guide** for the real pipeline behind the **Daily Pulse** and **Studio** tabs. The app now has:
 
 - a small backend (a **Cloudflare Worker** in [`worker/index.ts`](worker/index.ts), reusing the logic in [`functions/api/_lib/`](functions/api/_lib)) that keeps every key server-side,
-- **Discover** — find recent public LinkedIn finance posts by topic or across your tracked creators, plus a **one-click leaderboard** that auto-discovers the finance creators worth tracking (via web search — Serper or Tavily), with a **past-week / today** freshness toggle,
-- **AI generation** — a standout post + a Munshot dashboard data point → a short, branded **LinkedIn post** and a matching **email newsletter**,
+- **Daily Pulse** — the latest market snapshot from your **Daily Market Pulse** dashboard ([techmuns/DailyMarketPulse](https://github.com/techmuns/DailyMarketPulse)), shown as pickable cards (indices, currencies, commodities, holdings) with today / 5-day / 1-month moves and a sparkline. **No key needed** — it reads a public feed,
+- **AI generation** — a picked market move → a short, branded **LinkedIn post** and a matching **email newsletter**,
 - **Auto-image** — a branded Munshot graphic is rendered per post and (optionally) hosted so **Buffer attaches it automatically**,
 - **LinkedIn publishing via Buffer** (posts to the Munshot company page — no LinkedIn app-review wait),
 - **Email sending** to your network list.
 
-You supply the accounts and keys; the code is done. There are **four things to wire** (Serper, Anthropic, Buffer, Email), one optional KV namespace for auto-images, plus one recommended security key. Budget ~25 minutes.
+You supply the accounts and keys; the code is done. There are **three things to wire** (Anthropic, Buffer, Email) — Daily Pulse needs nothing — plus one optional KV namespace for auto-images and one recommended security key. Budget ~20 minutes.
 
-> **How you actually use it each day:** open **Discover**, search a topic (or scan your top creators), click **“Use this → draft mine”** on the standout post → it lands in **Studio** with the post prefilled. Add one Munshot data point, hit **Generate**, tweak the two previews, then **Publish** (LinkedIn) and **Send to list** (email). Google indexes only *public* LinkedIn posts (no like/comment counts), so Discover ranks by recency + curated creators — great for surfacing ideas, and fully ToS-safe (public search, not feed scraping).
+> **How you actually use it each day:** open **Daily Pulse**, pick a market move that matters (biggest movers surface first), click **“Use this → draft mine”** → it lands in **Studio** with that data point prefilled. Hit **Generate**, tweak the two previews, then **Publish** (LinkedIn) and **Send to list** (email).
 
 ---
 
-## 1. Search provider (Discover — find posts + creators) → `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`
+## 1. Daily Pulse (content source) — **no key needed**
 
-Discover queries a web-search API for **public** LinkedIn posts (constrained to `linkedin.com`), so there's no LinkedIn API and no scraping. It's provider-agnostic — the code uses whichever you've wired, in priority order **Google → Tavily → Serper**.
+The **Daily Pulse** tab reads the latest snapshot your Daily Market Pulse dashboard already publishes — so there's nothing to sign up for.
 
-**Recommended: Google Custom Search JSON API** (free tier 100 queries/day, no card). It exposes the post handle (`/posts/<handle>_…`) and public comment counts that power the **auto-discovered creators leaderboard**. Two IDs to grab:
+- **Where the data lives:** [`public/data/live.json`](https://github.com/techmuns/DailyMarketPulse/blob/HEAD/public/data/live.json) in the **techmuns/DailyMarketPulse** repo. That repo's GitHub Action (`refresh-data.yml`) regenerates it **twice daily** (07:00 & 19:00 IST) and commits it back. The same file is served live by the deployed dashboard at `/data/live.json`.
+- **How this app reads it:** the Worker fetches it server-side (`GET /api/daily-pulse`), then enriches each instrument with display names/units and ranks the **biggest 1-day movers first**. By default it pulls the rename-proof `HEAD` copy from GitHub, so it tracks whatever the dashboard publishes with no branch pinning.
+- **Optional override — `DAILY_PULSE_URL`:** set this variable to point at a different feed — e.g. the deployed dashboard's `https://<your-dashboard>/data/live.json`, or a pinned branch/commit. Leave it unset to use the default GitHub feed.
 
-1. **API key:** [Google Cloud Console](https://console.cloud.google.com) → enable the **Custom Search API** → **Credentials → Create credentials → API key** → copy → `GOOGLE_API_KEY`.
-2. **Search-engine ID:** [Programmable Search Engine](https://programmablesearchengine.google.com) → **Add** → turn **“Search the entire web” ON** (required, so `site:linkedin.com` works) → copy the **Search engine ID** → `GOOGLE_CSE_ID`. Health then shows `discoverProvider: "google"`.
-3. _(Alternatives — set any one; Google wins if several are present.)_ **Serper** (`SERPER_API_KEY`, serper.dev) is Google under the hood and also drives the leaderboard. **Tavily** (`TAVILY_API_KEY`, tavily.com) handles topic/tracked search but **not** the leaderboard (its results lack the handle/comment shape).
-4. In **Discover** you get two things for free once a key is set:
-   - **Top creators (leaderboard):** click **“Find top creators”** — it runs ~10 broad finance searches, extracts the handles that surface most (with total public comments), and ranks the **top ~30**. Add/remove any with one click; **Top creators** mode then scans exactly your tracked list. Refresh weekly or on demand.
-   - **Freshness toggle:** **Past week** (default) or **Today** — applied to every search.
-
-> Coverage note: web search indexes only public posts, so Discover ranks by recency + public comment count + finance-keyword match. That's expected — it's an idea finder, not a feed reader, and fully ToS-safe (public search, no feed scraping).
+That's it — open the tab and today's items are there. The instruments are the dashboard's indices, currencies, commodities, and holdings (portfolio + watchlist).
 
 ## 2. Anthropic (AI generation) → `ANTHROPIC_API_KEY`
 
@@ -98,9 +93,7 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 
 | Variable | Required | What it is |
 |---|---|---|
-| `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` | ✅ (Discover) | Google Custom Search key + engine id — recommended; drives the creators leaderboard |
-| `SERPER_API_KEY` | alt | Serper/Google key (serper.dev) — alternative that also drives the leaderboard |
-| `TAVILY_API_KEY` | alt | Tavily key — alternative for topic/tracked search only (no leaderboard) |
+| `DAILY_PULSE_URL` | — | Override for the Daily Pulse feed URL (defaults to the public GitHub feed) |
 | `ANTHROPIC_API_KEY` | ✅ | Claude key for generation |
 | `GEN_MODEL` | — | Model override (default `claude-opus-5`) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
@@ -116,28 +109,27 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 
 ## 7. Test it
 
-1. Open your deployed site → **Discover** tab. Flip to **Top creators** → click **“Find top creators”** → a ranked leaderboard of finance handles appears (name + “N posts · M comments”). Toggle a few **on**. Try the **Past week / Today** freshness switch.
-2. Back in **Topic** mode, search e.g. "unit economics" (or run **Top creators** now that you've tracked some) → recent posts appear. Click **“Use this → draft mine”** on one.
-3. You land in **Studio** with that post prefilled and a **branded image preview** already rendered under the post. The **Connections** panel shows green dots for **AI**, **LinkedIn (Buffer)**, **Email**, and (if you did the KV step) **Image**. Any grey dot names the missing key.
-4. Add an optional dashboard data point → **Generate**. A LinkedIn post and newsletter preview appear in a few seconds; the branded image updates to the new headline.
-5. **Publish** → check it appears in your Buffer queue / on the Munshot LinkedIn page. With the KV binding on, the post carries the branded image; without it, it's text-only (or your Custom image URL).
-6. Put your own address in **Recipients** → **Send to list** → confirm it lands in your inbox.
+1. Open your deployed site → **Daily Pulse** tab. Today's market cards load automatically (biggest movers first). Use the **All / Indices / Currencies / Commodities / Holdings** filter, then click **“Use this → draft mine”** on a move you like.
+2. You land in **Studio** with that data point prefilled and a **branded image preview** already rendered under the post. The **Connections** panel shows green dots for **AI**, **LinkedIn (Buffer)**, **Email**, and (if you did the KV step) **Image**. Any grey dot names the missing key.
+3. Hit **Generate** → a LinkedIn post and newsletter preview appear in a few seconds; the branded image updates to the new headline.
+4. **Publish** → check it appears in your Buffer queue / on the Munshot LinkedIn page. With the KV binding on, the post carries the branded image; without it, it's text-only (or your Custom image URL).
+5. Put your own address in **Recipients** → **Send to list** → confirm it lands in your inbox.
 
-If a step errors, the exact reason is shown inline (e.g. "No Discover key set — add SERPER_API_KEY", or "Image storage not configured" if you skipped the KV step).
+If a step errors, the exact reason is shown inline (e.g. "Could not reach the Daily Pulse feed", or "Image storage not configured" if you skipped the KV step).
 
 ---
 
 ## 8. Run it locally (optional)
 
 ```bash
-cp .dev.vars.example .dev.vars   # fill in your keys (SERPER_API_KEY, etc.)
+cp .dev.vars.example .dev.vars   # fill in your keys (ANTHROPIC_API_KEY, etc.)
 npm run dev                      # → http://localhost:5173
 ```
 
 `npm run dev` serves the SPA **and** the `/api/*` Worker together (via
-`@cloudflare/vite-plugin`, reading `.dev.vars`), so Discover/Studio work
-end-to-end locally. `npm run deploy` builds and deploys the Worker. `.dev.vars`
-is gitignored.
+`@cloudflare/vite-plugin`, reading `.dev.vars`), so Daily Pulse/Studio work
+end-to-end locally (Daily Pulse fetches the public feed — no key needed).
+`npm run deploy` builds and deploys the Worker. `.dev.vars` is gitignored.
 
 `.dev.vars` is gitignored — real keys never get committed.
 
@@ -147,9 +139,8 @@ is gitignored.
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/health` | GET | which integrations are wired (booleans only, incl. `creators`, `images`) |
-| `/api/search-posts` | POST | Discover: find public LinkedIn posts (topic or tracked handles) |
-| `/api/discover-creators` | POST | Discover: auto-rank the top finance creators to track |
+| `/api/health` | GET | which integrations are wired (booleans only, incl. `dailyPulse`, `images`) |
+| `/api/daily-pulse` | GET | latest Daily Market Pulse items (enriched + ranked) for the picker |
 | `/api/upload-image` | POST | store the branded PNG in KV → returns its public URL |
 | `/img/<id>` | GET | serve a stored image (this is the URL handed to Buffer) |
 | `/api/generate` | POST | source → `{ linkedin, email }` |
@@ -159,6 +150,6 @@ is gitignored.
 
 ## Honest limits (so there are no surprises)
 
-- **No official LinkedIn API can auto-read other people's posts.** Discover works around this the only ToS-safe way — Google's index of *public* LinkedIn posts (via Serper) — so coverage is partial. The only engagement signal available is the **public comment count** Google surfaces (no likes/reactions); that's what ranks the creator leaderboard and orders results. You still pick the standout post, then the engine does the rest. (A paid scraper could widen coverage but breaks LinkedIn's ToS — deliberately not used.)
+- **Daily Pulse is only as fresh as the source repo.** The dashboard's Action refreshes `live.json` twice daily (07:00 & 19:00 IST) — the card header shows how long ago (`updated Xh ago`). If that repo's cron is paused or the file moves, point `DAILY_PULSE_URL` at a live feed. Scheduled Actions only run on the source repo's **default branch**.
 - **Company-page auto-posting works today only because Buffer holds the approved integration.** LinkedIn's own API would require Community-Management-API approval first.
 - **Email "from your domain"** needs one-time DNS verification; sandbox sending works immediately.

@@ -1,7 +1,7 @@
 import { type ChannelKind } from '../types'
 
 export const ROUTES = {
-  discover: '/discover',
+  pulse: '/pulse',
   studio: '/studio',
   workspace: '/',
   linkedin: '/linkedin',
