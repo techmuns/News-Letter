@@ -11,10 +11,13 @@ function esc(s: string): string {
 
 export function buildEmailHtml(
   email: GeneratedContent['email'],
-  opts?: { ctaUrl?: string; brand?: string },
+  opts?: { ctaUrl?: string; brand?: string; heroImageUrl?: string },
 ): string {
   const brand = opts?.brand || 'Munshot Intelligence'
   const ctaUrl = opts?.ctaUrl || 'https://munshot.io'
+  const hero = opts?.heroImageUrl
+    ? `<tr><td style="padding:0;"><img src="${esc(opts.heroImageUrl)}" alt="Munshot Daily Pulse" width="600" style="display:block;width:100%;height:auto;border:0;" /></td></tr>`
+    : ''
   return `<!doctype html>
 <html>
 <body style="margin:0;padding:0;background:#f6f6f4;">
@@ -24,6 +27,7 @@ export function buildEmailHtml(
         <tr><td style="padding:28px 32px 16px;border-bottom:1px solid #ece9f7;">
           <span style="font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;color:#12101e;">${esc(brand)}</span>
         </td></tr>
+        ${hero}
         <tr><td style="padding:28px 32px 8px;">
           <div style="font:600 11px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#8a7fce;margin-bottom:6px;">The idea</div>
           <div style="font-size:16px;line-height:1.6;color:#2a2a33;">${esc(email.idea)}</div>
