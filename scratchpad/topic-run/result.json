@@ -1,1 +1,0 @@
-{"error":"News search failed (NewsAPI 400). Check that NEWSAPI_KEY is valid and your plan allows this request. NewsAPI response: {\"status\":\"error\",\"code\":\"userAgentMissing\",\"message\":\"Please set your User-Agent header to identify your application. Anonymous requests are not allowed.\"}"}
