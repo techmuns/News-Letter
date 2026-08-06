@@ -80,7 +80,7 @@ function toIsoUtc(local: string): string | undefined {
 /* --- the space ----------------------------------------------------------- */
 
 export function StudioSpace() {
-  // inputs — sourceText may be prefilled when arriving from the Discover tab
+  // inputs — sourceText may be prefilled when arriving from the Daily Pulse tab
   const location = useLocation()
   const [sourceText, setSourceText] = useState<string>(() => {
     const s = (location.state as { prefillSource?: string } | null)?.prefillSource

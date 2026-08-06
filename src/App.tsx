@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
-import { DiscoverSpace } from './spaces/DiscoverSpace'
+import { PulseSpace } from './spaces/PulseSpace'
 import { StudioSpace } from './spaces/StudioSpace'
 import { Workspace } from './spaces/Workspace'
 import { LinkedInSpace } from './spaces/LinkedInSpace'
@@ -11,7 +11,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path="/discover" element={<DiscoverSpace />} />
+        <Route path="/pulse" element={<PulseSpace />} />
         <Route path="/studio" element={<StudioSpace />} />
         <Route path="/" element={<Workspace />} />
         <Route path="/linkedin" element={<LinkedInSpace />} />

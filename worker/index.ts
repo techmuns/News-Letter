@@ -2,21 +2,17 @@
 
    Serves the built SPA from the ASSETS binding, hosts uploaded post images at
    /img/<id>, and handles /api/* by reusing the same logic modules the Pages
-   Functions used (functions/api/_lib/*). Generation, Buffer, email, and
-   Discover logic are unchanged. */
+   Functions used (functions/api/_lib/*). Generation, Buffer, and email logic
+   are unchanged; the content source is the Daily Pulse feed. */
 import { configuredFlags, type Env as ApiEnv } from '../functions/api/_lib/env'
 import { checkAuth, guard, json, preflight, readJson, type Ctx } from '../functions/api/_lib/http'
 import { generateContent } from '../functions/api/_lib/anthropic'
 import { publishToBuffer, listBufferChannels } from '../functions/api/_lib/buffer'
 import { sendEmail } from '../functions/api/_lib/email'
-import { searchPosts, discoverCreators, type Freshness } from '../functions/api/_lib/discover'
+import { fetchDailyPulse } from '../functions/api/_lib/dailypulse'
 import { putImage, getImage } from '../functions/api/_lib/images'
 
 type Env = ApiEnv & { ASSETS: { fetch: (req: Request) => Promise<Response> } }
-
-function freshnessOf(v: unknown): Freshness {
-  return v === 'day' ? 'day' : v === 'month' ? 'month' : 'week'
-}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -46,6 +42,9 @@ export default {
     if (request.method === 'GET') {
       if (pathname === '/api/health') {
         return json({ ok: true, ...configuredFlags(env) })
+      }
+      if (pathname === '/api/daily-pulse') {
+        return guard(async () => json({ ok: true, ...(await fetchDailyPulse(env)) }))
       }
       if (pathname === '/api/buffer-channels') {
         return guard(async () => {
@@ -86,25 +85,6 @@ export default {
             tone: body.tone ? String(body.tone) : undefined,
           })
           return json({ ok: true, content })
-        })
-      }
-
-      if (pathname === '/api/search-posts') {
-        return guard(async () => {
-          const posts = await searchPosts(env, {
-            topic: body?.topic ? String(body.topic) : undefined,
-            mode: body?.mode === 'creators' ? 'creators' : 'topic',
-            handles: Array.isArray(body?.handles) ? body.handles.map((h: unknown) => String(h)) : undefined,
-            freshness: freshnessOf(body?.freshness),
-          })
-          return json({ ok: true, posts })
-        })
-      }
-
-      if (pathname === '/api/discover-creators') {
-        return guard(async () => {
-          const creators = await discoverCreators(env, freshnessOf(body?.freshness))
-          return json({ ok: true, creators })
         })
       }
 
