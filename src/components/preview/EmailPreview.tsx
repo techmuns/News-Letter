@@ -14,7 +14,15 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 }
 
 /** Renders the newsletter as it will land in the inbox (§3.3). */
-export function EmailPreview({ content, heroImage }: { content: EmailContent; heroImage?: string }) {
+export function EmailPreview({
+  content,
+  heroImage,
+  sources,
+}: {
+  content: EmailContent
+  heroImage?: string
+  sources?: { source: string; link: string }[]
+}) {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
@@ -71,6 +79,28 @@ export function EmailPreview({ content, heroImage }: { content: EmailContent; he
                 {content.takeaway}
               </p>
             </div>
+
+            {/* sources (Topic mode) */}
+            {sources && sources.length > 0 && (
+              <div>
+                <p className="mb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a7fce]">
+                  Sources
+                </p>
+                <div className="space-y-1">
+                  {sources.slice(0, 4).map((s, i) => (
+                    <a
+                      key={i}
+                      href={s.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate text-[13px] text-[#5b4bd6] hover:underline"
+                    >
+                      {s.source || s.link}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* CTA */}
             <div className="pt-1">

@@ -12,10 +12,12 @@ import {
   type PulsePost,
   type PulseFeed,
   type PulseItem,
+  type NewsItem,
   type HealthFlags,
 } from '../../lib/api'
 import { buildEmailHtml } from '../../lib/emailTemplate'
 import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
+import { renderBrandedCard } from '../../lib/brandedImage'
 import { type LinkedInContent, type EmailContent } from '../../types'
 import { cn } from '../../lib/cn'
 
@@ -81,6 +83,13 @@ function dateLabelFrom(iso: string): string {
   return use.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/** Drop a leading emoji (+ variation selector) so it reads as a headline. */
+function stripLeadingEmoji(s: string): string {
+  return String(s || '')
+    .replace(/^(\s*\p{Extended_Pictographic}️?\s*)+/u, '')
+    .trim()
+}
+
 /** hook + bulleted lines + hashtags → the full LinkedIn caption text. */
 function composeCaption(post: PulsePost): string {
   const bullets = post.linkedin.bullets
@@ -93,11 +102,14 @@ function composeCaption(post: PulsePost): string {
 }
 
 export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: HealthFlags | null }) {
+  const [mode, setMode] = useState<'market' | 'topic'>('market')
   const [focusId, setFocusId] = useState('')
+  const [topic, setTopic] = useState('')
   const [tone, setTone] = useState(TONES[0])
   const [imageStyle, setImageStyle] = useState<PulseImageStyle>('gainers')
 
   const [post, setPost] = useState<PulsePost | null>(null)
+  const [sources, setSources] = useState<NewsItem[]>([])
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
@@ -122,22 +134,37 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     return groups
   }, [feed])
 
-  // Render the branded image from the feed whenever a post exists or the style changes.
+  // Render the branded image whenever a post exists. Market mode → a data card
+  // (gainers/losers or index board); Topic mode → the branded headline card.
   useEffect(() => {
     if (!post) {
       setCard(null)
       return
     }
     let cancelled = false
-    renderPulseImage(imageStyle, feed.items, { dateLabel: dateLabelFrom(feed.fetchedAt) })
-      .then((c) => !cancelled && setCard(c))
-      .catch(() => !cancelled && setCard(null))
+    const render =
+      mode === 'topic'
+        ? renderBrandedCard({ headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, topic: post.focus })
+        : renderPulseImage(imageStyle, feed.items, { dateLabel: dateLabelFrom(feed.fetchedAt) })
+    render.then((c) => !cancelled && setCard(c)).catch(() => !cancelled && setCard(null))
     return () => {
       cancelled = true
     }
-  }, [post, imageStyle, feed])
+  }, [post, mode, imageStyle, feed])
 
-  const caption = useMemo(() => (post ? composeCaption(post) : ''), [post])
+  const caption = useMemo(() => {
+    if (!post) return ''
+    const base = composeCaption(post)
+    if (mode === 'topic' && sources.length) {
+      const links = sources
+        .slice(0, 3)
+        .filter((s) => s.link)
+        .map((s) => `• ${s.source}: ${s.link}`)
+        .join('\n')
+      return links ? `${base}\n\nSources:\n${links}` : base
+    }
+    return base
+  }, [post, mode, sources])
 
   function patchLinkedIn(p: Partial<PulsePost['linkedin']>) {
     setPost((d) => (d ? { ...d, linkedin: { ...d.linkedin, ...p } } : d))
@@ -148,13 +175,21 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
 
   async function handleGenerate() {
     if (generating) return
+    if (mode === 'topic' && !topic.trim()) return
     setGenerating(true)
     setGenError('')
     setPublishNote(null)
     setSendNote(null)
     try {
-      const { post: p } = await api.pulseGenerate({ focusId: focusId || undefined, tone })
-      setPost(p)
+      if (mode === 'topic') {
+        const { post: p, sources: s } = await api.topicGenerate({ topic: topic.trim(), tone })
+        setSources(s)
+        setPost(p)
+      } else {
+        const { post: p } = await api.pulseGenerate({ focusId: focusId || undefined, tone })
+        setSources([])
+        setPost(p)
+      }
       // jump to the preview once it's ready
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
     } catch (e) {
@@ -209,7 +244,10 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     setSendNote(null)
     try {
       const { url } = await hostedImageUrl()
-      const html = buildEmailHtml(post.email, { heroImageUrl: url })
+      const html = buildEmailHtml(post.email, {
+        heroImageUrl: url,
+        sources: mode === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined,
+      })
       const recipients = recipientsText
         .split(/[\n,;]+/)
         .map((s) => s.trim())
@@ -257,6 +295,23 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     ctaLabel: post.email.ctaLabel,
   }
 
+  const toneSelect = (
+    <div>
+      <Label>Tone</Label>
+      <select
+        className={cn(inputCls, 'appearance-none')}
+        value={tone}
+        onChange={(e) => setTone(e.target.value)}
+      >
+        {TONES.map((t) => (
+          <option key={t} value={t} className="bg-surface-solid">
+            {t}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       {/* ---- composer controls ---- */}
@@ -276,85 +331,142 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
           )}
         </div>
 
+        {/* mode: market feed vs a news topic */}
+        <div className="mt-4 inline-flex rounded-lg border border-border p-0.5">
+          {(
+            [
+              { v: 'market', label: 'Market' },
+              { v: 'topic', label: 'Topic' },
+            ] as { v: 'market' | 'topic'; label: string }[]
+          ).map((o) => (
+            <button
+              key={o.v}
+              onClick={() => {
+                setMode(o.v)
+                setPost(null)
+                setSources([])
+                setGenError('')
+                setPublishNote(null)
+                setSendNote(null)
+              }}
+              className={cn(
+                'rounded-md px-4 py-1.5 text-[13px] font-medium transition-colors',
+                mode === o.v ? 'bg-[rgba(157,140,245,0.16)] text-violet' : 'text-text-muted hover:text-text-2',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="sm:col-span-2">
-            <Label>Focus</Label>
-            <select
-              className={cn(inputCls, 'appearance-none')}
-              value={focusId}
-              onChange={(e) => setFocusId(e.target.value)}
-            >
-              <option value="" className="bg-surface-solid">
-                Auto — whole-market wrap
-              </option>
-              {focusOptions.map(({ group, items }) => (
-                <optgroup key={group} label={GROUP_LABEL[group]}>
-                  {items.map((it) => (
-                    <option key={it.id} value={it.id} className="bg-surface-solid">
-                      {it.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label>Tone</Label>
-            <select
-              className={cn(inputCls, 'appearance-none')}
-              value={tone}
-              onChange={(e) => setTone(e.target.value)}
-            >
-              {TONES.map((t) => (
-                <option key={t} value={t} className="bg-surface-solid">
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label>Image</Label>
-            <div className="inline-flex w-full rounded-lg border border-border p-0.5">
-              {(
-                [
-                  { v: 'gainers', label: 'Gainers/Losers' },
-                  { v: 'index', label: 'Index board' },
-                ] as { v: PulseImageStyle; label: string }[]
-              ).map((o) => (
-                <button
-                  key={o.v}
-                  onClick={() => setImageStyle(o.v)}
-                  className={cn(
-                    'flex-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium transition-colors',
-                    imageStyle === o.v
-                      ? 'bg-[rgba(157,140,245,0.16)] text-violet'
-                      : 'text-text-muted hover:text-text-2',
-                  )}
+          {mode === 'market' ? (
+            <>
+              <div className="sm:col-span-2">
+                <Label>Focus</Label>
+                <select
+                  className={cn(inputCls, 'appearance-none')}
+                  value={focusId}
+                  onChange={(e) => setFocusId(e.target.value)}
                 >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <option value="" className="bg-surface-solid">
+                    Auto — whole-market wrap
+                  </option>
+                  {focusOptions.map(({ group, items }) => (
+                    <optgroup key={group} label={GROUP_LABEL[group]}>
+                      {items.map((it) => (
+                        <option key={it.id} value={it.id} className="bg-surface-solid">
+                          {it.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              {toneSelect}
+              <div>
+                <Label>Image</Label>
+                <div className="inline-flex w-full rounded-lg border border-border p-0.5">
+                  {(
+                    [
+                      { v: 'gainers', label: 'Gainers/Losers' },
+                      { v: 'index', label: 'Index board' },
+                    ] as { v: PulseImageStyle; label: string }[]
+                  ).map((o) => (
+                    <button
+                      key={o.v}
+                      onClick={() => setImageStyle(o.v)}
+                      className={cn(
+                        'flex-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium transition-colors',
+                        imageStyle === o.v
+                          ? 'bg-[rgba(157,140,245,0.16)] text-violet'
+                          : 'text-text-muted hover:text-text-2',
+                      )}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Label>Topic or keyword</Label>
+                <input
+                  className={inputCls}
+                  placeholder='e.g. "Reliance", "Donald Trump", "RBI rate decision", "Nvidia earnings"'
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGenerate()
+                  }}
+                />
+              </div>
+              {toneSelect}
+            </>
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button
             variant="primary"
             onClick={handleGenerate}
-            disabled={generating || (!!health && !health.ai)}
+            disabled={
+              generating ||
+              (!!health && !health.ai) ||
+              (mode === 'topic' && (!topic.trim() || (!!health && !health.topicNews)))
+            }
           >
             <IconSparkle size={16} />
-            {generating ? 'Generating…' : post ? 'Regenerate' : 'Generate post'}
+            {generating
+              ? mode === 'topic'
+                ? 'Fetching news…'
+                : 'Generating…'
+              : post
+                ? 'Regenerate'
+                : mode === 'topic'
+                  ? 'Fetch news + generate'
+                  : 'Generate post'}
           </Button>
           <span className="text-[12px] text-text-dim">
-            Uses today's feed ({feed.items.length} instruments) · {focusId ? 'focused' : 'auto wrap'}
+            {mode === 'topic'
+              ? topic.trim()
+                ? `Fetches recent news for “${topic.trim()}” → grounds the post in the sources`
+                : 'Type a company, person, or news theme'
+              : `Uses today's feed (${feed.items.length} instruments) · ${focusId ? 'focused' : 'auto wrap'}`}
           </span>
         </div>
         {genError && <Note kind="err">{genError}</Note>}
         {!!health && !health.ai && (
           <p className="mt-2 text-[11.5px] text-text-dim">
             Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
+          </p>
+        )}
+        {mode === 'topic' && !!health && health.ai && !health.topicNews && (
+          <p className="mt-2 text-[11.5px] text-text-dim">
+            Topic mode needs <code>GOOGLE_API_KEY</code> + <code>GOOGLE_CSE_ID</code> (SETUP.md), with the
+            search engine set to “Search the entire web”.
           </p>
         )}
 
@@ -388,6 +500,31 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
             </div>
 
             <LinkedInPost content={liPreview} image={card?.dataUrl} topic={post.focus} plainImage />
+
+            {mode === 'topic' && sources.length > 0 && (
+              <div className="mt-3 rounded-lg border border-border bg-[rgba(255,255,255,0.02)] p-3">
+                <MicroLabel className="mb-2 block text-text-muted">
+                  Grounded in {sources.length} source{sources.length > 1 ? 's' : ''}
+                </MicroLabel>
+                <div className="space-y-1.5">
+                  {sources.map((s, i) => (
+                    <a
+                      key={i}
+                      href={s.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate text-[12.5px] text-text-2 hover:text-violet"
+                    >
+                      {s.title}{' '}
+                      <span className="text-text-dim">
+                        · {s.source}
+                        {s.date ? ` · ${s.date}` : ''}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 space-y-3">
               <div>
@@ -427,7 +564,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
                 {card && (
                   <a
                     href={card.dataUrl}
-                    download={`daily-pulse-${imageStyle}.png`}
+                    download={`daily-pulse-${mode === 'topic' ? 'topic' : imageStyle}.png`}
                     className="inline-flex h-[38px] items-center rounded-lg border border-border px-3 text-[13px] text-text-2 hover:border-violet hover:text-text"
                   >
                     Download image
@@ -464,7 +601,11 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
               <MicroLabel tone="violet">Email newsletter</MicroLabel>
             </div>
 
-            <EmailPreview content={emailPreview} heroImage={card?.dataUrl} />
+            <EmailPreview
+              content={emailPreview}
+              heroImage={card?.dataUrl}
+              sources={mode === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined}
+            />
 
             <div className="mt-4 space-y-3">
               <div>

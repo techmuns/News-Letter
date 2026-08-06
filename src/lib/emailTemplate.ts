@@ -11,12 +11,32 @@ function esc(s: string): string {
 
 export function buildEmailHtml(
   email: GeneratedContent['email'],
-  opts?: { ctaUrl?: string; brand?: string; heroImageUrl?: string },
+  opts?: {
+    ctaUrl?: string
+    brand?: string
+    heroImageUrl?: string
+    /** Source links to list under the newsletter (Topic mode). */
+    sources?: { source: string; link: string }[]
+  },
 ): string {
   const brand = opts?.brand || 'Munshot Intelligence'
   const ctaUrl = opts?.ctaUrl || 'https://munshot.io'
   const hero = opts?.heroImageUrl
     ? `<tr><td style="padding:0;"><img src="${esc(opts.heroImageUrl)}" alt="Munshot Daily Pulse" width="600" style="display:block;width:100%;height:auto;border:0;" /></td></tr>`
+    : ''
+  const srcRows = (opts?.sources || [])
+    .filter((s) => s && s.link)
+    .slice(0, 4)
+    .map(
+      (s) =>
+        `<div style="font-size:13px;line-height:1.5;margin-bottom:4px;"><a href="${esc(s.link)}" style="color:#5b4bd6;text-decoration:none;">${esc(s.source || s.link)}</a></div>`,
+    )
+    .join('')
+  const sources = srcRows
+    ? `<tr><td style="padding:0 32px 20px;">
+          <div style="font:600 11px/1 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#8a7fce;margin-bottom:8px;">Sources</div>
+          ${srcRows}
+        </td></tr>`
     : ''
   return `<!doctype html>
 <html>
@@ -42,6 +62,7 @@ export function buildEmailHtml(
             <div style="font-size:16px;line-height:1.55;font-weight:600;color:#2a2a33;">${esc(email.takeaway)}</div>
           </div>
         </td></tr>
+        ${sources}
         <tr><td style="padding:4px 32px 32px;">
           <a href="${esc(ctaUrl)}" style="display:inline-block;background:#12101e;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 22px;border-radius:10px;">${esc(email.ctaLabel)} &rarr;</a>
           <p style="font-size:12px;line-height:1.6;color:#9a97a8;margin:18px 0 0;">You're receiving this because you follow Munshot market intelligence.</p>

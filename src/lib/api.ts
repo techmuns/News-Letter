@@ -14,6 +14,15 @@ export interface GeneratedContent {
   }
 }
 
+/** A sourced news result backing a Topic-mode post. */
+export interface NewsItem {
+  title: string
+  snippet: string
+  source: string
+  link: string
+  date: string
+}
+
 /** Daily Pulse post — style #1 caption (hook → emoji bullets → hashtags) + email. */
 export interface PulsePost {
   focus: string
@@ -35,6 +44,8 @@ export interface HealthFlags {
   ai: boolean
   /** which AI provider is wired: 'bedrock' | 'anthropic' | 'none' */
   aiProvider: string
+  /** Topic mode (recent-news lookup) is wired — Google Custom Search keys set */
+  topicNews: boolean
   linkedin: boolean
   email: boolean
   emailProvider: string
@@ -138,6 +149,12 @@ export const api = {
   /** Generate today's Daily Pulse post from the live feed (optional focus + tone). */
   pulseGenerate: (input: { focusId?: string; tone?: string }) =>
     request<{ ok: true; post: PulsePost; fetchedAt: string }>('/pulse-generate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  /** Generate a post from recent news on a keyword/topic (grounded in sources). */
+  topicGenerate: (input: { topic: string; tone?: string }) =>
+    request<{ ok: true; post: PulsePost; sources: NewsItem[]; topic: string }>('/topic-generate', {
       method: 'POST',
       body: JSON.stringify(input),
     }),

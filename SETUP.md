@@ -35,6 +35,16 @@ Generation calls Bedrock's native runtime endpoint — `POST https://bedrock-run
 
 _Optional:_ `BEDROCK_REGION` overrides the region (default `us-east-1`). To fall back to the **direct Anthropic API** instead, leave `BEDROCK_API_KEY` unset and set `ANTHROPIC_API_KEY` (+ optional `GEN_MODEL`, default `claude-opus-5`).
 
+## 2b. Topic mode (recent-news lookup) → `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`
+
+The Daily Pulse composer has a **Topic** tab: type a keyword (a company, person, or news theme) and it fetches recent news, then grounds the post in those real sources. It uses the **Google Custom Search JSON API**.
+
+1. **Programmable Search Engine** (programmablesearchengine.google.com) → open the engine whose id is your `GOOGLE_CSE_ID` → **Setup → Basics** → turn ON **“Search the entire web”** and remove any site restriction (e.g. `linkedin.com`). This is the one change that makes topic search return real news across sources rather than one site.
+2. **Custom Search JSON API** (console.cloud.google.com → APIs & Services): enable it and use its key as `GOOGLE_API_KEY`.
+3. Set both `GOOGLE_API_KEY` and `GOOGLE_CSE_ID` (see [§6 Where to paste](#6-where-to-paste-the-keys)). `/api/health` then reports `topicNews: true`.
+
+Free tier is 100 queries/day. Topic mode is optional — the market mode works without it.
+
 ## 3. Buffer (LinkedIn publishing) → `BUFFER_ACCESS_TOKEN` + `BUFFER_LINKEDIN_CHANNEL_ID`
 
 Buffer already has an approved LinkedIn integration, so this sidesteps LinkedIn's own Community-Management-API approval (which takes days–weeks).
@@ -101,6 +111,8 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 | `BEDROCK_REGION` | — | Bedrock region (default `us-east-1`) |
 | `ANTHROPIC_API_KEY` | — | Direct Anthropic key — fallback when no `BEDROCK_API_KEY` |
 | `GEN_MODEL` | — | Model override (Anthropic-direct default `claude-opus-5`) |
+| `GOOGLE_API_KEY` | — (Topic mode) | Google Custom Search key for the composer's Topic tab |
+| `GOOGLE_CSE_ID` | — (Topic mode) | Programmable Search Engine id — set it to “Search the entire web” |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
 | `BUFFER_LINKEDIN_CHANNEL_ID` | ✅ (LinkedIn) | Buffer channel id for the Munshot page |
 | `BUFFER_ORG_ID` | — | Enables `/api/buffer-channels` discovery |

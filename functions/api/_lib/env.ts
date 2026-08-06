@@ -47,6 +47,13 @@ export interface Env {
       as the Bedrock model id when BEDROCK_MODEL_ID is unset). */
   GEN_MODEL?: string
 
+  // --- Topic mode: recent-news lookup (Google Custom Search JSON API) ---
+  /** Google API key for the Custom Search JSON API. */
+  GOOGLE_API_KEY?: string
+  /** Programmable Search Engine id (cx). Configure the engine to "Search the
+      entire web" so a keyword returns real news across sources. */
+  GOOGLE_CSE_ID?: string
+
   // --- LinkedIn publishing, via Buffer's GraphQL API ---
   /** Personal access token from https://publish.buffer.com/settings/api */
   BUFFER_ACCESS_TOKEN?: string
@@ -88,6 +95,8 @@ export function configuredFlags(env: Env) {
     ai: Boolean(env.BEDROCK_API_KEY || env.ANTHROPIC_API_KEY),
     /** which provider serves generation: 'bedrock' | 'anthropic' | 'none' */
     aiProvider,
+    /** Topic mode (recent-news lookup) is wired — Google Custom Search keys set */
+    topicNews: Boolean(env.GOOGLE_API_KEY && env.GOOGLE_CSE_ID),
     linkedin: Boolean(env.BUFFER_ACCESS_TOKEN && env.BUFFER_LINKEDIN_CHANNEL_ID),
     email: Boolean(emailKey && env.EMAIL_FROM),
     emailProvider: provider,
