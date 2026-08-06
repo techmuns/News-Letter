@@ -465,8 +465,8 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
         )}
         {mode === 'topic' && !!health && health.ai && !health.topicNews && (
           <p className="mt-2 text-[11.5px] text-text-dim">
-            Topic mode needs <code>GOOGLE_API_KEY</code> + <code>GOOGLE_CSE_ID</code> (SETUP.md), with the
-            search engine set to “Search the entire web”.
+            Topic mode needs <code>NEWSAPI_KEY</code> (SETUP.md) — a NewsAPI.org key for recent-news
+            lookup.
           </p>
         )}
 

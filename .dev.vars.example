@@ -27,12 +27,11 @@ BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
 # GEN_MODEL=claude-sonnet-5
 
 # --- Topic mode (recent-news lookup for the Daily Pulse composer) ---
-# Google Custom Search JSON API. The composer's "Topic" tab searches these for
-# recent news on a keyword, then grounds the post in the real sources.
-# IMPORTANT: in the Programmable Search Engine control panel, set this engine to
-# "Search the entire web" (not restricted to a single site like linkedin.com).
-GOOGLE_API_KEY=
-GOOGLE_CSE_ID=
+# NewsAPI.org key. The composer's "Topic" tab queries the /v2/everything endpoint
+# for recent news on a keyword, then grounds the post ONLY in the real articles
+# it returns (title / description / url / source / publishedAt). Get a key at
+# https://newsapi.org/register — sent server-side as the `X-Api-Key` header.
+NEWSAPI_KEY=
 
 # --- LinkedIn publishing (via Buffer) ---
 # Token from https://publish.buffer.com/settings/api

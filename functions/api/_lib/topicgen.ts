@@ -1,6 +1,6 @@
 /* Daily Pulse "Topic" mode generator.
 
-   Flow: fetch real recent news for a keyword (Google Custom Search) → hand ONLY
+   Flow: fetch real recent news for a keyword (NewsAPI.org) → hand ONLY
    those sourced facts to Claude (Bedrock, via callClaudeJson) → the same house
    format as the market post (hook → emoji bullets → hashtags) + email. If no
    solid sources are found, the caller gets a friendly "no recent news" error and
@@ -97,10 +97,7 @@ export async function generateTopicPost(
   const topic = (input.topic || '').trim()
   if (!topic) throw new ApiError('Enter a topic or keyword.', 400)
   if (!newsConfigured(env)) {
-    throw new ApiError(
-      "Topic news isn't configured — set GOOGLE_API_KEY and GOOGLE_CSE_ID (see SETUP.md).",
-      400,
-    )
+    throw new ApiError("Topic news isn't configured — set NEWSAPI_KEY (see SETUP.md).", 400)
   }
 
   const sources = await fetchTopicNews(env, topic)

@@ -44,7 +44,7 @@ export interface HealthFlags {
   ai: boolean
   /** which AI provider is wired: 'bedrock' | 'anthropic' | 'none' */
   aiProvider: string
-  /** Topic mode (recent-news lookup) is wired — Google Custom Search keys set */
+  /** Topic mode (recent-news lookup) is wired — NewsAPI key set */
   topicNews: boolean
   linkedin: boolean
   email: boolean
