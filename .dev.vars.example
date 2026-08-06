@@ -26,6 +26,14 @@ BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
 # Optional model override (Anthropic direct default claude-opus-5)
 # GEN_MODEL=claude-sonnet-5
 
+# --- Topic mode (recent-news lookup for the Daily Pulse composer) ---
+# Google Custom Search JSON API. The composer's "Topic" tab searches these for
+# recent news on a keyword, then grounds the post in the real sources.
+# IMPORTANT: in the Programmable Search Engine control panel, set this engine to
+# "Search the entire web" (not restricted to a single site like linkedin.com).
+GOOGLE_API_KEY=
+GOOGLE_CSE_ID=
+
 # --- LinkedIn publishing (via Buffer) ---
 # Token from https://publish.buffer.com/settings/api
 BUFFER_ACCESS_TOKEN=

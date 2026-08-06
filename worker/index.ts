@@ -8,6 +8,7 @@ import { configuredFlags, type Env as ApiEnv } from '../functions/api/_lib/env'
 import { checkAuth, guard, json, preflight, readJson, type Ctx } from '../functions/api/_lib/http'
 import { generateContent } from '../functions/api/_lib/anthropic'
 import { generatePulsePost } from '../functions/api/_lib/pulsegen'
+import { generateTopicPost } from '../functions/api/_lib/topicgen'
 import { publishToBuffer, listBufferChannels } from '../functions/api/_lib/buffer'
 import { sendEmail } from '../functions/api/_lib/email'
 import { fetchDailyPulse } from '../functions/api/_lib/dailypulse'
@@ -96,6 +97,16 @@ export default {
             tone: body?.tone ? String(body.tone) : undefined,
           })
           return json({ ok: true, post, fetchedAt })
+        })
+      }
+
+      if (pathname === '/api/topic-generate') {
+        return guard(async () => {
+          const { post, sources, topic } = await generateTopicPost(env, {
+            topic: body?.topic ? String(body.topic) : '',
+            tone: body?.tone ? String(body.tone) : undefined,
+          })
+          return json({ ok: true, post, sources, topic })
         })
       }
 
