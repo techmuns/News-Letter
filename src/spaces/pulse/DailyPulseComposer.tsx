@@ -265,7 +265,11 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
           <MicroLabel tone="violet">Compose today's Daily Pulse post</MicroLabel>
           {health && (
             <div className="flex flex-wrap gap-x-5 gap-y-1">
-              <StatusRow ok={!!health.ai} label="AI" hint="ANTHROPIC_API_KEY" />
+              <StatusRow
+                ok={!!health.ai}
+                label={health.aiProvider && health.aiProvider !== 'none' ? `AI · ${health.aiProvider}` : 'AI'}
+                hint="BEDROCK_API_KEY"
+              />
               <StatusRow ok={!!health.linkedin} label="LinkedIn" hint="Buffer" />
               <StatusRow ok={!!health.email} label="Email" hint="provider" />
             </div>
@@ -350,7 +354,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
         {genError && <Note kind="err">{genError}</Note>}
         {!!health && !health.ai && (
           <p className="mt-2 text-[11.5px] text-text-dim">
-            Add <code>ANTHROPIC_API_KEY</code> to enable generation (SETUP.md).
+            Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
           </p>
         )}
 
