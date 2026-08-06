@@ -1,117 +1,94 @@
 /* Recent-news lookup for the Daily Pulse "Topic" mode.
 
-   Uses the Google Custom Search JSON API (GOOGLE_API_KEY + GOOGLE_CSE_ID). The
-   search engine (cx) must be configured to "Search the entire web" in the
-   Programmable Search Engine control panel — not restricted to a single site —
-   so a keyword returns real news across sources. Returns [] when unconfigured
-   or nothing recent is found (the caller turns that into a friendly message and
-   never fabricates). */
+   Uses the NewsAPI.org "everything" endpoint (NEWSAPI_KEY). A keyword returns
+   real, recent articles across sources; each article's title/description/url/
+   source.name/publishedAt becomes the ONLY factual basis for the generated post.
+   Returns [] when unconfigured or nothing recent is found (the caller turns that
+   into a friendly "no recent news" message and never fabricates). */
 import type { Env } from './env'
 import { ApiError } from './http'
 
 export interface NewsItem {
   title: string
   snippet: string
-  /** the source domain, e.g. "reuters.com" */
+  /** the source name, e.g. "Reuters" */
   source: string
   link: string
-  /** best-effort publish date (YYYY-MM-DD) or a relative phrase, may be '' */
+  /** best-effort publish date (YYYY-MM-DD), may be '' */
   date: string
 }
 
-const ENDPOINT = 'https://www.googleapis.com/customsearch/v1'
-const DATE_RE = /^([A-Z][a-z]{2,8}\.? \d{1,2}, \d{4}|\d+\s+(?:hour|day|week|month)s?\s+ago)/
+const ENDPOINT = 'https://newsapi.org/v2/everything'
 
 export function newsConfigured(env: Env): boolean {
-  return Boolean(env.GOOGLE_API_KEY && env.GOOGLE_CSE_ID)
+  return Boolean(env.NEWSAPI_KEY)
 }
 
-function cleanSource(displayLink: unknown): string {
-  return String(displayLink || '')
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .split('/')[0]
-}
-
-function itemDate(item: any): string {
-  const m = (item?.pagemap?.metatags?.[0] || {}) as Record<string, string>
-  const iso =
-    m['article:published_time'] ||
-    m['og:updated_time'] ||
-    m['article:modified_time'] ||
-    item?.pagemap?.newsarticle?.[0]?.datepublished ||
-    ''
-  if (iso) {
-    const d = new Date(iso)
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
-  }
-  const mm = String(item?.snippet || '').match(DATE_RE)
-  return mm ? mm[1] : ''
+function fmtDate(publishedAt: unknown): string {
+  const s = String(publishedAt || '').trim()
+  if (!s) return ''
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
 }
 
 function cleanSnippet(sn: unknown): string {
   return String(sn || '')
-    .replace(DATE_RE, '')
-    .replace(/^\s*\.\.\.\s*/, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
-async function queryGoogle(env: Env, q: string, dateRestrict: string): Promise<NewsItem[]> {
-  const url = new URL(ENDPOINT)
-  url.searchParams.set('key', env.GOOGLE_API_KEY as string)
-  url.searchParams.set('cx', env.GOOGLE_CSE_ID as string)
-  url.searchParams.set('q', q)
-  url.searchParams.set('num', '6')
-  url.searchParams.set('gl', 'in')
-  url.searchParams.set('hl', 'en')
-  if (dateRestrict) url.searchParams.set('dateRestrict', dateRestrict)
-
-  let res: Response
-  try {
-    res = await fetch(url.toString(), { headers: { accept: 'application/json' } })
-  } catch {
-    throw new ApiError('News search failed — could not reach Google Custom Search.', 502)
-  }
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    // Include a generous slice of Google's body — its 403 names the exact
-    // project number and an enable link, which pinpoints key-vs-scope issues.
-    throw new ApiError(
-      `News search failed (Google API ${res.status}). Check that GOOGLE_API_KEY is valid, the "Custom Search API" is enabled for its project, and the engine (GOOGLE_CSE_ID) is set to "Search the entire web". Google response: ${body.replace(/\s+/g, ' ').slice(0, 900)}`.trim(),
-      502,
-    )
-  }
-  const data: any = await res.json().catch(() => null)
-  const items: any[] = Array.isArray(data?.items) ? data.items : []
-  return items
-    .map((it) => ({
-      title: String(it?.title || '').trim(),
-      snippet: cleanSnippet(it?.snippet),
-      source: cleanSource(it?.displayLink),
-      link: String(it?.link || '').trim(),
-      date: itemDate(it),
-    }))
-    .filter((n) => n.title && n.link && n.snippet)
-}
-
-/** Recent news for a keyword. Prefers the last month; broadens to the last ~6
-    months only if nothing recent turns up. [] when unconfigured / none found. */
+/** Recent news for a keyword, most-recent first. [] when unconfigured or when
+    NewsAPI reports zero results for the query. */
 export async function fetchTopicNews(env: Env, topic: string): Promise<NewsItem[]> {
   if (!newsConfigured(env)) return []
   const q = topic.trim()
   if (!q) return []
 
-  let items = await queryGoogle(env, q, 'm1')
-  if (items.length === 0) items = await queryGoogle(env, q, 'm6')
+  const url = new URL(ENDPOINT)
+  url.searchParams.set('q', q)
+  url.searchParams.set('language', 'en')
+  url.searchParams.set('sortBy', 'publishedAt')
+  url.searchParams.set('pageSize', '10')
 
-  // Dedupe by link, keep order (most relevant/recent first).
+  let res: Response
+  try {
+    res = await fetch(url.toString(), {
+      headers: { accept: 'application/json', 'X-Api-Key': env.NEWSAPI_KEY as string },
+    })
+  } catch {
+    throw new ApiError('News search failed — could not reach NewsAPI.', 502)
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    // Surface NewsAPI's own error body (status code + code/message) so key,
+    // plan, or query problems are diagnosable at a glance.
+    throw new ApiError(
+      `News search failed (NewsAPI ${res.status}). Check that NEWSAPI_KEY is valid and your plan allows this request. NewsAPI response: ${body
+        .replace(/\s+/g, ' ')
+        .slice(0, 900)}`.trim(),
+      502,
+    )
+  }
+
+  const data: any = await res.json().catch(() => null)
+  // totalResults === 0 → nothing recent; caller returns "no recent news found".
+  if (!data || Number(data.totalResults) === 0) return []
+  const articles: any[] = Array.isArray(data.articles) ? data.articles : []
+
   const seen = new Set<string>()
   const out: NewsItem[] = []
-  for (const it of items) {
-    if (seen.has(it.link)) continue
-    seen.add(it.link)
-    out.push(it)
+  for (const a of articles) {
+    const link = String(a?.url || '').trim()
+    const title = String(a?.title || '').trim()
+    if (!link || !title || seen.has(link)) continue
+    seen.add(link)
+    out.push({
+      title,
+      snippet: cleanSnippet(a?.description),
+      source: String(a?.source?.name || '').trim(),
+      link,
+      date: fmtDate(a?.publishedAt),
+    })
   }
   return out.slice(0, 6)
 }

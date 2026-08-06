@@ -35,15 +35,14 @@ Generation calls Bedrock's native runtime endpoint — `POST https://bedrock-run
 
 _Optional:_ `BEDROCK_REGION` overrides the region (default `us-east-1`). To fall back to the **direct Anthropic API** instead, leave `BEDROCK_API_KEY` unset and set `ANTHROPIC_API_KEY` (+ optional `GEN_MODEL`, default `claude-opus-5`).
 
-## 2b. Topic mode (recent-news lookup) → `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`
+## 2b. Topic mode (recent-news lookup) → `NEWSAPI_KEY`
 
-The Daily Pulse composer has a **Topic** tab: type a keyword (a company, person, or news theme) and it fetches recent news, then grounds the post in those real sources. It uses the **Google Custom Search JSON API**.
+The Daily Pulse composer has a **Topic** tab: type a keyword (a company, person, or news theme) and it fetches recent news, then grounds the post in those real sources. It uses **NewsAPI.org**'s `/v2/everything` endpoint.
 
-1. **Programmable Search Engine** (programmablesearchengine.google.com) → open the engine whose id is your `GOOGLE_CSE_ID` → **Setup → Basics** → turn ON **“Search the entire web”** and remove any site restriction (e.g. `linkedin.com`). This is the one change that makes topic search return real news across sources rather than one site.
-2. **Custom Search JSON API** (console.cloud.google.com → APIs & Services): enable it and use its key as `GOOGLE_API_KEY`.
-3. Set both `GOOGLE_API_KEY` and `GOOGLE_CSE_ID` (see [§6 Where to paste](#6-where-to-paste-the-keys)). `/api/health` then reports `topicNews: true`.
+1. Register at [newsapi.org/register](https://newsapi.org/register) to get an API key.
+2. Set `NEWSAPI_KEY` to that key (see [§6 Where to paste](#6-where-to-paste-the-keys)). It's sent server-side as the `X-Api-Key` header — never exposed to the browser. `/api/health` then reports `topicNews: true`.
 
-Free tier is 100 queries/day. Topic mode is optional — the market mode works without it.
+The query is `GET https://newsapi.org/v2/everything?q=<topic>&language=en&sortBy=publishedAt&pageSize=10`; only each article's title/description/url/source/publishedAt is fed to the model. If NewsAPI returns zero results the composer says “no recent news found” and generates nothing — it never fabricates. The free Developer plan is rate-limited and restricted to non-production use; a paid plan is required for live/production requests. Topic mode is optional — the market mode works without it.
 
 ## 3. Buffer (LinkedIn publishing) → `BUFFER_ACCESS_TOKEN` + `BUFFER_LINKEDIN_CHANNEL_ID`
 
@@ -111,8 +110,7 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 | `BEDROCK_REGION` | — | Bedrock region (default `us-east-1`) |
 | `ANTHROPIC_API_KEY` | — | Direct Anthropic key — fallback when no `BEDROCK_API_KEY` |
 | `GEN_MODEL` | — | Model override (Anthropic-direct default `claude-opus-5`) |
-| `GOOGLE_API_KEY` | — (Topic mode) | Google Custom Search key for the composer's Topic tab |
-| `GOOGLE_CSE_ID` | — (Topic mode) | Programmable Search Engine id — set it to “Search the entire web” |
+| `NEWSAPI_KEY` | — (Topic mode) | NewsAPI.org key for the composer's Topic tab (recent-news lookup) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
 | `BUFFER_LINKEDIN_CHANNEL_ID` | ✅ (LinkedIn) | Buffer channel id for the Munshot page |
 | `BUFFER_ORG_ID` | — | Enables `/api/buffer-channels` discovery |
