@@ -3,17 +3,6 @@ import { ProductMark } from './ProductMark'
 import { NAV_ITEMS, RailItem, BottomNavItem } from './nav'
 import { MicroLabel } from './MicroLabel'
 
-function UserChip() {
-  return (
-    <div className="flex items-center gap-2.5 rounded-full border border-border pl-1 pr-3 py-1">
-      <span className="grid h-7 w-7 place-items-center rounded-full border border-[rgba(170,152,248,0.35)] bg-[rgba(170,152,248,0.16)] font-display text-[12px] font-bold text-violet">
-        N
-      </span>
-      <span className="hidden text-[12.5px] font-medium text-text-2 sm:inline">Neha</span>
-    </div>
-  )
-}
-
 function TopBar() {
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-border-strong bg-[rgba(39,34,54,0.72)] px-4 backdrop-blur-glass md:px-7">
@@ -23,7 +12,6 @@ function TopBar() {
       <div className="hidden md:block">
         <MicroLabel className="text-text-dim">Internal · mock preview</MicroLabel>
       </div>
-      <UserChip />
     </header>
   )
 }
