@@ -31,3 +31,6 @@ dist-ssr
 # Cloudflare Pages local secrets
 .dev.vars
 .wrangler
+
+# Local verification/scratch artifacts (not part of the app)
+scratchpad/
