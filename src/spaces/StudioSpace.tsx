@@ -281,7 +281,7 @@ export function StudioSpace() {
           <MicroLabel tone="violet">Connections</MicroLabel>
           {health && (
             <span className="micro text-text-dim">
-              model {health.model} · email via {health.emailProvider}
+              AI via {health.aiProvider} · {health.model} · email via {health.emailProvider}
             </span>
           )}
         </div>
@@ -292,7 +292,7 @@ export function StudioSpace() {
           </Note>
         ) : (
           <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-            <StatusRow ok={!!health?.ai} label="AI generation" hint="add ANTHROPIC_API_KEY" />
+            <StatusRow ok={!!health?.ai} label="AI generation" hint="add BEDROCK_API_KEY" />
             <StatusRow
               ok={!!health?.linkedin}
               label="LinkedIn (Buffer)"
@@ -388,7 +388,7 @@ export function StudioSpace() {
               {genError && <Note kind="err">{genError}</Note>}
               {!!health && !health.ai && (
                 <p className="text-[11.5px] text-text-dim">
-                  Add <code>ANTHROPIC_API_KEY</code> to enable generation (SETUP.md).
+                  Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@
    point) into a short, high-engagement LinkedIn post and a matching email. */
 import type { Env } from './env'
 import { ApiError } from './http'
+import { callClaudeJson, aiConfigured } from './llm'
 
 export interface GenerateInput {
   sourceText: string
@@ -69,9 +70,10 @@ const SCHEMA = {
 }
 
 export async function generateContent(env: Env, input: GenerateInput): Promise<GeneratedContent> {
-  if (!env.ANTHROPIC_API_KEY) throw new ApiError('ANTHROPIC_API_KEY is not set (see SETUP.md).', 400)
+  if (!aiConfigured(env)) {
+    throw new ApiError('No AI provider configured — set BEDROCK_API_KEY (see SETUP.md).', 400)
+  }
 
-  const model = env.GEN_MODEL || 'claude-opus-5'
   const userMessage = [
     `TONE: ${input.tone || 'sharp, credible, insightful'}`,
     '',
@@ -82,46 +84,11 @@ export async function generateContent(env: Env, input: GenerateInput): Promise<G
       : '\n(No specific dashboard data point provided — keep claims qualitative and do not invent numbers.)',
   ].join('\n')
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 8000,
-      system: SYSTEM,
-      output_config: {
-        effort: 'medium',
-        format: { type: 'json_schema', schema: SCHEMA },
-      },
-      messages: [{ role: 'user', content: userMessage }],
-    }),
+  const parsed = await callClaudeJson<GeneratedContent>(env, {
+    system: SYSTEM,
+    user: userMessage,
+    schema: SCHEMA,
   })
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new ApiError(`Claude API error ${res.status}: ${detail.slice(0, 400)}`, 502)
-  }
-
-  const data: any = await res.json()
-  if (data.stop_reason === 'refusal') {
-    throw new ApiError('The model declined this request. Try different source text.', 422)
-  }
-  const text = (data.content || [])
-    .filter((b: any) => b.type === 'text')
-    .map((b: any) => b.text)
-    .join('')
-    .trim()
-
-  let parsed: GeneratedContent
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    throw new ApiError('The model did not return valid JSON. Try again.', 502)
-  }
   // Defensive defaults so the UI never crashes on a missing field.
   parsed.linkedin = parsed.linkedin || ({} as any)
   parsed.email = parsed.email || ({} as any)

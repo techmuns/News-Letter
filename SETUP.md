@@ -9,7 +9,7 @@ This is the **wiring guide** for the real pipeline behind the **Daily Pulse** an
 - **LinkedIn publishing via Buffer** (posts to the Munshot company page — no LinkedIn app-review wait),
 - **Email sending** to your network list.
 
-You supply the accounts and keys; the code is done. There are **three things to wire** (Anthropic, Buffer, Email) — Daily Pulse needs nothing — plus one optional KV namespace for auto-images and one recommended security key. Budget ~20 minutes.
+You supply the accounts and keys; the code is done. There are **three things to wire** (Bedrock, Buffer, Email) — Daily Pulse needs nothing — plus one optional KV namespace for auto-images and one recommended security key. Budget ~20 minutes.
 
 > **How you actually use it each day:** open **Daily Pulse**, pick a market move that matters (biggest movers surface first), click **“Use this → draft mine”** → it lands in **Studio** with that data point prefilled. Hit **Generate**, tweak the two previews, then **Publish** (LinkedIn) and **Send to list** (email).
 
@@ -25,13 +25,15 @@ The **Daily Pulse** tab reads the latest snapshot your Daily Market Pulse dashbo
 
 That's it — open the tab and today's items are there. The instruments are the dashboard's indices, currencies, commodities, and holdings (portfolio + watchlist).
 
-## 2. Anthropic (AI generation) → `ANTHROPIC_API_KEY`
+## 2. AWS Bedrock (AI generation) → `BEDROCK_API_KEY` + `BEDROCK_MODEL_ID`
 
-1. Go to **console.anthropic.com → Settings → API Keys → Create Key**.
-2. Copy the key (starts with `sk-ant-`).
-3. Set it as `ANTHROPIC_API_KEY` (see [§6 Where to paste](#6-where-to-paste-the-keys)).
+1. In the **AWS Bedrock console** (region **us-east-1**), request access to the Claude model you want under **Model access**, then create a **Bedrock API key** (a Bearer token).
+2. Set it as `BEDROCK_API_KEY` (see [§6 Where to paste](#6-where-to-paste-the-keys)).
+3. Set `BEDROCK_MODEL_ID` to that model's id or inference-profile id. In us-east-1, current Claude models usually need the cross-region **inference-profile** form (the `us.` prefix), e.g. `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
 
-_Optional:_ `GEN_MODEL` overrides the model (default `claude-opus-5`; `claude-sonnet-5` is faster/cheaper).
+Generation calls Bedrock's native runtime endpoint — `POST https://bedrock-runtime.us-east-1.amazonaws.com/model/<id>/invoke` with `Authorization: Bearer …`. `/api/health` then reports `aiProvider: "bedrock"`.
+
+_Optional:_ `BEDROCK_REGION` overrides the region (default `us-east-1`). To fall back to the **direct Anthropic API** instead, leave `BEDROCK_API_KEY` unset and set `ANTHROPIC_API_KEY` (+ optional `GEN_MODEL`, default `claude-opus-5`).
 
 ## 3. Buffer (LinkedIn publishing) → `BUFFER_ACCESS_TOKEN` + `BUFFER_LINKEDIN_CHANNEL_ID`
 
@@ -94,8 +96,11 @@ This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jso
 | Variable | Required | What it is |
 |---|---|---|
 | `DAILY_PULSE_URL` | — | Override for the Daily Pulse feed URL (defaults to the public GitHub feed) |
-| `ANTHROPIC_API_KEY` | ✅ | Claude key for generation |
-| `GEN_MODEL` | — | Model override (default `claude-opus-5`) |
+| `BEDROCK_API_KEY` | ✅ | Bedrock Bearer API key for generation |
+| `BEDROCK_MODEL_ID` | ✅ | Bedrock model / inference-profile id (e.g. `us.anthropic.claude-sonnet-4-5-20250929-v1:0`) |
+| `BEDROCK_REGION` | — | Bedrock region (default `us-east-1`) |
+| `ANTHROPIC_API_KEY` | — | Direct Anthropic key — fallback when no `BEDROCK_API_KEY` |
+| `GEN_MODEL` | — | Model override (Anthropic-direct default `claude-opus-5`) |
 | `BUFFER_ACCESS_TOKEN` | ✅ (LinkedIn) | Buffer API token |
 | `BUFFER_LINKEDIN_CHANNEL_ID` | ✅ (LinkedIn) | Buffer channel id for the Munshot page |
 | `BUFFER_ORG_ID` | — | Enables `/api/buffer-channels` discovery |
@@ -122,7 +127,7 @@ If a step errors, the exact reason is shown inline (e.g. "Could not reach the Da
 ## 8. Run it locally (optional)
 
 ```bash
-cp .dev.vars.example .dev.vars   # fill in your keys (ANTHROPIC_API_KEY, etc.)
+cp .dev.vars.example .dev.vars   # fill in your keys (BEDROCK_API_KEY, etc.)
 npm run dev                      # → http://localhost:5173
 ```
 

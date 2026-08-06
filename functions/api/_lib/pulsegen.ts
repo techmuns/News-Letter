@@ -12,6 +12,7 @@
    same feed — see src/lib/pulseImage.ts. */
 import type { Env } from './env'
 import { ApiError } from './http'
+import { callClaudeJson, aiConfigured } from './llm'
 import { fetchDailyPulse, type PulseFeed, type PulseItem } from './dailypulse'
 
 export interface PulsePost {
@@ -145,7 +146,9 @@ export async function generatePulsePost(
   env: Env,
   input: PulseGenInput,
 ): Promise<{ post: PulsePost; fetchedAt: string }> {
-  if (!env.ANTHROPIC_API_KEY) throw new ApiError('ANTHROPIC_API_KEY is not set (see SETUP.md).', 400)
+  if (!aiConfigured(env)) {
+    throw new ApiError('No AI provider configured — set BEDROCK_API_KEY (see SETUP.md).', 400)
+  }
 
   const feed = await fetchDailyPulse(env)
   if (!feed.items.length) throw new ApiError('The Daily Pulse feed is empty right now.', 502)
@@ -163,44 +166,11 @@ export async function generatePulsePost(
     buildDigest(feed),
   ].join('\n')
 
-  const model = env.GEN_MODEL || 'claude-opus-5'
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 8000,
-      system: SYSTEM,
-      output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content: userMessage }],
-    }),
+  const post = await callClaudeJson<PulsePost>(env, {
+    system: SYSTEM,
+    user: userMessage,
+    schema: SCHEMA,
   })
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new ApiError(`Claude API error ${res.status}: ${detail.slice(0, 400)}`, 502)
-  }
-
-  const data: any = await res.json()
-  if (data.stop_reason === 'refusal') {
-    throw new ApiError('The model declined this request. Try a different focus or tone.', 422)
-  }
-  const text = (data.content || [])
-    .filter((b: any) => b.type === 'text')
-    .map((b: any) => b.text)
-    .join('')
-    .trim()
-
-  let post: PulsePost
-  try {
-    post = JSON.parse(text)
-  } catch {
-    throw new ApiError('The model did not return valid JSON. Try again.', 502)
-  }
   // Defensive defaults so the UI never crashes on a missing field.
   post.linkedin = post.linkedin || ({} as any)
   post.email = post.email || ({} as any)

@@ -8,9 +8,22 @@
 # Optional: override the feed URL (e.g. the deployed dashboard's /data/live.json, or a pinned branch).
 # DAILY_PULSE_URL=
 
-# --- AI generation (Anthropic Claude) ---
-ANTHROPIC_API_KEY=sk-ant-...
-# Optional model override (defaults to claude-opus-5)
+# --- AI generation (AWS Bedrock — preferred) ---
+# Bedrock API key, sent as `Authorization: Bearer …`. When set, generation goes
+# to Bedrock's native runtime invoke endpoint:
+#   POST https://bedrock-runtime.<region>.amazonaws.com/model/<model-id>/invoke
+BEDROCK_API_KEY=
+# The Bedrock model id / inference-profile id to invoke. Must be enabled in your
+# account/region. In us-east-1, most current models need the cross-region
+# inference-profile form (the `us.` prefix), e.g.:
+#   us.anthropic.claude-sonnet-4-5-20250929-v1:0
+BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
+# Optional region for the runtime host (defaults to us-east-1)
+# BEDROCK_REGION=us-east-1
+
+# --- AI generation (Anthropic Claude, direct) — fallback when no BEDROCK_API_KEY ---
+# ANTHROPIC_API_KEY=sk-ant-...
+# Optional model override (Anthropic direct default claude-opus-5)
 # GEN_MODEL=claude-sonnet-5
 
 # --- LinkedIn publishing (via Buffer) ---

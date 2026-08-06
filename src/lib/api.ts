@@ -33,6 +33,8 @@ export interface HealthFlags {
   dailyPulse: boolean
   images: boolean
   ai: boolean
+  /** which AI provider is wired: 'bedrock' | 'anthropic' | 'none' */
+  aiProvider: string
   linkedin: boolean
   email: boolean
   emailProvider: string
