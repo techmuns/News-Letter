@@ -53,7 +53,13 @@ export async function fetchTopicNews(env: Env, topic: string): Promise<NewsItem[
   let res: Response
   try {
     res = await fetch(url.toString(), {
-      headers: { accept: 'application/json', 'X-Api-Key': env.NEWSAPI_KEY as string },
+      headers: {
+        accept: 'application/json',
+        'X-Api-Key': env.NEWSAPI_KEY as string,
+        // NewsAPI rejects anonymous requests ("userAgentMissing") — Workers'
+        // fetch sends no default UA, so identify the app explicitly.
+        'User-Agent': 'Munshot-Content-System/1.0 (+https://munshot.io)',
+      },
     })
   } catch {
     throw new ApiError('News search failed — could not reach NewsAPI.', 502)
