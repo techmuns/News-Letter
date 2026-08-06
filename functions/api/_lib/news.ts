@@ -7,6 +7,7 @@
    or nothing recent is found (the caller turns that into a friendly message and
    never fabricates). */
 import type { Env } from './env'
+import { ApiError } from './http'
 
 export interface NewsItem {
   title: string
@@ -70,9 +71,15 @@ async function queryGoogle(env: Env, q: string, dateRestrict: string): Promise<N
   try {
     res = await fetch(url.toString(), { headers: { accept: 'application/json' } })
   } catch {
-    return []
+    throw new ApiError('News search failed — could not reach Google Custom Search.', 502)
   }
-  if (!res.ok) return []
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new ApiError(
+      `News search failed (Google API ${res.status}). Check that GOOGLE_API_KEY is valid, the "Custom Search API" is enabled for it, and the engine (GOOGLE_CSE_ID) is set to "Search the entire web". ${body.slice(0, 180)}`.trim(),
+      502,
+    )
+  }
   const data: any = await res.json().catch(() => null)
   const items: any[] = Array.isArray(data?.items) ? data.items : []
   return items
