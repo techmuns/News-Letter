@@ -75,8 +75,10 @@ async function queryGoogle(env: Env, q: string, dateRestrict: string): Promise<N
   }
   if (!res.ok) {
     const body = await res.text().catch(() => '')
+    // Include a generous slice of Google's body — its 403 names the exact
+    // project number and an enable link, which pinpoints key-vs-scope issues.
     throw new ApiError(
-      `News search failed (Google API ${res.status}). Check that GOOGLE_API_KEY is valid, the "Custom Search API" is enabled for it, and the engine (GOOGLE_CSE_ID) is set to "Search the entire web". ${body.slice(0, 180)}`.trim(),
+      `News search failed (Google API ${res.status}). Check that GOOGLE_API_KEY is valid, the "Custom Search API" is enabled for its project, and the engine (GOOGLE_CSE_ID) is set to "Search the entire web". Google response: ${body.replace(/\s+/g, ' ').slice(0, 900)}`.trim(),
       502,
     )
   }
