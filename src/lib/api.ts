@@ -14,6 +14,20 @@ export interface GeneratedContent {
   }
 }
 
+/** Daily Pulse post — style #1 caption (hook → emoji bullets → hashtags) + email. */
+export interface PulsePost {
+  focus: string
+  linkedin: { hook: string; bullets: string[]; hashtags: string[] }
+  email: {
+    subject: string
+    preheader: string
+    idea: string
+    story: string
+    takeaway: string
+    ctaLabel: string
+  }
+}
+
 export interface HealthFlags {
   ok: boolean
   dailyPulse: boolean
@@ -116,6 +130,12 @@ export const api = {
   },
   generate: (input: { sourceText: string; dashboardSnippet?: string; tone?: string }) =>
     request<{ ok: true; content: GeneratedContent }>('/generate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  /** Generate today's Daily Pulse post from the live feed (optional focus + tone). */
+  pulseGenerate: (input: { focusId?: string; tone?: string }) =>
+    request<{ ok: true; post: PulsePost; fetchedAt: string }>('/pulse-generate', {
       method: 'POST',
       body: JSON.stringify(input),
     }),

@@ -14,7 +14,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 }
 
 /** Renders the newsletter as it will land in the inbox (§3.3). */
-export function EmailPreview({ content }: { content: EmailContent }) {
+export function EmailPreview({ content, heroImage }: { content: EmailContent; heroImage?: string }) {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
@@ -49,6 +49,14 @@ export function EmailPreview({ content }: { content: EmailContent }) {
               Weekly
             </span>
           </div>
+
+          {heroImage && (
+            <img
+              src={heroImage}
+              alt="Daily Pulse summary"
+              className="mt-5 block w-full rounded-[8px] border border-[#ece9f7]"
+            />
+          )}
 
           <div className="space-y-6 pt-6">
             <Section label="The idea">{content.idea}</Section>

@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { MicroLabel } from '../components/MicroLabel'
 import { IconSparkle } from '../components/icons'
 import { api, type PulseItem, type PulseGroup, type PulseFeed, type HealthFlags } from '../lib/api'
+import { DailyPulseComposer } from './pulse/DailyPulseComposer'
 import { cn } from '../lib/cn'
 
 type GroupFilter = 'all' | PulseGroup
@@ -121,7 +122,7 @@ export function PulseSpace() {
   const [error, setError] = useState('')
   const [feed, setFeed] = useState<PulseFeed | null>(null)
   const [filter, setFilter] = useState<GroupFilter>('all')
-  const [, setHealth] = useState<HealthFlags | null>(null)
+  const [health, setHealth] = useState<HealthFlags | null>(null)
 
   async function load() {
     setLoading(true)
@@ -165,6 +166,16 @@ export function PulseSpace() {
         subtitle="The latest snapshot from your Daily Market Pulse dashboard. Pick a move that matters, then hand it to Studio to draft a branded LinkedIn post + email."
         right={<ConnDot ok={!!feed} label={freshLabel} />}
       />
+
+      {feed && <DailyPulseComposer feed={feed} health={health} />}
+
+      {feed && (
+        <div className="mb-4 mt-9 flex items-center gap-3">
+          <MicroLabel tone="violet">Today's market data</MicroLabel>
+          <span className="h-px flex-1 bg-border" />
+          <span className="micro text-text-dim">the feed your post is built from</span>
+        </div>
+      )}
 
       <Card solid className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
         <Segmented
