@@ -54,11 +54,11 @@ const INSTRUMENTS: Record<string, Meta> = {
   'i-spx': { name: 'S&P 500', group: 'index' },
   'i-nasdaq': { name: 'NASDAQ Composite', group: 'index' },
   'i-vix': { name: 'India VIX', group: 'index' },
-  // currencies
+  // currencies — non-USD pairs are converted to USD cross-rates below
   'fx-usdinr': { name: 'USD / INR', group: 'currency' },
-  'fx-eurinr': { name: 'EUR / INR', group: 'currency' },
-  'fx-jpyinr': { name: 'JPY / INR', group: 'currency' },
-  'fx-cnyinr': { name: 'CNY / INR', group: 'currency' },
+  'fx-eurinr': { name: 'EUR / USD', group: 'currency' },
+  'fx-jpyinr': { name: 'USD / JPY', group: 'currency' },
+  'fx-cnyinr': { name: 'USD / CNY', group: 'currency' },
   'fx-dxy': { name: 'Dollar Index (DXY)', group: 'currency' },
   // commodities
   'c-brent': { name: 'Brent Crude', group: 'commodity', unit: 'USD/bbl' },
@@ -118,6 +118,48 @@ function normalize(raw: any, fallbackGroup: PulseGroup): PulseItem | null {
   }
 }
 
+/** The source feed quotes FX against the rupee (INR per unit). USD is the
+    global anchor, so convert the non-USD pairs to USD cross-rates using USD/INR:
+      EUR/USD = EURINR / USDINR      (USD per EUR)
+      USD/JPY = USDINR / JPYINR      (JPY per USD)
+      USD/CNY = USDINR / CNYINR      (CNY per USD)
+    % moves use the cross-rate approximation (base%-move − quote%-move), which is
+    accurate for the small daily moves shown here. USD/INR and DXY are left as-is. */
+function toUsdCrossRates(items: PulseItem[]): PulseItem[] {
+  const usd = items.find((i) => i.id === 'fx-usdinr')
+  if (!usd || !usd.current) return items
+  const crossSpark = (base: number[], quote: number[]) =>
+    base.length && base.length === quote.length
+      ? base.map((b, i) => (quote[i] ? b / quote[i] : b))
+      : base
+  return items.map((it) => {
+    if (it.id === 'fx-eurinr' && it.current) {
+      return {
+        ...it,
+        ticker: 'EURUSD=X',
+        current: it.current / usd.current,
+        d1: it.d1 - usd.d1,
+        d5: it.d5 - usd.d5,
+        m1: it.m1 - usd.m1,
+        spark: crossSpark(it.spark, usd.spark),
+      }
+    }
+    if ((it.id === 'fx-jpyinr' || it.id === 'fx-cnyinr') && it.current) {
+      // USD/JPY and USD/CNY are quoted USD-base → invert (USDINR / XINR).
+      return {
+        ...it,
+        ticker: it.id === 'fx-jpyinr' ? 'USDJPY=X' : 'USDCNY=X',
+        current: usd.current / it.current,
+        d1: usd.d1 - it.d1,
+        d5: usd.d5 - it.d5,
+        m1: usd.m1 - it.m1,
+        spark: crossSpark(usd.spark, it.spark),
+      }
+    }
+    return it
+  })
+}
+
 /** Fetch + normalize the latest Daily Pulse snapshot. Biggest 1-day movers
     surface first within each group; groups stay in index→…→holding order. */
 export async function fetchDailyPulse(env: Env): Promise<PulseFeed> {
@@ -144,11 +186,12 @@ export async function fetchDailyPulse(env: Env): Promise<PulseFeed> {
       if (it) items.push(it)
     }
   }
-  items.sort((a, b) =>
+  const converted = toUsdCrossRates(items)
+  converted.sort((a, b) =>
     a.group !== b.group
       ? GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group)
       : Math.abs(b.d1) - Math.abs(a.d1),
   )
 
-  return { fetchedAt: String(data.fetchedAt || ''), items }
+  return { fetchedAt: String(data.fetchedAt || ''), items: converted }
 }
