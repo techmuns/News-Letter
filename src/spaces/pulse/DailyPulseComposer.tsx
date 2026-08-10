@@ -7,8 +7,6 @@ import { EmailPreview } from '../../components/preview/EmailPreview'
 import { IconSparkle, IconLinkedIn, IconEmail, IconCheck } from '../../components/icons'
 import {
   api,
-  getAppSecret,
-  setAppSecret,
   type PulsePost,
   type PulseFeed,
   type PulseItem,
@@ -52,16 +50,6 @@ function Note({ kind, children }: { kind: 'ok' | 'err'; children: React.ReactNod
     >
       {children}
     </p>
-  )
-}
-
-function StatusRow({ ok, label, hint }: { ok: boolean; label: string; hint?: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className={cn('h-2 w-2 shrink-0 rounded-full', ok ? 'bg-[#54d98c]' : 'bg-text-dim')} />
-      <span className="text-[13px] text-text-2">{label}</span>
-      {!ok && hint && <span className="text-[11px] text-text-dim">· {hint}</span>}
-    </div>
   )
 }
 
@@ -134,7 +122,6 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   const [recipientsText, setRecipientsText] = useState('')
   const [sending, setSending] = useState(false)
   const [sendNote, setSendNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [secretInput, setSecretInput] = useState(getAppSecret())
 
   const previewRef = useRef<HTMLDivElement | null>(null)
 
@@ -264,7 +251,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   async function hostedImageUrl(): Promise<{ url?: string; note: string }> {
     if (!card) return { note: '' }
     if (!health?.images) {
-      return { note: ' (text-only — add the KV STORE binding to attach the branded image)' }
+      return { note: ' (posted as text — image hosting isn’t set up)' }
     }
     try {
       const { url } = await api.uploadImage(card.blob)
@@ -385,17 +372,6 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       <Card solid className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <MicroLabel tone="violet">Compose today's Daily Pulse post</MicroLabel>
-          {health && (
-            <div className="flex flex-wrap gap-x-5 gap-y-1">
-              <StatusRow
-                ok={!!health.ai}
-                label={health.aiProvider && health.aiProvider !== 'none' ? `AI · ${health.aiProvider}` : 'AI'}
-                hint="BEDROCK_API_KEY"
-              />
-              <StatusRow ok={!!health.linkedin} label="LinkedIn" hint="Buffer" />
-              <StatusRow ok={!!health.email} label="Email" hint="provider" />
-            </div>
-          )}
         </div>
 
         {/* mode: market feed vs a news topic */}
@@ -529,33 +505,12 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
         </div>
         {genError && <Note kind="err">{genError}</Note>}
         {!!health && !health.ai && (
-          <p className="mt-2 text-[11.5px] text-text-dim">
-            Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
-          </p>
+          <p className="mt-2 text-[11.5px] text-text-dim">Generation isn’t available right now.</p>
         )}
         {mode === 'topic' && !!health && health.ai && !health.topicNews && (
           <p className="mt-2 text-[11.5px] text-text-dim">
-            Topic mode needs <code>NEWSAPI_KEY</code> (SETUP.md) — a NewsAPI.org key for recent-news
-            lookup.
+            Topic mode isn’t available right now — try Market mode.
           </p>
-        )}
-
-        {health?.authRequired && (
-          <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-border pt-3">
-            <div className="min-w-[220px] flex-1">
-              <Label>App secret (required to publish / send)</Label>
-              <input
-                className={inputCls}
-                type="password"
-                placeholder="paste the APP_SECRET you set"
-                value={secretInput}
-                onChange={(e) => setSecretInput(e.target.value)}
-              />
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setAppSecret(secretInput.trim())}>
-              Save secret
-            </Button>
-          </div>
         )}
       </Card>
 
@@ -656,8 +611,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
               </div>
               {!!health && !health.linkedin && (
                 <p className="text-[11.5px] text-text-dim">
-                  Connect Buffer to publish — add <code>BUFFER_ACCESS_TOKEN</code> and{' '}
-                  <code>BUFFER_LINKEDIN_CHANNEL_ID</code> (SETUP.md). Meanwhile, use “Copy text”.
+                  LinkedIn publishing isn’t connected yet — use “Copy text” to post manually.
                 </p>
               )}
               {publishNote && <Note kind={publishNote.kind}>{publishNote.text}</Note>}
@@ -746,8 +700,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
               </div>
               {!!health && !health.email && (
                 <p className="text-[11.5px] text-text-dim">
-                  Connect an email provider to send — add the provider key and <code>EMAIL_FROM</code>{' '}
-                  (SETUP.md).
+                  Email sending isn’t connected yet.
                 </p>
               )}
               {sendNote && <Note kind={sendNote.kind}>{sendNote.text}</Note>}

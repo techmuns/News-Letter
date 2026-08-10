@@ -2,9 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { PulseSpace } from './spaces/PulseSpace'
 import { StudioSpace } from './spaces/StudioSpace'
-import { LinkedInSpace } from './spaces/LinkedInSpace'
-import { EmailSpace } from './spaces/EmailSpace'
-import { ArticlesSpace } from './spaces/ArticlesSpace'
+import { ChannelsSpace } from './spaces/ChannelsSpace'
 
 export default function App() {
   return (
@@ -14,12 +12,11 @@ export default function App() {
         <Route path="/studio" element={<StudioSpace />} />
         {/* Workspace merged into Studio — its old home now lands there. */}
         <Route path="/" element={<Navigate to="/studio" replace />} />
-        <Route path="/linkedin" element={<LinkedInSpace />} />
-        <Route path="/linkedin/:campaignId" element={<LinkedInSpace />} />
-        <Route path="/email" element={<EmailSpace />} />
-        <Route path="/email/:campaignId" element={<EmailSpace />} />
-        <Route path="/articles" element={<ArticlesSpace />} />
-        <Route path="/articles/:campaignId" element={<ArticlesSpace />} />
+        {/* LinkedIn / Email / Articles are now sub-tabs of one Channels view. */}
+        <Route path="/channels" element={<ChannelsSpace />} />
+        <Route path="/linkedin/*" element={<Navigate to="/channels" replace />} />
+        <Route path="/email/*" element={<Navigate to="/channels" replace />} />
+        <Route path="/articles/*" element={<Navigate to="/channels" replace />} />
         <Route path="*" element={<Navigate to="/studio" replace />} />
       </Route>
     </Routes>

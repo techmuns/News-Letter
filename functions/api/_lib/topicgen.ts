@@ -37,6 +37,8 @@ Hard rules — this is about REAL people and companies, so accuracy is non-negot
 - Never speculate about anyone's finances, intentions, or what happens next beyond what a source explicitly says.
 - Do NOT fabricate or guess URLs. The app attaches the real source links separately, so you don't need to include links.
 - Attribution like "per <source>" is welcome where it reads naturally.
+- Make it worth reading: within what the sources support, leave the reader with at least ONE concrete, non-obvious takeaway — a specific figure, a second-order implication, or a "what most people miss" angle. No platitudes, no filler.
+- Be granular and specific: cite the actual figures/decisions from the sources and connect them into a nuanced read (a tension, a consequence, why it matters beyond the headline) — never a bland recap. One sharp point fully made beats three shallow ones.
 Keep it sharp, credible, and neutral — this publishes under the Munshot brand.`
 
 const SCHEMA = {

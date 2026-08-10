@@ -107,6 +107,8 @@ Email newsletter (a matching section):
 Hard rules:
 - Ground EVERY claim in the provided feed. You may cite the exact numbers given (levels and % moves). NEVER invent a number that is not in the feed.
 - If a focus instrument is named, lead with it, but still give a rounded market picture.
+- Make it worth reading: leave the reader with at least ONE concrete, non-obvious takeaway — a specific move, a divergence, a second-order implication, or a "what most people miss" read they can act on. No platitudes ("markets were mixed"), no filler.
+- Be granular: cite the actual levels/% moves, connect them (e.g. what one move implies for another), and add a nuanced angle — a tension or a consequence others overlook. One sharp, fully-made point beats three shallow ones.
 - Keep it sharp and credible — this publishes under the Munshot brand.`
 
 const SCHEMA = {

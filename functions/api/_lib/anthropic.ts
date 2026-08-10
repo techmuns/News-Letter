@@ -35,6 +35,8 @@ Rules:
 - headline: a punchy 3-8 word phrase for the branded graphic card.
 - Email: a compelling, non-clickbait subject; a one-line preheader; then three short sections — idea (the core insight), story (why it matters now, grounded in the data point if one is given), takeaway (the one thing to do or remember). Plus a short CTA label pointing to Munshot.
 - Ground every claim in the provided source/data. Never invent specific numbers that were not given. If a data point is provided, feature it prominently.
+- Make it worth reading: the post MUST leave the reader with at least ONE concrete, non-obvious takeaway they can act on or remember — a specific figure, a second-order implication, or a "what most people miss" insight. No platitudes, no filler lines.
+- Be granular and specific. Name the actual numbers, mechanisms, and details rather than gesturing at them ("this matters" is not analysis). Prefer one sharp, fully-argued point over three shallow ones. Add a nuanced angle — a tension, a counter-intuitive read, or a consequence others overlook.
 - Match the requested tone. Keep it credible and sharp — this publishes under the Munshot brand.`
 
 // JSON Schema for structured output. Note: structured outputs disallow
