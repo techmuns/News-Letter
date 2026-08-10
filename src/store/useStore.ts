@@ -7,15 +7,30 @@ import {
   type WorkspaceItem,
   type WorkspaceItemType,
 } from '../types'
-import {
-  SEED_ITEMS,
-  SEED_CAMPAIGNS,
-  GENERATABLE,
-  PROMOTIONS,
-} from '../data/mockData'
+import { GENERATABLE, PROMOTIONS } from '../data/mockData'
 
 function uid(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+/** A real generation from Daily Pulse / Studio, normalized before it becomes a
+    Campaign in the history the channel spaces render. */
+export interface GeneratedRecord {
+  name: string
+  topic: string
+  headline: string
+  body: string
+  email: {
+    subject: string
+    preheader: string
+    idea: string
+    story: string
+    takeaway: string
+    ctaLabel: string
+  }
+  heroImage?: string
+  /** where it came from, e.g. "Studio" or "Daily Pulse · Topic" */
+  source?: string
 }
 
 /** Guess a workspace item type from a (mock) filename. */
@@ -47,6 +62,11 @@ interface StoreState {
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
   turnIntoContent: (itemIds: string[]) => string
 
+  /** Record a REAL generation (Daily Pulse / Studio) into the channel history. */
+  recordGeneration: (input: GeneratedRecord) => string
+  /** Attach the branded image to a recorded generation once it's rendered. */
+  setHeroImage: (campaignId: string, dataUrl: string) => void
+
   // --- Campaign / channel actions ---
   /** Approve one channel → it moves to Ready and distributes to its space. */
   approveChannel: (campaignId: string, kind: ChannelKind) => void
@@ -62,8 +82,8 @@ interface StoreState {
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
-      items: SEED_ITEMS,
-      campaigns: SEED_CAMPAIGNS,
+      items: [],
+      campaigns: [],
       genIndex: 0,
       lastGeneratedId: null,
 
@@ -146,6 +166,78 @@ export const useStore = create<StoreState>()(
         return id
       },
 
+      recordGeneration: (input) => {
+        const id = uid('gen')
+        const now = new Date().toISOString()
+        const words = input.body.split(/\s+/).filter(Boolean).length
+        const campaign: Campaign = {
+          id,
+          name: input.name || input.topic || 'Untitled',
+          topic: input.topic || input.name || '',
+          createdAt: now,
+          sourceItemIds: [],
+          heroImage: input.heroImage,
+          linkedin: {
+            kind: 'linkedin',
+            status: 'Draft',
+            edited: false,
+            content: {
+              authorName: 'Munshot',
+              authorHandle: `Munshot Intelligence · ${input.source || 'Studio'}`,
+              authorAvatar: 'M',
+              headline: input.headline,
+              body: input.body,
+              reactions: 0,
+              comments: 0,
+              reposts: 0,
+            },
+          },
+          email: {
+            kind: 'email',
+            status: 'Draft',
+            edited: false,
+            content: {
+              subject: input.email.subject,
+              from: 'Munshot Intelligence',
+              preheader: input.email.preheader,
+              idea: input.email.idea,
+              story: input.email.story,
+              takeaway: input.email.takeaway,
+              ctaLabel: input.email.ctaLabel,
+            },
+          },
+          // The long-form version is assembled from the same generation.
+          article: {
+            kind: 'article',
+            status: 'Draft',
+            edited: false,
+            content: {
+              title: input.name || input.topic || 'Untitled',
+              deck: input.email.preheader,
+              hero: '📊',
+              readMinutes: Math.max(2, Math.round(words / 180)),
+              sections: [
+                { heading: 'The idea', body: input.email.idea },
+                { heading: 'The story', body: input.email.story },
+                { heading: 'The takeaway', body: input.email.takeaway },
+              ],
+              ctaTitle: 'From Munshot Intelligence',
+              ctaBody: 'Turn market moves into decision-ready insight.',
+              ctaLabel: input.email.ctaLabel,
+            },
+          },
+        }
+        set((s) => ({ campaigns: [campaign, ...s.campaigns].slice(0, 50), lastGeneratedId: id }))
+        return id
+      },
+
+      setHeroImage: (campaignId, dataUrl) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId ? { ...c, heroImage: dataUrl } : c,
+          ),
+        })),
+
       approveChannel: (campaignId, kind) =>
         set((s) => ({
           campaigns: s.campaigns.map((c) =>
@@ -218,17 +310,17 @@ export const useStore = create<StoreState>()(
     }),
     {
       name: 'munshot-content-store',
-      version: 3,
+      version: 4,
       partialize: (s) => ({
         items: s.items,
         campaigns: s.campaigns,
         genIndex: s.genIndex,
       }),
-      // Schema changed (images, headlines, approval) — reset older stores to the
-      // fresh seed rather than trying to backfill missing fields.
+      // The channel spaces now show REAL generated history, not demo campaigns —
+      // drop any previously-seeded store so the fake examples don't linger.
       migrate: () => ({
-        items: SEED_ITEMS,
-        campaigns: SEED_CAMPAIGNS,
+        items: [],
+        campaigns: [],
         genIndex: 0,
       }),
       // Clear any in-flight processing flags that were persisted mid-action.

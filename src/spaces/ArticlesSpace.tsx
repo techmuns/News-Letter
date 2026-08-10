@@ -21,6 +21,12 @@ export function ArticlesSpace() {
   const list = (
     <div className="flex flex-col gap-3">
       <MicroLabel>Drafts</MicroLabel>
+      {campaigns.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] leading-relaxed text-text-muted">
+          No articles yet. Each post you generate in <strong>Studio</strong> or{' '}
+          <strong>Daily Pulse</strong> gets a long-form draft here, built from the same source.
+        </p>
+      )}
       {campaigns.map((c) => (
         <ChannelListRow
           key={c.id}
@@ -49,9 +55,9 @@ export function ArticlesSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="04"
+        eyebrow="03"
         title="Articles"
-        subtitle="The long-form version of each campaign. Click to read the draft."
+        subtitle="The long-form version of each post you generate, assembled from the same source. Click to read the draft."
       />
       <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
     </div>
