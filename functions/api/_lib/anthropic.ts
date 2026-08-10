@@ -3,12 +3,14 @@
    point) into a short, high-engagement LinkedIn post and a matching email. */
 import type { Env } from './env'
 import { ApiError } from './http'
-import { callClaudeJson, aiConfigured } from './llm'
+import { callClaudeJson, aiConfigured, type ImageInput } from './llm'
 
 export interface GenerateInput {
   sourceText: string
   dashboardSnippet?: string
   tone?: string
+  /** Attached screenshots/charts (base64) to read as source material. */
+  images?: ImageInput[]
 }
 
 export interface GeneratedContent {
@@ -74,11 +76,20 @@ export async function generateContent(env: Env, input: GenerateInput): Promise<G
     throw new ApiError('No AI provider configured — set BEDROCK_API_KEY (see SETUP.md).', 400)
   }
 
+  const hasImages = Array.isArray(input.images) && input.images.length > 0
+  const sourceText = (input.sourceText || '').trim()
+  if (!sourceText && !hasImages) {
+    throw new ApiError('Add at least one note, document, or screenshot to generate from.', 400)
+  }
+
   const userMessage = [
     `TONE: ${input.tone || 'sharp, credible, insightful'}`,
     '',
-    'SOURCE (the standout finance post / notes to riff on):',
-    input.sourceText.trim(),
+    'SOURCE MATERIAL (notes / posts / documents to riff on — these are the raw pile items selected):',
+    sourceText || '(No pasted text — read the attached screenshot(s) below as the source.)',
+    hasImages
+      ? `\nATTACHED IMAGES: ${input.images!.length} screenshot(s)/chart(s) are attached. Read them and use what they actually show as source material — quote figures/labels visible in them, and never invent numbers that are not shown.`
+      : '',
     input.dashboardSnippet && input.dashboardSnippet.trim()
       ? `\nMUNSHOT DASHBOARD DATA POINT (feature this):\n${input.dashboardSnippet.trim()}`
       : '\n(No specific dashboard data point provided — keep claims qualitative and do not invent numbers.)',
@@ -87,6 +98,7 @@ export async function generateContent(env: Env, input: GenerateInput): Promise<G
   const parsed = await callClaudeJson<GeneratedContent>(env, {
     system: SYSTEM,
     user: userMessage,
+    images: input.images,
     schema: SCHEMA,
   })
   // Defensive defaults so the UI never crashes on a missing field.

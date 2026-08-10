@@ -7,6 +7,7 @@
 import { configuredFlags, type Env as ApiEnv } from '../functions/api/_lib/env'
 import { checkAuth, guard, json, preflight, readJson, type Ctx } from '../functions/api/_lib/http'
 import { generateContent } from '../functions/api/_lib/anthropic'
+import { sanitizeImages } from '../functions/api/_lib/llm'
 import { generatePulsePost } from '../functions/api/_lib/pulsegen'
 import { generateTopicPost } from '../functions/api/_lib/topicgen'
 import { publishToBuffer, listBufferChannels } from '../functions/api/_lib/buffer'
@@ -78,13 +79,16 @@ export default {
 
       if (pathname === '/api/generate') {
         return guard(async () => {
-          if (!body?.sourceText || !String(body.sourceText).trim()) {
-            return json({ error: 'sourceText is required.' }, 400)
+          const images = sanitizeImages(body?.images)
+          const sourceText = body?.sourceText ? String(body.sourceText) : ''
+          if (!sourceText.trim() && images.length === 0) {
+            return json({ error: 'Provide sourceText or at least one image.' }, 400)
           }
           const content = await generateContent(env, {
-            sourceText: String(body.sourceText),
+            sourceText,
             dashboardSnippet: body.dashboardSnippet ? String(body.dashboardSnippet) : undefined,
             tone: body.tone ? String(body.tone) : undefined,
+            images,
           })
           return json({ ok: true, content })
         })
