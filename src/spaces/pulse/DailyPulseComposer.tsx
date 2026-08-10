@@ -103,12 +103,17 @@ function composeCaption(post: PulsePost): string {
 
 export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: HealthFlags | null }) {
   const [mode, setMode] = useState<'market' | 'topic'>('market')
-  const [focusId, setFocusId] = useState('')
+  const [focusText, setFocusText] = useState('')
   const [topic, setTopic] = useState('')
   const [tone, setTone] = useState(TONES[0])
   const [imageStyle, setImageStyle] = useState<PulseImageStyle>('gainers')
 
   const [post, setPost] = useState<PulsePost | null>(null)
+  /** What the current preview was actually built from — the market feed vs.
+      news. In Market mode, typing a company that isn't in the feed auto-routes
+      to the news-grounded path, so the previews must follow the RESULT, not the
+      selected input mode. */
+  const [resultKind, setResultKind] = useState<'market' | 'topic'>('market')
   const [sources, setSources] = useState<NewsItem[]>([])
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
@@ -134,6 +139,16 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     return groups
   }, [feed])
 
+  /** Does the typed focus resolve to a tracked feed instrument? If not (and it's
+      non-empty), Market generation auto-routes to the news-grounded path. */
+  const focusMatch = useMemo(() => {
+    const q = focusText.trim().toLowerCase()
+    if (!q) return null
+    return (
+      feed.items.find((it) => it.name.toLowerCase() === q || it.ticker.toLowerCase() === q) || null
+    )
+  }, [focusText, feed])
+
   // Render the branded image whenever a post exists. Market mode → a data card
   // (gainers/losers or index board); Topic mode → the branded headline card.
   useEffect(() => {
@@ -143,19 +158,19 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     }
     let cancelled = false
     const render =
-      mode === 'topic'
+      resultKind === 'topic'
         ? renderBrandedCard({ headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, topic: post.focus })
         : renderPulseImage(imageStyle, feed.items, { dateLabel: dateLabelFrom(feed.fetchedAt) })
     render.then((c) => !cancelled && setCard(c)).catch(() => !cancelled && setCard(null))
     return () => {
       cancelled = true
     }
-  }, [post, mode, imageStyle, feed])
+  }, [post, resultKind, imageStyle, feed])
 
   const caption = useMemo(() => {
     if (!post) return ''
     const base = composeCaption(post)
-    if (mode === 'topic' && sources.length) {
+    if (resultKind === 'topic' && sources.length) {
       const links = sources
         .slice(0, 3)
         .filter((s) => s.link)
@@ -164,7 +179,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       return links ? `${base}\n\nSources:\n${links}` : base
     }
     return base
-  }, [post, mode, sources])
+  }, [post, resultKind, sources])
 
   function patchLinkedIn(p: Partial<PulsePost['linkedin']>) {
     setPost((d) => (d ? { ...d, linkedin: { ...d.linkedin, ...p } } : d))
@@ -184,11 +199,23 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       if (mode === 'topic') {
         const { post: p, sources: s } = await api.topicGenerate({ topic: topic.trim(), tone })
         setSources(s)
+        setResultKind('topic')
         setPost(p)
       } else {
-        const { post: p } = await api.pulseGenerate({ focusId: focusId || undefined, tone })
-        setSources([])
-        setPost(p)
+        const q = focusText.trim()
+        if (q && !focusMatch) {
+          // A company that isn't in the market feed → ground it in real news,
+          // same engine as Topic mode (real sources, no fabrication).
+          const { post: p, sources: s } = await api.topicGenerate({ topic: q, tone })
+          setSources(s)
+          setResultKind('topic')
+          setPost(p)
+        } else {
+          const { post: p } = await api.pulseGenerate({ focusId: focusMatch?.id, tone })
+          setSources([])
+          setResultKind('market')
+          setPost(p)
+        }
       }
       // jump to the preview once it's ready
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
@@ -246,7 +273,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       const { url } = await hostedImageUrl()
       const html = buildEmailHtml(post.email, {
         heroImageUrl: url,
-        sources: mode === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined,
+        sources: resultKind === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined,
       })
       const recipients = recipientsText
         .split(/[\n,;]+/)
@@ -351,7 +378,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
               }}
               className={cn(
                 'rounded-md px-4 py-1.5 text-[13px] font-medium transition-colors',
-                mode === o.v ? 'bg-[rgba(157,140,245,0.16)] text-violet' : 'text-text-muted hover:text-text-2',
+                mode === o.v ? 'chip-active' : 'text-text-muted hover:text-text-2',
               )}
             >
               {o.label}
@@ -363,25 +390,24 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
           {mode === 'market' ? (
             <>
               <div className="sm:col-span-2">
-                <Label>Focus</Label>
-                <select
-                  className={cn(inputCls, 'appearance-none')}
-                  value={focusId}
-                  onChange={(e) => setFocusId(e.target.value)}
-                >
-                  <option value="" className="bg-surface-solid">
-                    Auto — whole-market wrap
-                  </option>
-                  {focusOptions.map(({ group, items }) => (
-                    <optgroup key={group} label={GROUP_LABEL[group]}>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id} className="bg-surface-solid">
-                          {it.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <Label>Focus — pick a tracked instrument, or type any company</Label>
+                <input
+                  className={inputCls}
+                  list="pulse-focus-options"
+                  placeholder="Auto — whole-market wrap"
+                  value={focusText}
+                  onChange={(e) => setFocusText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleGenerate()
+                  }}
+                />
+                <datalist id="pulse-focus-options">
+                  {focusOptions.map(({ group, items }) =>
+                    items.map((it) => (
+                      <option key={it.id} value={it.name} label={GROUP_LABEL[group]} />
+                    )),
+                  )}
+                </datalist>
               </div>
               {toneSelect}
               <div>
@@ -399,7 +425,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
                       className={cn(
                         'flex-1 rounded-md px-2 py-1.5 text-[12.5px] font-medium transition-colors',
                         imageStyle === o.v
-                          ? 'bg-[rgba(157,140,245,0.16)] text-violet'
+                          ? 'chip-active'
                           : 'text-text-muted hover:text-text-2',
                       )}
                     >
@@ -454,7 +480,11 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
               ? topic.trim()
                 ? `Fetches recent news for “${topic.trim()}” → grounds the post in the sources`
                 : 'Type a company, person, or news theme'
-              : `Uses today's feed (${feed.items.length} instruments) · ${focusId ? 'focused' : 'auto wrap'}`}
+              : focusText.trim()
+                ? focusMatch
+                  ? `Focused on ${focusMatch.name} → built from today's market feed`
+                  : `“${focusText.trim()}” isn't in the feed → fetches recent news + real sources`
+                : `Uses today's feed (${feed.items.length} instruments) · auto wrap`}
           </span>
         </div>
         {genError && <Note kind="err">{genError}</Note>}
@@ -501,7 +531,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
 
             <LinkedInPost content={liPreview} image={card?.dataUrl} topic={post.focus} plainImage />
 
-            {mode === 'topic' && sources.length > 0 && (
+            {resultKind === 'topic' && sources.length > 0 && (
               <div className="mt-3 rounded-lg border border-border bg-[rgba(255,255,255,0.02)] p-3">
                 <MicroLabel className="mb-2 block text-text-muted">
                   Grounded in {sources.length} source{sources.length > 1 ? 's' : ''}
@@ -564,7 +594,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
                 {card && (
                   <a
                     href={card.dataUrl}
-                    download={`daily-pulse-${mode === 'topic' ? 'topic' : imageStyle}.png`}
+                    download={`daily-pulse-${resultKind === 'topic' ? 'topic' : imageStyle}.png`}
                     className="inline-flex h-[38px] items-center rounded-lg border border-border px-3 text-[13px] text-text-2 hover:border-violet hover:text-text"
                   >
                     Download image
@@ -604,7 +634,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
             <EmailPreview
               content={emailPreview}
               heroImage={card?.dataUrl}
-              sources={mode === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined}
+              sources={resultKind === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined}
             />
 
             <div className="mt-4 space-y-3">

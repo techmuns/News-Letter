@@ -25,8 +25,8 @@ export function Card({
       className={cn(
         'rounded-card',
         solid
-          ? 'bg-surface-solid border border-border'
-          : 'glass shadow-[0_2px_12px_-6px_rgba(0,0,0,0.45)]',
+          ? 'bg-surface-solid border border-border shadow-[0_18px_46px_-24px_rgba(0,0,0,0.75),0_0_40px_-18px_rgba(224,60,140,0.14)]'
+          : 'glass shadow-[0_20px_50px_-24px_rgba(0,0,0,0.75),0_0_40px_-16px_rgba(224,60,140,0.14)]',
         active && 'glow-active',
         interactive &&
           'cursor-pointer transition-all duration-[350ms] ease-premium hover:border-border-strong',
