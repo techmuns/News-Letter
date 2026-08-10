@@ -52,6 +52,11 @@ export interface Env {
       endpoint. A keyword returns real, recent articles across sources. */
   NEWSAPI_KEY?: string
 
+  // --- Stock/company search (Munshot backend) ---
+  /** Bearer token for the Munshot stock-search API (devde.muns.io/stock/search),
+      proxied server-side by /api/stock-search. */
+  MUNS_ACCESS_TOKEN?: string
+
   // --- LinkedIn publishing, via Buffer's GraphQL API ---
   /** Personal access token from https://publish.buffer.com/settings/api */
   BUFFER_ACCESS_TOKEN?: string
@@ -95,6 +100,8 @@ export function configuredFlags(env: Env) {
     aiProvider,
     /** Topic mode (recent-news lookup) is wired — NewsAPI key set */
     topicNews: Boolean(env.NEWSAPI_KEY),
+    /** Live stock/company search is wired — Munshot token set */
+    stockSearch: Boolean(env.MUNS_ACCESS_TOKEN),
     linkedin: Boolean(env.BUFFER_ACCESS_TOKEN && env.BUFFER_LINKEDIN_CHANNEL_ID),
     email: Boolean(emailKey && env.EMAIL_FROM),
     emailProvider: provider,

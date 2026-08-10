@@ -9,6 +9,7 @@ import { checkAuth, guard, json, preflight, readJson, type Ctx } from '../functi
 import { generateContent } from '../functions/api/_lib/anthropic'
 import { sanitizeImages } from '../functions/api/_lib/llm'
 import { generateArticle } from '../functions/api/_lib/articlegen'
+import { searchStocks } from '../functions/api/_lib/stocksearch'
 import { generatePulsePost } from '../functions/api/_lib/pulsegen'
 import { generateTopicPost } from '../functions/api/_lib/topicgen'
 import { publishToBuffer, listBufferChannels } from '../functions/api/_lib/buffer'
@@ -77,6 +78,13 @@ export default {
       }
 
       const body = await readJson(request)
+
+      if (pathname === '/api/stock-search') {
+        return guard(async () => {
+          const out = await searchStocks(env, body?.query ? String(body.query) : '')
+          return json({ ok: true, ...out })
+        })
+      }
 
       if (pathname === '/api/generate') {
         return guard(async () => {

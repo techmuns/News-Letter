@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { type PulseItem } from '../../lib/api'
+import { api, type PulseItem, type StockResult } from '../../lib/api'
 import { IconSparkle } from '../../components/icons'
 import { cn } from '../../lib/cn'
 
@@ -8,9 +8,10 @@ export interface FocusGroup {
   items: PulseItem[]
 }
 
-/** A professional focus picker: click to open a styled, grouped, searchable
-    dropdown of tracked instruments — or type any company, which routes to a
-    news-grounded post. Replaces the unstyled native <datalist>. */
+/** A professional focus picker: click to open a styled, grouped dropdown of
+    tracked instruments — or search the live company database (Munshot) and pick
+    any listed stock, which routes to a news-grounded post. Replaces the unstyled
+    native <datalist>. */
 export function FocusCombobox({
   value,
   onChange,
@@ -24,6 +25,8 @@ export function FocusCombobox({
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [stocks, setStocks] = useState<StockResult[]>([])
+  const [searching, setSearching] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -48,7 +51,40 @@ export function FocusCombobox({
     if (open) setTimeout(() => searchRef.current?.focus(), 20)
   }, [open])
 
-  const q = query.trim().toLowerCase()
+  const trimmed = query.trim()
+  const q = trimmed.toLowerCase()
+
+  // debounced live company search
+  useEffect(() => {
+    if (trimmed.length < 2) {
+      setStocks([])
+      setSearching(false)
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    const t = setTimeout(() => {
+      api
+        .stockSearch(trimmed)
+        .then((r) => {
+          if (!cancelled) {
+            setStocks(r.results || [])
+            setSearching(false)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setStocks([])
+            setSearching(false)
+          }
+        })
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [trimmed])
+
   const filtered = useMemo(
     () =>
       groups
@@ -70,8 +106,11 @@ export function FocusCombobox({
   function pick(v: string) {
     onChange(v)
     setQuery('')
+    setStocks([])
     setOpen(false)
   }
+
+  const showFreeText = trimmed.length >= 2 && !exactMatch && !searching && stocks.length === 0
 
   return (
     <div ref={rootRef} className="relative">
@@ -106,18 +145,18 @@ export function FocusCombobox({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && q && !exactMatch) {
+                if (e.key === 'Enter' && trimmed && !exactMatch && stocks.length === 0) {
                   e.preventDefault()
-                  pick(query.trim())
+                  pick(trimmed)
                 }
               }}
-              placeholder="Search instruments, or type any company…"
+              placeholder="Search any company or instrument…"
               className="w-full rounded-md border border-border bg-[rgba(255,255,255,0.02)] px-2.5 py-1.5 text-[13px] text-text placeholder:text-text-dim focus:outline-none focus-violet"
             />
           </div>
 
-          <div className="max-h-[300px] overflow-y-auto py-1">
-            {!q && (
+          <div className="max-h-[320px] overflow-y-auto py-1">
+            {!trimmed && (
               <button
                 type="button"
                 onClick={() => pick('')}
@@ -130,6 +169,7 @@ export function FocusCombobox({
               </button>
             )}
 
+            {/* tracked instruments (live market data) */}
             {filtered.map((g) => (
               <div key={g.label} className="py-0.5">
                 <div className="micro px-3 pb-1 pt-1.5 text-text-dim">{g.label}</div>
@@ -150,23 +190,45 @@ export function FocusCombobox({
               </div>
             ))}
 
-            {q && !exactMatch && (
+            {/* live company search */}
+            {trimmed.length >= 2 && (
+              <div className="py-0.5">
+                <div className="micro flex items-center gap-2 px-3 pb-1 pt-1.5 text-text-dim">
+                  Companies
+                  {searching && <span className="text-text-dim">· searching…</span>}
+                </div>
+                {stocks.map((s) => (
+                  <button
+                    key={s.symbol}
+                    type="button"
+                    onClick={() => pick(s.name)}
+                    className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left transition-colors hover:bg-[rgba(255,255,255,0.04)]"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13.5px] text-text-2">{s.name}</span>
+                      <span className="block truncate text-[11px] text-text-dim">
+                        {[s.country, s.sector].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[11px] text-text-dim">{s.symbol}</span>
+                  </button>
+                ))}
+                {!searching && stocks.length === 0 && !exactMatch && (
+                  <p className="px-3 py-1 text-[11.5px] text-text-dim">No matching companies.</p>
+                )}
+              </div>
+            )}
+
+            {/* free-text fallback → news-grounded post */}
+            {showFreeText && (
               <button
                 type="button"
-                onClick={() => pick(query.trim())}
+                onClick={() => pick(trimmed)}
                 className="flex w-full items-center gap-2 border-t border-border px-3 py-2.5 text-left text-[13px] text-violet transition-colors hover:bg-[rgba(255,255,255,0.04)]"
               >
                 <IconSparkle size={14} />
-                <span className="truncate">
-                  Generate a news post for “{query.trim()}”
-                </span>
+                <span className="truncate">Generate a news post for “{trimmed}”</span>
               </button>
-            )}
-
-            {q && filtered.length === 0 && !exactMatch && (
-              <p className="px-3 pb-1 pt-0.5 text-[11.5px] text-text-dim">
-                Not in your feed — we’ll pull recent news for it instead.
-              </p>
             )}
           </div>
         </div>
