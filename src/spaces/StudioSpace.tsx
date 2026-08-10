@@ -52,7 +52,7 @@ function Note({ kind, children }: { kind: 'ok' | 'err'; children: React.ReactNod
 function KindBadge({ kind }: { kind: StudioItem['kind'] }) {
   const label = kind === 'pdf' ? 'PDF' : kind === 'image' ? 'IMG' : kind === 'post' ? 'POST' : 'NOTE'
   return (
-    <span className="micro rounded bg-[rgba(238,108,180,0.14)] px-1.5 py-0.5 text-violet">
+    <span className="micro rounded bg-[rgba(160,140,220,0.14)] px-1.5 py-0.5 text-violet">
       {label}
     </span>
   )
@@ -88,7 +88,7 @@ function PileCard({
             selected ? 'border-transparent bg-white' : 'border-border-strong',
           )}
         >
-          {selected && <IconCheck size={12} className="text-[#7a1e52]" />}
+          {selected && <IconCheck size={12} className="text-[#3c3167]" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

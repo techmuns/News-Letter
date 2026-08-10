@@ -6,7 +6,7 @@ export function ProductMark({ compact = false }: { compact?: boolean }) {
     <div className="flex items-center gap-2.5 select-none">
       <span className="relative grid h-8 w-8 place-items-center shrink-0">
         <span className="absolute inset-0 rounded-lg border border-glow shadow-glow" />
-        <span className="h-2.5 w-2.5 rounded-full bg-violet shadow-[0_0_10px_rgba(238,108,180,0.9)]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-violet shadow-[0_0_10px_rgba(170,150,235,0.85)]" />
       </span>
       {!compact && (
         <span className="flex flex-col leading-none">
