@@ -1,28 +1,26 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore'
-import { ROUTES, channelPath } from '../lib/routes'
-import { useMediaQuery } from '../lib/useMediaQuery'
-import { type Campaign, channelApproved } from '../types'
-import { api, type HealthFlags } from '../lib/api'
-import { PageHeader } from '../components/PageHeader'
-import { MicroLabel } from '../components/MicroLabel'
-import { Button } from '../components/Button'
-import { IconSparkle } from '../components/icons'
-import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
-import { ChannelListRow } from '../components/ChannelListRow'
-import { PreviewShell } from '../components/preview/PreviewShell'
-import { ArticlePreview } from '../components/preview/ArticlePreview'
+import { useStore } from '../../store/useStore'
+import { useMediaQuery } from '../../lib/useMediaQuery'
+import { type Campaign, channelApproved } from '../../types'
+import { api, type HealthFlags } from '../../lib/api'
+import { MicroLabel } from '../../components/MicroLabel'
+import { Button } from '../../components/Button'
+import { IconSparkle } from '../../components/icons'
+import { SplitLayout, PreviewEmpty } from '../../components/SplitLayout'
+import { ChannelListRow } from '../../components/ChannelListRow'
+import { PreviewShell } from '../../components/preview/PreviewShell'
+import { ArticlePreview } from '../../components/preview/ArticlePreview'
 
-export function ArticlesSpace() {
+/** Article history — a long-form draft per generation, on-demand upgradable to
+    a full AI-written piece. */
+export function ArticlesPanel() {
   const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.article))
-  const { campaignId } = useParams()
-  const navigate = useNavigate()
-  const isDesktop = useMediaQuery('(min-width: 1024px)')
-  const selected = campaigns.find((c) => c.id === campaignId) ?? null
-  const previewCampaign = selected ?? (isDesktop ? campaigns[0] ?? null : null)
-
   const setArticleContent = useStore((s) => s.setArticleContent)
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const previewCampaign =
+    campaigns.find((c) => c.id === selectedId) ?? (isDesktop ? campaigns[0] ?? null : null)
+
   const [health, setHealth] = useState<HealthFlags | null>(null)
   const [writingId, setWritingId] = useState<string | null>(null)
   const [writeErr, setWriteErr] = useState('')
@@ -69,14 +67,14 @@ export function ArticlesSpace() {
           kind="article"
           active={c.id === previewCampaign?.id}
           snippet={c.article.content.deck}
-          onClick={() => navigate(channelPath('article', c.id))}
+          onClick={() => setSelectedId(c.id)}
         />
       ))}
     </div>
   )
 
   const preview = previewCampaign ? (
-    <PreviewShell campaign={previewCampaign} kind="article" onBack={() => navigate(ROUTES.articles)}>
+    <PreviewShell campaign={previewCampaign} kind="article" onBack={() => setSelectedId(null)}>
       {!previewCampaign.article.edited && (
         <div className="mb-4 rounded-xl border border-border bg-[rgba(255,255,255,0.02)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -95,11 +93,6 @@ export function ArticlesSpace() {
             </Button>
           </div>
           {writeErr && <p className="mt-2 text-[11.5px] text-[#f7a3a3]">{writeErr}</p>}
-          {!!health && !health.ai && (
-            <p className="mt-2 text-[11.5px] text-text-dim">
-              Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
-            </p>
-          )}
         </div>
       )}
       <ArticlePreview
@@ -112,14 +105,5 @@ export function ArticlesSpace() {
     <PreviewEmpty label="Select an article to preview the long-form draft." />
   )
 
-  return (
-    <div>
-      <PageHeader
-        eyebrow="03"
-        title="Articles"
-        subtitle="The long-form version of each post you generate, assembled from the same source. Click to read the draft."
-      />
-      <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
-    </div>
-  )
+  return <SplitLayout list={list} preview={preview} hasSelection={!!selectedId} />
 }

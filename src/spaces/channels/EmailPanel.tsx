@@ -1,21 +1,20 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore'
-import { ROUTES, channelPath } from '../lib/routes'
-import { useMediaQuery } from '../lib/useMediaQuery'
-import { type Campaign, channelApproved } from '../types'
-import { weekBucket, weekdayName } from '../lib/date'
-import { PageHeader } from '../components/PageHeader'
-import { MicroLabel } from '../components/MicroLabel'
-import { StatusChip } from '../components/StatusChip'
-import { Card } from '../components/Card'
-import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
-import { PreviewShell } from '../components/preview/PreviewShell'
-import { EmailPreview } from '../components/preview/EmailPreview'
+import { useState } from 'react'
+import { useStore } from '../../store/useStore'
+import { useMediaQuery } from '../../lib/useMediaQuery'
+import { type Campaign, channelApproved } from '../../types'
+import { weekBucket, weekdayName } from '../../lib/date'
+import { MicroLabel } from '../../components/MicroLabel'
+import { StatusChip } from '../../components/StatusChip'
+import { Card } from '../../components/Card'
+import { SplitLayout, PreviewEmpty } from '../../components/SplitLayout'
+import { PreviewShell } from '../../components/preview/PreviewShell'
+import { EmailPreview } from '../../components/preview/EmailPreview'
+import { cn } from '../../lib/cn'
 
 type Bucket = 'this' | 'next' | 'later' | 'earlier' | 'unscheduled'
 
-const GROUP_ORDER: { key: Bucket; label: string; caption?: string }[] = [
-  { key: 'this', label: 'This week', caption: 'Mon insight · Wed story · Fri actionable' },
+const GROUP_ORDER: { key: Bucket; label: string }[] = [
+  { key: 'this', label: 'This week' },
   { key: 'next', label: 'Next week' },
   { key: 'later', label: 'Later' },
   { key: 'earlier', label: 'Earlier' },
@@ -44,14 +43,12 @@ function EmailRow({
   const wday = date ? weekdayName(date).slice(0, 3).toUpperCase() : '—'
   return (
     <Card active={active} interactive onClick={onClick} className="flex items-stretch gap-0 p-0">
-      {/* weekday rail */}
       <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-[rgba(255,255,255,0.07)] py-4">
         <span className="micro text-[10px] text-violet">{wday}</span>
         <span className="font-display text-[16px] font-bold leading-none text-text">
           {date ? new Date(`${date}T12:00:00`).getDate() : '·'}
         </span>
       </div>
-      {/* body */}
       <div className="min-w-0 flex-1 p-4">
         <p className="line-clamp-1 text-[13.5px] font-semibold text-text">{email.content.subject}</p>
         <p className="mt-1 line-clamp-1 text-[11.5px] text-text-muted">{campaign.name}</p>
@@ -63,21 +60,19 @@ function EmailRow({
   )
 }
 
-export function EmailSpace() {
+/** Email history — the generated newsletters, previewable as they land. */
+export function EmailPanel() {
   const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.email))
-  const { campaignId } = useParams()
-  const navigate = useNavigate()
   const isDesktop = useMediaQuery('(min-width: 1024px)')
-  const selected = campaigns.find((c) => c.id === campaignId) ?? null
-  const previewCampaign = selected ?? (isDesktop ? campaigns[0] ?? null : null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const previewCampaign =
+    campaigns.find((c) => c.id === selectedId) ?? (isDesktop ? campaigns[0] ?? null : null)
 
   const grouped = GROUP_ORDER.map((g) => ({
     ...g,
     items: campaigns
       .filter((c) => bucketOf(c) === g.key)
-      .sort((a, b) =>
-        (a.email.scheduledDate ?? '').localeCompare(b.email.scheduledDate ?? ''),
-      ),
+      .sort((a, b) => (a.email.scheduledDate ?? '').localeCompare(b.email.scheduledDate ?? '')),
   })).filter((g) => g.items.length > 0)
 
   const list = (
@@ -90,11 +85,8 @@ export function EmailSpace() {
       )}
       {grouped.map((group) => (
         <div key={group.key}>
-          <div className="mb-3 flex items-baseline justify-between gap-2">
+          <div className={cn('mb-3')}>
             <MicroLabel>{group.label}</MicroLabel>
-            {group.caption && (
-              <MicroLabel className="text-[9px] text-text-dim">{group.caption}</MicroLabel>
-            )}
           </div>
           <div className="flex flex-col gap-3">
             {group.items.map((c) => (
@@ -102,7 +94,7 @@ export function EmailSpace() {
                 key={c.id}
                 campaign={c}
                 active={c.id === previewCampaign?.id}
-                onClick={() => navigate(channelPath('email', c.id))}
+                onClick={() => setSelectedId(c.id)}
               />
             ))}
           </div>
@@ -112,21 +104,12 @@ export function EmailSpace() {
   )
 
   const preview = previewCampaign ? (
-    <PreviewShell campaign={previewCampaign} kind="email" onBack={() => navigate(ROUTES.email)}>
-      <EmailPreview content={previewCampaign.email.content} />
+    <PreviewShell campaign={previewCampaign} kind="email" onBack={() => setSelectedId(null)}>
+      <EmailPreview content={previewCampaign.email.content} heroImage={previewCampaign.heroImage} />
     </PreviewShell>
   ) : (
     <PreviewEmpty label="Select a send to preview the newsletter." />
   )
 
-  return (
-    <div>
-      <PageHeader
-        eyebrow="02"
-        title="Email"
-        subtitle="Every newsletter you generate in Studio or Daily Pulse lands here. Click one to preview it as it arrives in the inbox."
-      />
-      <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
-    </div>
-  )
+  return <SplitLayout list={list} preview={preview} hasSelection={!!selectedId} />
 }

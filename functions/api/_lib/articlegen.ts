@@ -33,6 +33,7 @@ Rules:
 - 550-850 words across 4 to 6 sections. Each section has a short, specific heading and 1-3 tight paragraphs.
 - Open with a lede that frames why this matters now; close with a forward-looking "what to watch".
 - Expand with analysis, structure, and context — do NOT introduce new facts, figures, names, or quotes beyond what the brief supports. Never invent numbers.
+- Every section must earn its place with a specific, non-obvious point (a mechanism, a tension, a second-order effect). The piece as a whole must leave the reader with a clear, actionable takeaway — not a bland recap.
 - Neutral, sharp, decision-useful — this publishes under the Munshot brand.
 - Also return a title, a one-line deck (standfirst), and a short CTA (title, body, label) pointing to Munshot.`
 

@@ -7,13 +7,7 @@ import { MicroLabel } from '../components/MicroLabel'
 import { LinkedInPost } from '../components/preview/LinkedInPost'
 import { EmailPreview } from '../components/preview/EmailPreview'
 import { IconSparkle, IconLinkedIn, IconEmail, IconCheck, IconClose } from '../components/icons'
-import {
-  api,
-  getAppSecret,
-  setAppSecret,
-  type GeneratedContent,
-  type HealthFlags,
-} from '../lib/api'
+import { api, type GeneratedContent, type HealthFlags } from '../lib/api'
 import { buildEmailHtml } from '../lib/emailTemplate'
 import { renderBrandedCard } from '../lib/brandedImage'
 import { fileToDownscaledImage } from '../lib/ingest'
@@ -39,16 +33,6 @@ function Label({ children }: { children: React.ReactNode }) {
 const inputCls =
   'w-full rounded-lg border border-border bg-[rgba(255,255,255,0.02)] px-3 py-2 text-[14px] text-text ' +
   'placeholder:text-text-dim focus:outline-none focus-violet transition-colors'
-
-function StatusRow({ ok, label, hint }: { ok: boolean; label: string; hint?: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className={cn('h-2 w-2 shrink-0 rounded-full', ok ? 'bg-[#54d98c]' : 'bg-text-dim')} />
-      <span className="text-[13px] text-text-2">{label}</span>
-      {!ok && hint && <span className="text-[11px] text-text-dim">· {hint}</span>}
-    </div>
-  )
-}
 
 function Note({ kind, children }: { kind: 'ok' | 'err'; children: React.ReactNode }) {
   return (
@@ -201,16 +185,10 @@ export function StudioSpace() {
   const [sendNote, setSendNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // connection status
   const [health, setHealth] = useState<HealthFlags | null>(null)
-  const [healthError, setHealthError] = useState('')
-  const [secretInput, setSecretInput] = useState(getAppSecret())
 
   useEffect(() => {
-    api
-      .health()
-      .then(setHealth)
-      .catch((e: Error) => setHealthError(e.message))
+    api.health().then(setHealth).catch(() => setHealth(null))
   }, [])
 
   // Arriving from Daily Pulse's "Use this → draft mine" seeds one pile item.
@@ -360,9 +338,20 @@ export function StudioSpace() {
 
   async function handleGenerate() {
     if (generating) return
-    const chosen = pile.filter((i) => selected.has(i.id))
+    let chosen = pile.filter((i) => selected.has(i.id))
+    // Fold any text still sitting in the box into the pile, so you never have to
+    // click "Add text" (or use the data-point field) just to generate.
+    const pending = draftText.trim()
+    if (pending) {
+      const title = (pending.split('\n')[0] || 'Note').slice(0, 56)
+      const kind: StudioItem['kind'] = pending.length > 220 ? 'post' : 'note'
+      const id = addToPile({ kind, title, text: pending })
+      setSelected((prev) => new Set(prev).add(id))
+      setDraftText('')
+      chosen = [...chosen, { id, kind, title, text: pending, createdAt: Date.now() }]
+    }
     if (chosen.length === 0 && !snippet.trim()) {
-      setGenError('Select at least one item from the pile (or add a data point).')
+      setGenError('Add a note, document, or screenshot — or a data point — to generate from.')
       return
     }
     setGenerating(true)
@@ -423,7 +412,7 @@ export function StudioSpace() {
             imageNote = ` (image not hosted: ${(e as Error).message})`
           }
         } else {
-          imageNote = ' (text-only — add the KV STORE binding to auto-attach the branded image)'
+          imageNote = ' (posted as text — image hosting isn’t set up)'
         }
       }
       const r = await api.publishLinkedIn({
@@ -490,54 +479,8 @@ export function StudioSpace() {
       <PageHeader
         eyebrow="S2 · Studio — live"
         title="Studio — build a pile, generate in one go"
-        subtitle="Collect raw material as it comes — paste posts, drop PDFs, add screenshots. Select the pieces that matter and generate a branded LinkedIn post + email in one go, then publish to your LinkedIn page (via Buffer) and email your list."
+        subtitle="Collect raw material as it comes — paste posts, drop PDFs, add screenshots. Select the pieces that matter and generate a branded LinkedIn post + email in one go, then publish to your LinkedIn page and email your list."
       />
-
-      {/* connection status */}
-      <Card solid className="mb-6 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <MicroLabel tone="violet">Connections</MicroLabel>
-          {health && (
-            <span className="micro text-text-dim">
-              AI via {health.aiProvider} · {health.model} · email via {health.emailProvider}
-            </span>
-          )}
-        </div>
-        {healthError ? (
-          <Note kind="err">
-            Backend not reachable yet. Deploy to Cloudflare or run it locally with the API attached
-            — see <code>SETUP.md</code>. You can still build the pile once it's wired.
-          </Note>
-        ) : (
-          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
-            <StatusRow ok={!!health?.ai} label="AI generation" hint="add BEDROCK_API_KEY" />
-            <StatusRow
-              ok={!!health?.linkedin}
-              label="LinkedIn (Buffer)"
-              hint="add Buffer token + channel id"
-            />
-            <StatusRow ok={!!health?.email} label="Email" hint="add provider key + sender" />
-          </div>
-        )}
-
-        {health?.authRequired && (
-          <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-border pt-3">
-            <div className="min-w-[220px] flex-1">
-              <Label>App secret (required)</Label>
-              <input
-                className={inputCls}
-                type="password"
-                placeholder="paste the APP_SECRET you set"
-                value={secretInput}
-                onChange={(e) => setSecretInput(e.target.value)}
-              />
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setAppSecret(secretInput.trim())}>
-              Save secret
-            </Button>
-          </div>
-        )}
-      </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
         {/* ---- left: pile intake + selection ---- */}
@@ -670,7 +613,11 @@ export function StudioSpace() {
               <Button
                 variant="primary"
                 onClick={handleGenerate}
-                disabled={generating || (selected.size === 0 && !snippet.trim()) || (!!health && !health.ai)}
+                disabled={
+                  generating ||
+                  (selected.size === 0 && !snippet.trim() && !draftText.trim()) ||
+                  (!!health && !health.ai)
+                }
               >
                 <IconSparkle size={16} />
                 {generating ? 'Generating…' : draft ? 'Regenerate in one go' : 'Generate in one go'}
@@ -678,14 +625,14 @@ export function StudioSpace() {
               <span className="text-[12px] text-text-dim">
                 {selected.size > 0
                   ? `${selected.size} item${selected.size > 1 ? 's' : ''} selected → one post + email`
-                  : 'Select pile items to include'}
+                  : draftText.trim()
+                    ? 'Your note will be used → one post + email'
+                    : 'Add or select something to include'}
               </span>
             </div>
             {genError && <Note kind="err">{genError}</Note>}
             {!!health && !health.ai && (
-              <p className="mt-2 text-[11.5px] text-text-dim">
-                Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
-              </p>
+              <p className="mt-2 text-[11.5px] text-text-dim">Generation isn’t available right now.</p>
             )}
           </Card>
         </div>
@@ -769,8 +716,7 @@ export function StudioSpace() {
                 </div>
                 {!!health && !health.linkedin && (
                   <p className="text-[11.5px] text-text-dim">
-                    Connect Buffer to publish — add <code>BUFFER_ACCESS_TOKEN</code> and{' '}
-                    <code>BUFFER_LINKEDIN_CHANNEL_ID</code> (SETUP.md). Meanwhile, use “Copy text”.
+                    LinkedIn publishing isn’t connected yet — use “Copy text” to post manually.
                   </p>
                 )}
                 {publishNote && <Note kind={publishNote.kind}>{publishNote.text}</Note>}
@@ -863,10 +809,7 @@ export function StudioSpace() {
                   </Button>
                 </div>
                 {!!health && !health.email && (
-                  <p className="text-[11.5px] text-text-dim">
-                    Connect an email provider to send — add the provider key and{' '}
-                    <code>EMAIL_FROM</code> (SETUP.md).
-                  </p>
+                  <p className="text-[11.5px] text-text-dim">Email sending isn’t connected yet.</p>
                 )}
                 {sendNote && <Note kind={sendNote.kind}>{sendNote.text}</Note>}
               </div>
