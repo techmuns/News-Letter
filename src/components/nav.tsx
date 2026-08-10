@@ -1,14 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { ROUTES } from '../lib/routes'
-import {
-  IconWorkspace,
-  IconLinkedIn,
-  IconEmail,
-  IconArticle,
-  IconSparkle,
-  IconPulse,
-} from './icons'
+import { IconLinkedIn, IconEmail, IconArticle, IconSparkle, IconPulse } from './icons'
 
 export interface NavItem {
   n: string
@@ -21,10 +14,9 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { n: 'S1', label: 'Daily Pulse', to: ROUTES.pulse, Icon: IconPulse },
   { n: 'S2', label: 'Studio', to: ROUTES.studio, Icon: IconSparkle },
-  { n: '01', label: 'Workspace', to: ROUTES.workspace, end: true, Icon: IconWorkspace },
-  { n: '02', label: 'LinkedIn', to: ROUTES.linkedin, Icon: IconLinkedIn },
-  { n: '03', label: 'Email', to: ROUTES.email, Icon: IconEmail },
-  { n: '04', label: 'Articles', to: ROUTES.articles, Icon: IconArticle },
+  { n: '01', label: 'LinkedIn', to: ROUTES.linkedin, Icon: IconLinkedIn },
+  { n: '02', label: 'Email', to: ROUTES.email, Icon: IconEmail },
+  { n: '03', label: 'Articles', to: ROUTES.articles, Icon: IconArticle },
 ]
 
 /** Desktop left-rail nav item — active item gets the violet glow border (§5.5). */

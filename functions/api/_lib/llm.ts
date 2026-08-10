@@ -34,10 +34,53 @@ export function aiModel(env: Env): string {
   return env.GEN_MODEL || 'claude-opus-5'
 }
 
+/** A base64 image to attach to the user turn (vision). `data` is raw base64
+    with no `data:` prefix; `mediaType` is e.g. "image/png" / "image/jpeg". */
+export interface ImageInput {
+  mediaType: string
+  data: string
+}
+
 interface CallInput {
   system: string
   user: string
+  images?: ImageInput[]
   maxTokens?: number
+}
+
+const ALLOWED_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+
+/** Validate/normalize untrusted image input from a request body: cap the count,
+    coerce the media type to an allowed value, strip any `data:` prefix, and drop
+    anything oversized. */
+export function sanitizeImages(raw: unknown): ImageInput[] {
+  if (!Array.isArray(raw)) return []
+  const out: ImageInput[] = []
+  for (const it of raw.slice(0, 6)) {
+    const rawData = typeof (it as any)?.data === 'string' ? (it as any).data : ''
+    let mt = typeof (it as any)?.mediaType === 'string' ? (it as any).mediaType.toLowerCase() : ''
+    if (!ALLOWED_IMAGE_TYPES.has(mt)) mt = 'image/png'
+    const data = rawData.replace(/^data:[^;]+;base64,/, '')
+    if (data && data.length < 8_000_000) out.push({ mediaType: mt, data })
+  }
+  return out
+}
+
+/** Build the user-turn content. Plain string when there are no images; an
+    Anthropic content-block array (text + image blocks) when there are — the
+    same shape works on both the Bedrock invoke path and the direct API. */
+function buildUserContent(user: string, images?: ImageInput[]): unknown {
+  if (!images || images.length === 0) return user
+  const blocks: any[] = []
+  if (user && user.trim()) blocks.push({ type: 'text', text: user })
+  for (const im of images.slice(0, 6)) {
+    if (!im?.data) continue
+    blocks.push({
+      type: 'image',
+      source: { type: 'base64', media_type: im.mediaType || 'image/png', data: im.data },
+    })
+  }
+  return blocks.length ? blocks : user
 }
 
 /** Pull the assistant text out of an Anthropic-shaped message response. */
@@ -71,7 +114,7 @@ async function callClaudeText(env: Env, input: CallInput): Promise<string> {
         anthropic_version: 'bedrock-2023-05-31',
         max_tokens: maxTokens,
         system: input.system,
-        messages: [{ role: 'user', content: input.user }],
+        messages: [{ role: 'user', content: buildUserContent(input.user, input.images) }],
       }),
     })
     if (!res.ok) {
@@ -94,7 +137,7 @@ async function callClaudeText(env: Env, input: CallInput): Promise<string> {
         model,
         max_tokens: maxTokens,
         system: input.system,
-        messages: [{ role: 'user', content: input.user }],
+        messages: [{ role: 'user', content: buildUserContent(input.user, input.images) }],
       }),
     })
     if (!res.ok) {
@@ -123,7 +166,7 @@ function extractJson(text: string): string {
     defensively. */
 export async function callClaudeJson<T = any>(
   env: Env,
-  input: { system: string; user: string; schema: unknown; maxTokens?: number },
+  input: { system: string; user: string; schema: unknown; images?: ImageInput[]; maxTokens?: number },
 ): Promise<T> {
   const system = `${input.system}
 
@@ -134,6 +177,7 @@ ${JSON.stringify(input.schema)}`
   const text = await callClaudeText(env, {
     system,
     user: input.user,
+    images: input.images,
     maxTokens: input.maxTokens,
   })
 

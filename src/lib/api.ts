@@ -141,7 +141,13 @@ export const api = {
     if (!res.ok) throw new Error((data as any)?.error || `Upload failed (${res.status})`)
     return data as { url: string; path: string }
   },
-  generate: (input: { sourceText: string; dashboardSnippet?: string; tone?: string }) =>
+  generate: (input: {
+    sourceText: string
+    dashboardSnippet?: string
+    tone?: string
+    /** Attached screenshots/charts (base64, no data: prefix) for vision. */
+    images?: { mediaType: string; data: string }[]
+  }) =>
     request<{ ok: true; content: GeneratedContent }>('/generate', {
       method: 'POST',
       body: JSON.stringify(input),
