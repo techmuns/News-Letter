@@ -18,6 +18,7 @@ import {
 import { buildEmailHtml } from '../../lib/emailTemplate'
 import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
 import { renderBrandedCard } from '../../lib/brandedImage'
+import { useStore } from '../../store/useStore'
 import { type LinkedInContent, type EmailContent } from '../../types'
 import { cn } from '../../lib/cn'
 
@@ -115,6 +116,13 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       selected input mode. */
   const [resultKind, setResultKind] = useState<'market' | 'topic'>('market')
   const [sources, setSources] = useState<NewsItem[]>([])
+
+  // channel history (LinkedIn / Email / Articles tabs read this)
+  const recordGeneration = useStore((s) => s.recordGeneration)
+  const setHeroImage = useStore((s) => s.setHeroImage)
+  const setChannelStatus = useStore((s) => s.setChannelStatus)
+  const scheduleChannel = useStore((s) => s.scheduleChannel)
+  const [historyId, setHistoryId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
@@ -167,6 +175,11 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     }
   }, [post, resultKind, imageStyle, feed])
 
+  // Attach the branded card to the recorded history entry once it renders.
+  useEffect(() => {
+    if (historyId && card?.dataUrl) setHeroImage(historyId, card.dataUrl)
+  }, [card, historyId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const caption = useMemo(() => {
     if (!post) return ''
     const base = composeCaption(post)
@@ -196,11 +209,15 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     setPublishNote(null)
     setSendNote(null)
     try {
+      let generated: PulsePost | null = null
+      let kind: 'market' | 'topic' = 'market'
       if (mode === 'topic') {
         const { post: p, sources: s } = await api.topicGenerate({ topic: topic.trim(), tone })
         setSources(s)
         setResultKind('topic')
         setPost(p)
+        generated = p
+        kind = 'topic'
       } else {
         const q = focusText.trim()
         if (q && !focusMatch) {
@@ -210,12 +227,29 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
           setSources(s)
           setResultKind('topic')
           setPost(p)
+          generated = p
+          kind = 'topic'
         } else {
           const { post: p } = await api.pulseGenerate({ focusId: focusMatch?.id, tone })
           setSources([])
           setResultKind('market')
           setPost(p)
+          generated = p
+          kind = 'market'
         }
+      }
+      // record into the channel history the LinkedIn / Email / Articles tabs read
+      if (generated) {
+        setHistoryId(
+          recordGeneration({
+            name: generated.focus,
+            topic: generated.focus,
+            headline: stripLeadingEmoji(generated.linkedin.hook) || generated.focus,
+            body: composeCaption(generated),
+            email: generated.email,
+            source: kind === 'topic' ? 'Daily Pulse · Topic' : 'Daily Pulse',
+          }),
+        )
       }
       // jump to the preview once it's ready
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
@@ -251,6 +285,11 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
         imageUrl: url,
         scheduledAt: toIsoUtc(scheduleLocal),
       })
+      if (historyId) {
+        const date = scheduleLocal ? scheduleLocal.slice(0, 10) : ''
+        if (date) scheduleChannel(historyId, 'linkedin', date)
+        else setChannelStatus(historyId, 'linkedin', 'Published')
+      }
       setPublishNote({
         kind: 'ok',
         text:
@@ -284,6 +323,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
         html,
         recipients: recipients.length ? recipients : undefined,
       })
+      if (historyId) setChannelStatus(historyId, 'email', 'Published')
       setSendNote({ kind: 'ok', text: `Sent to ${r.sent} recipient(s) via ${r.provider}.` })
     } catch (e) {
       setSendNote({ kind: 'err', text: (e as Error).message })

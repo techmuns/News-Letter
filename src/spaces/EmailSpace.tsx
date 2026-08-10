@@ -82,6 +82,12 @@ export function EmailSpace() {
 
   const list = (
     <div className="flex flex-col gap-6">
+      {campaigns.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] leading-relaxed text-text-muted">
+          No newsletters yet. Generate one in <strong>Studio</strong> or{' '}
+          <strong>Daily Pulse</strong> — it lands here and marks Published when you send.
+        </p>
+      )}
       {grouped.map((group) => (
         <div key={group.key}>
           <div className="mb-3 flex items-baseline justify-between gap-2">
@@ -116,9 +122,9 @@ export function EmailSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="03"
+        eyebrow="02"
         title="Email"
-        subtitle="The weekly newsletter rhythm. Click a send to preview it as it lands."
+        subtitle="Every newsletter you generate in Studio or Daily Pulse lands here. Click one to preview it as it arrives in the inbox."
       />
       <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
     </div>

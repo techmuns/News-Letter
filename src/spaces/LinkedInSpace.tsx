@@ -26,6 +26,12 @@ export function LinkedInSpace() {
   const list = (
     <div className="flex flex-col gap-3">
       <MicroLabel>Drafts</MicroLabel>
+      {campaigns.length === 0 && (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] leading-relaxed text-text-muted">
+          No LinkedIn posts yet. Generate one in <strong>Studio</strong> or{' '}
+          <strong>Daily Pulse</strong> — it lands here and marks Published when you publish.
+        </p>
+      )}
       {campaigns.map((c) => (
         <ChannelListRow
           key={c.id}
@@ -54,9 +60,9 @@ export function LinkedInSpace() {
   return (
     <div>
       <PageHeader
-        eyebrow="02"
+        eyebrow="01"
         title="LinkedIn"
-        subtitle="One post per campaign. Click a draft to preview how it reads in-feed."
+        subtitle="Every post you generate in Studio or Daily Pulse lands here. Click a draft to preview how it reads in-feed."
       />
       <SplitLayout list={list} preview={preview} hasSelection={!!selected} />
     </div>

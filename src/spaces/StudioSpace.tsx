@@ -18,6 +18,7 @@ import { buildEmailHtml } from '../lib/emailTemplate'
 import { renderBrandedCard } from '../lib/brandedImage'
 import { fileToDownscaledImage } from '../lib/ingest'
 import { useStudioStore, type StudioItem } from '../store/useStudioStore'
+import { useStore } from '../store/useStore'
 import { type LinkedInContent, type EmailContent } from '../types'
 import { cn } from '../lib/cn'
 
@@ -163,6 +164,13 @@ export function StudioSpace() {
   const removeFromPile = useStudioStore((s) => s.remove)
   const clearPile = useStudioStore((s) => s.clear)
 
+  // channel history (LinkedIn / Email / Articles tabs read this)
+  const recordGeneration = useStore((s) => s.recordGeneration)
+  const setHeroImage = useStore((s) => s.setHeroImage)
+  const setChannelStatus = useStore((s) => s.setChannelStatus)
+  const scheduleChannel = useStore((s) => s.scheduleChannel)
+  const [historyId, setHistoryId] = useState<string | null>(null)
+
   // intake + selection
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [draftText, setDraftText] = useState('')
@@ -235,6 +243,11 @@ export function StudioSpace() {
       cancelled = true
     }
   }, [draft?.linkedin.headline, draft?.topic]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Once the branded card renders, attach it to the recorded history entry.
+  useEffect(() => {
+    if (historyId && card?.dataUrl) setHeroImage(historyId, card.dataUrl)
+  }, [card, historyId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fullLinkedInText = useMemo(() => {
     if (!draft) return ''
@@ -372,6 +385,19 @@ export function StudioSpace() {
         images: images.length ? images : undefined,
       })
       setDraft(content)
+      const body = [content.linkedin.body.trim(), normalizeTags(content.linkedin.hashtags).join(' ')]
+        .filter(Boolean)
+        .join('\n\n')
+      setHistoryId(
+        recordGeneration({
+          name: content.topic,
+          topic: content.topic,
+          headline: content.linkedin.headline,
+          body,
+          email: content.email,
+          source: 'Studio',
+        }),
+      )
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
     } catch (e) {
       setGenError((e as Error).message)
@@ -405,6 +431,11 @@ export function StudioSpace() {
         imageUrl: finalImageUrl,
         scheduledAt: toIsoUtc(scheduleLocal),
       })
+      if (historyId) {
+        const date = scheduleLocal ? scheduleLocal.slice(0, 10) : ''
+        if (date) scheduleChannel(historyId, 'linkedin', date)
+        else setChannelStatus(historyId, 'linkedin', 'Published')
+      }
       setPublishNote({
         kind: 'ok',
         text:
@@ -435,6 +466,7 @@ export function StudioSpace() {
         html,
         recipients: recipients.length ? recipients : undefined,
       })
+      if (historyId) setChannelStatus(historyId, 'email', 'Published')
       setSendNote({ kind: 'ok', text: `Sent to ${r.sent} recipient(s) via ${r.provider}.` })
     } catch (e) {
       setSendNote({ kind: 'err', text: (e as Error).message })
