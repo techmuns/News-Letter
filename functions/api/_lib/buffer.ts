@@ -23,8 +23,14 @@ async function bufferGraphQL(token: string, query: string): Promise<any> {
   })
   const data: any = await res.json().catch(() => null)
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new ApiError(
+        'Buffer token is invalid or expired — regenerate it at publish.buffer.com/settings/api.',
+        401,
+      )
+    }
     const msg = data?.errors?.map((e: any) => e.message).join('; ') || `HTTP ${res.status}`
-    throw new ApiError(`Buffer API error: ${msg}`, res.status === 401 ? 401 : 502)
+    throw new ApiError(`Buffer API error: ${msg}`, 502)
   }
   if (data?.errors?.length) {
     throw new ApiError(`Buffer: ${data.errors.map((e: any) => e.message).join('; ')}`, 502)
@@ -80,22 +86,51 @@ export async function publishToBuffer(env: Env, input: PublishInput) {
   }
 }
 
-/** Convenience: list connected channels so you can find the LinkedIn channel id.
-    Needs BUFFER_ORG_ID; otherwise returns a hint pointing to the Buffer Explorer. */
+/** List connected channels so you can find the LinkedIn channel id. Only the
+    token is needed — the organization is auto-discovered (BUFFER_ORG_ID is used
+    if set, or as a fallback). Flags the LinkedIn channel(s) so it's obvious which
+    id to paste into BUFFER_LINKEDIN_CHANNEL_ID. */
 export async function listBufferChannels(env: Env) {
   if (!env.BUFFER_ACCESS_TOKEN) throw new ApiError('BUFFER_ACCESS_TOKEN is not set.', 400)
-  if (!env.BUFFER_ORG_ID) {
+
+  let orgId = env.BUFFER_ORG_ID
+  if (!orgId) {
+    // Best-effort: discover the account's organization from the token itself.
+    try {
+      const acct = await bufferGraphQL(
+        env.BUFFER_ACCESS_TOKEN,
+        `query { account { currentOrganization { id } organizations { id name } } }`,
+      )
+      orgId =
+        acct?.account?.currentOrganization?.id || acct?.account?.organizations?.[0]?.id || undefined
+    } catch {
+      /* fall through to the explorer hint below */
+    }
+  }
+  if (!orgId) {
     return {
       channels: [],
       hint:
-        'Set BUFFER_ORG_ID to auto-list channels, or open the Buffer GraphQL Explorer ' +
-        '(developers.buffer.com/explorer), run `{ channels(input:{organizationId:"..."}){ id name service } }`, ' +
-        'and paste the LinkedIn channel id into BUFFER_LINKEDIN_CHANNEL_ID.',
+        'Could not auto-detect your Buffer organization. Set BUFFER_ORG_ID, or open the Buffer ' +
+        'GraphQL Explorer (developers.buffer.com/explorer), run ' +
+        '`{ channels(input:{organizationId:"..."}){ id name service } }`, and paste the LinkedIn ' +
+        'channel id into BUFFER_LINKEDIN_CHANNEL_ID.',
     }
   }
-  const query = `query { channels(input: { organizationId: ${JSON.stringify(
-    env.BUFFER_ORG_ID,
-  )} }) { id name service } }`
-  const data = await bufferGraphQL(env.BUFFER_ACCESS_TOKEN, query)
-  return { channels: data?.channels ?? [] }
+
+  const data = await bufferGraphQL(
+    env.BUFFER_ACCESS_TOKEN,
+    `query { channels(input: { organizationId: ${JSON.stringify(orgId)} }) { id name service } }`,
+  )
+  const channels = Array.isArray(data?.channels) ? data.channels : []
+  const linkedin = channels.filter((c: any) =>
+    String(c?.service || '').toLowerCase().includes('linkedin'),
+  )
+  return {
+    organizationId: orgId,
+    channels,
+    linkedin,
+    // The id to paste into BUFFER_LINKEDIN_CHANNEL_ID (first LinkedIn channel).
+    linkedinChannelId: linkedin[0]?.id ?? null,
+  }
 }
