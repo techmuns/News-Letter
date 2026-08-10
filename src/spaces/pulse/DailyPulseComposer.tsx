@@ -17,6 +17,7 @@ import { buildEmailHtml } from '../../lib/emailTemplate'
 import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
 import { renderBrandedCard } from '../../lib/brandedImage'
 import { useStore } from '../../store/useStore'
+import { FocusCombobox } from './FocusCombobox'
 import { type LinkedInContent, type EmailContent } from '../../types'
 import { cn } from '../../lib/cn'
 
@@ -407,23 +408,14 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
             <>
               <div className="sm:col-span-2">
                 <Label>Focus — pick a tracked instrument, or type any company</Label>
-                <input
-                  className={inputCls}
-                  list="pulse-focus-options"
-                  placeholder="Auto — whole-market wrap"
+                <FocusCombobox
                   value={focusText}
-                  onChange={(e) => setFocusText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleGenerate()
-                  }}
+                  onChange={setFocusText}
+                  groups={focusOptions.map(({ group, items }) => ({
+                    label: GROUP_LABEL[group],
+                    items,
+                  }))}
                 />
-                <datalist id="pulse-focus-options">
-                  {focusOptions.map(({ group, items }) =>
-                    items.map((it) => (
-                      <option key={it.id} value={it.name} label={GROUP_LABEL[group]} />
-                    )),
-                  )}
-                </datalist>
               </div>
               {toneSelect}
               <div>
