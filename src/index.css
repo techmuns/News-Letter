@@ -4,38 +4,38 @@
 
 /* ============================================================
    Design tokens — Munshot Content System
-   Near-black plum base · deep aubergine/burgundy ambience ·
-   controlled magenta highlights. Luxurious dark SaaS.
+   Near-black plum/aubergine base · muted lavender accent.
+   Professional, restrained dark SaaS — no hot pink, no heavy glow.
    ============================================================ */
 :root {
-  /* base — near-black in the centre, plum surfaces */
-  --bg: #120a11; /* near-black with a faint plum cast */
-  --rail: #1f1019; /* wine/plum sidebar, lifted just off the canvas */
-  --surface: rgba(64, 26, 51, 0.5); /* very dark translucent plum panel */
-  --surface-solid: #26131f; /* solid elevated plum panel */
+  /* base — near-black with a plum/aubergine undertone */
+  --bg: #120b14; /* near-black, faint plum cast */
+  --rail: #1d1322; /* richer dark plum sidebar, lifted off the canvas */
+  --surface: rgba(54, 40, 66, 0.5); /* dark translucent plum panel */
+  --surface-solid: #221a2b; /* solid elevated plum panel */
   --glass-blur: 20px;
 
-  /* borders — thin, plum/magenta-tinted */
-  --border: rgba(232, 138, 190, 0.12);
-  --border-strong: rgba(238, 150, 198, 0.22);
-  --glow: rgba(244, 96, 176, 0.55); /* active magenta border */
-  --glow-shadow: 0 0 24px rgba(236, 66, 150, 0.2);
+  /* borders — thin, muted purple */
+  --border: rgba(162, 142, 212, 0.14);
+  --border-strong: rgba(172, 152, 222, 0.24);
+  --glow: rgba(180, 160, 236, 0.42); /* soft lavender active border */
+  --glow-shadow: 0 0 20px rgba(150, 130, 220, 0.15);
 
-  /* primary accent — magenta / pink-violet */
-  --violet: #ee6cb4;
-  --violet-dim: #b3688f;
+  /* primary accent — soft muted lavender / violet */
+  --violet: #b7a8f0;
+  --violet-dim: #8f83b8;
 
   /* status — unchanged for gain/loss readability */
   --green: #47d6a1;
   --amber: #f2c566;
-  --grey-dot: #5a3550;
-  --pink: #fb6e92;
+  --grey-dot: #4b3f5e;
+  --pink: #d98ab0; /* muted rose — minor status use, not an accent */
 
-  /* text — clean white headings, muted lavender/lilac secondaries */
-  --text: #f8f0f6;
-  --text-2: #d9c4d5;
-  --text-muted: #ac8ea6;
-  --text-dim: #7c6175;
+  /* text — warm white headings, muted grey-lavender body */
+  --text: #f6f3f1;
+  --text-2: #cdc4dd;
+  --text-muted: #a79ebd;
+  --text-dim: #776e8c;
 
   color-scheme: dark;
 }
@@ -54,26 +54,26 @@
   body {
     margin: 0;
     background-color: var(--bg);
-    /* near-black centre → plum / burgundy / magenta ambience at the edges */
+    /* near-black canvas with a soft burgundy/plum wash, weighted left & centre */
     background-image: radial-gradient(
-        1100px 720px at 50% -8%,
-        rgba(158, 34, 100, 0.24),
-        rgba(158, 34, 100, 0) 60%
+        1000px 720px at 28% 30%,
+        rgba(92, 54, 92, 0.18),
+        rgba(92, 54, 92, 0) 62%
       ),
       radial-gradient(
-        920px 640px at 100% 6%,
-        rgba(120, 20, 74, 0.22),
-        rgba(120, 20, 74, 0) 58%
+        860px 580px at 55% -6%,
+        rgba(80, 42, 76, 0.15),
+        rgba(80, 42, 76, 0) 58%
       ),
       radial-gradient(
-        860px 660px at 0% 100%,
-        rgba(92, 18, 66, 0.24),
-        rgba(92, 18, 66, 0) 60%
+        780px 640px at 2% 100%,
+        rgba(70, 36, 62, 0.16),
+        rgba(70, 36, 62, 0) 60%
       ),
       radial-gradient(
-        720px 620px at 100% 100%,
-        rgba(64, 12, 44, 0.2),
-        rgba(64, 12, 44, 0) 56%
+        680px 560px at 100% 92%,
+        rgba(48, 28, 54, 0.1),
+        rgba(48, 28, 54, 0) 55%
       );
     background-attachment: fixed;
     color: var(--text);
@@ -84,7 +84,7 @@
   }
 
   ::selection {
-    background: rgba(238, 108, 180, 0.32);
+    background: rgba(160, 140, 220, 0.3);
     color: var(--text);
   }
 
@@ -103,48 +103,45 @@
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(238, 108, 180, 0.32);
+    background: rgba(160, 140, 220, 0.32);
     background-clip: padding-box;
   }
 }
 
 @layer components {
-  /* Glass panel — the workhorse surface: dark translucent plum, thin border,
-     restrained inner magenta glow. */
+  /* Glass panel — the workhorse surface: dark translucent plum, thin muted
+     border, faint inner highlight for depth. */
   .glass {
     background-color: var(--surface);
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--border);
     box-shadow:
-      inset 0 1px 0 rgba(255, 194, 228, 0.05),
-      inset 0 0 44px rgba(196, 46, 122, 0.05);
+      inset 0 1px 0 rgba(210, 198, 240, 0.05),
+      inset 0 0 44px rgba(120, 96, 170, 0.045);
   }
 
-  /* Active / focused surface — darker plum fill, soft magenta outline + glow.
+  /* Active / focused surface — soft lavender fill + controlled outline glow.
      Used for the active sidebar item and selected panels. */
   .glow-active {
     border: 1px solid var(--glow);
-    box-shadow: var(--glow-shadow), inset 0 0 22px rgba(232, 62, 142, 0.09);
+    box-shadow: var(--glow-shadow), inset 0 0 20px rgba(150, 125, 210, 0.07);
     background-image: linear-gradient(
       180deg,
-      rgba(214, 52, 132, 0.16),
-      rgba(120, 26, 76, 0.1)
+      rgba(150, 125, 210, 0.13),
+      rgba(92, 74, 132, 0.08)
     );
   }
 
-  /* Selected tab / chip — rich magenta gradient treatment (Market, Gainers,
-     All, etc.). */
+  /* Selected tab / chip — muted lavender accent (Market, Gainers, All, sub-tabs). */
   .chip-active {
-    color: #ffdcef;
+    color: #e9e3fb;
     background-image: linear-gradient(
       180deg,
-      rgba(240, 96, 174, 0.26),
-      rgba(150, 38, 102, 0.17)
+      rgba(150, 128, 214, 0.22),
+      rgba(96, 80, 142, 0.13)
     );
-    box-shadow:
-      inset 0 0 0 1px rgba(242, 118, 184, 0.32),
-      0 0 14px rgba(233, 70, 150, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(168, 148, 224, 0.28);
   }
 
   /* Monospace micro-label — section headers, ids, timestamps */
@@ -170,7 +167,7 @@
     background: linear-gradient(
       90deg,
       rgba(255, 255, 255, 0.03) 25%,
-      rgba(238, 108, 180, 0.12) 50%,
+      rgba(160, 140, 220, 0.12) 50%,
       rgba(255, 255, 255, 0.03) 75%
     );
     background-size: 200% 100%;

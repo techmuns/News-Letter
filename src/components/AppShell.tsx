@@ -5,7 +5,7 @@ import { MicroLabel } from './MicroLabel'
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-border-strong bg-[rgba(31,15,26,0.72)] px-4 backdrop-blur-glass md:px-7">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-border-strong bg-[rgba(26,18,32,0.72)] px-4 backdrop-blur-glass md:px-7">
       <div className="md:hidden">
         <ProductMark compact />
       </div>
@@ -18,7 +18,7 @@ function TopBar() {
 
 function LeftRail() {
   return (
-    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border-strong bg-gradient-to-b from-[#2a1424] via-[#1f1019] to-[#160b13] px-4 py-5 md:flex">
+    <aside className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r border-border-strong bg-gradient-to-b from-[#261a30] via-[#1d1322] to-[#160f18] px-4 py-5 md:flex">
       <div className="px-2">
         <ProductMark />
       </div>
@@ -37,7 +37,7 @@ function LeftRail() {
 
 function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-[rgba(27,13,23,0.94)] backdrop-blur-glass md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-[rgba(22,15,27,0.94)] backdrop-blur-glass md:hidden">
       {NAV_ITEMS.map((item) => (
         <BottomNavItem key={item.to} item={item} />
       ))}

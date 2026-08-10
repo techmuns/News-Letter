@@ -47,8 +47,8 @@ export default {
       },
       keyframes: {
         'pulse-pink': {
-          '0%, 100%': { opacity: '1', boxShadow: '0 0 0 0 rgba(251,94,126,0.45)' },
-          '50%': { opacity: '0.55', boxShadow: '0 0 0 6px rgba(251,94,126,0)' },
+          '0%, 100%': { opacity: '1', boxShadow: '0 0 0 0 rgba(160,140,220,0.45)' },
+          '50%': { opacity: '0.55', boxShadow: '0 0 0 6px rgba(160,140,220,0)' },
         },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
