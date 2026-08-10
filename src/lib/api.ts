@@ -47,6 +47,8 @@ export interface HealthFlags {
   aiProvider: string
   /** Topic mode (recent-news lookup) is wired — NewsAPI key set */
   topicNews: boolean
+  /** Live stock/company search is wired — Munshot token set */
+  stockSearch: boolean
   linkedin: boolean
   email: boolean
   emailProvider: string
@@ -75,6 +77,14 @@ export interface PulseItem {
 export interface PulseFeed {
   fetchedAt: string
   items: PulseItem[]
+}
+
+/** A company/instrument from the live stock search. */
+export interface StockResult {
+  symbol: string
+  name: string
+  country: string
+  sector: string
 }
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
@@ -158,6 +168,12 @@ export const api = {
     request<{ ok: true; post: PulsePost; fetchedAt: string }>('/pulse-generate', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+  /** Live company/stock search (proxied to the Munshot backend). */
+  stockSearch: (query: string) =>
+    request<{ ok: true; total: number; results: StockResult[] }>('/stock-search', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
     }),
   /** Generate a post from recent news on a keyword/topic (grounded in sources). */
   topicGenerate: (input: { topic: string; tone?: string }) =>
