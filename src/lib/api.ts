@@ -1,5 +1,6 @@
 /* Client for the live /api backend (Cloudflare Pages Functions).
    Same-origin in production; override with VITE_API_BASE for split local dev. */
+import type { ArticleContent as ArticleType } from '../types'
 
 export interface GeneratedContent {
   topic: string
@@ -161,6 +162,18 @@ export const api = {
   /** Generate a post from recent news on a keyword/topic (grounded in sources). */
   topicGenerate: (input: { topic: string; tone?: string }) =>
     request<{ ok: true; post: PulsePost; sources: NewsItem[]; topic: string }>('/topic-generate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  /** Expand a recorded post + email into a full long-form article. */
+  generateArticle: (input: {
+    title?: string
+    topic?: string
+    linkedin?: string
+    email?: { subject?: string; idea?: string; story?: string; takeaway?: string }
+    tone?: string
+  }) =>
+    request<{ ok: true; article: ArticleType }>('/generate-article', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
