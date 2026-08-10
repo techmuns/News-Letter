@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ROUTES, channelPath } from '../lib/routes'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import { channelApproved } from '../types'
+import { type Campaign, channelApproved } from '../types'
+import { api, type HealthFlags } from '../lib/api'
 import { PageHeader } from '../components/PageHeader'
 import { MicroLabel } from '../components/MicroLabel'
+import { Button } from '../components/Button'
+import { IconSparkle } from '../components/icons'
 import { SplitLayout, PreviewEmpty } from '../components/SplitLayout'
 import { ChannelListRow } from '../components/ChannelListRow'
 import { PreviewShell } from '../components/preview/PreviewShell'
@@ -17,6 +21,37 @@ export function ArticlesSpace() {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
   const selected = campaigns.find((c) => c.id === campaignId) ?? null
   const previewCampaign = selected ?? (isDesktop ? campaigns[0] ?? null : null)
+
+  const setArticleContent = useStore((s) => s.setArticleContent)
+  const [health, setHealth] = useState<HealthFlags | null>(null)
+  const [writingId, setWritingId] = useState<string | null>(null)
+  const [writeErr, setWriteErr] = useState('')
+  useEffect(() => {
+    api.health().then(setHealth).catch(() => setHealth(null))
+  }, [])
+
+  async function writeFullArticle(c: Campaign) {
+    setWritingId(c.id)
+    setWriteErr('')
+    try {
+      const { article } = await api.generateArticle({
+        title: c.name,
+        topic: c.topic,
+        linkedin: c.linkedin.content.body,
+        email: {
+          subject: c.email.content.subject,
+          idea: c.email.content.idea,
+          story: c.email.content.story,
+          takeaway: c.email.content.takeaway,
+        },
+      })
+      setArticleContent(c.id, article)
+    } catch (e) {
+      setWriteErr((e as Error).message)
+    } finally {
+      setWritingId(null)
+    }
+  }
 
   const list = (
     <div className="flex flex-col gap-3">
@@ -42,6 +77,31 @@ export function ArticlesSpace() {
 
   const preview = previewCampaign ? (
     <PreviewShell campaign={previewCampaign} kind="article" onBack={() => navigate(ROUTES.articles)}>
+      {!previewCampaign.article.edited && (
+        <div className="mb-4 rounded-xl border border-border bg-[rgba(255,255,255,0.02)] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-[46ch] text-[12.5px] leading-relaxed text-text-muted">
+              Quick draft assembled from your post + email. Turn it into a full, AI-written long-form
+              article.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => writeFullArticle(previewCampaign)}
+              disabled={writingId === previewCampaign.id || (!!health && !health.ai)}
+            >
+              <IconSparkle size={15} />
+              {writingId === previewCampaign.id ? 'Writing…' : 'Write the full article'}
+            </Button>
+          </div>
+          {writeErr && <p className="mt-2 text-[11.5px] text-[#f7a3a3]">{writeErr}</p>}
+          {!!health && !health.ai && (
+            <p className="mt-2 text-[11.5px] text-text-dim">
+              Add <code>BEDROCK_API_KEY</code> to enable generation (SETUP.md).
+            </p>
+          )}
+        </div>
+      )}
       <ArticlePreview
         content={previewCampaign.article.content}
         promo={previewCampaign.promo}

@@ -8,6 +8,7 @@ import { configuredFlags, type Env as ApiEnv } from '../functions/api/_lib/env'
 import { checkAuth, guard, json, preflight, readJson, type Ctx } from '../functions/api/_lib/http'
 import { generateContent } from '../functions/api/_lib/anthropic'
 import { sanitizeImages } from '../functions/api/_lib/llm'
+import { generateArticle } from '../functions/api/_lib/articlegen'
 import { generatePulsePost } from '../functions/api/_lib/pulsegen'
 import { generateTopicPost } from '../functions/api/_lib/topicgen'
 import { publishToBuffer, listBufferChannels } from '../functions/api/_lib/buffer'
@@ -91,6 +92,19 @@ export default {
             images,
           })
           return json({ ok: true, content })
+        })
+      }
+
+      if (pathname === '/api/generate-article') {
+        return guard(async () => {
+          const article = await generateArticle(env, {
+            title: body?.title ? String(body.title) : undefined,
+            topic: body?.topic ? String(body.topic) : undefined,
+            linkedin: body?.linkedin ? String(body.linkedin) : undefined,
+            email: body?.email && typeof body.email === 'object' ? body.email : undefined,
+            tone: body?.tone ? String(body.tone) : undefined,
+          })
+          return json({ ok: true, article })
         })
       }
 

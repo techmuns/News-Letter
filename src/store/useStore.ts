@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
+  type ArticleContent,
   type Campaign,
   type ChannelKind,
   type ChannelStatus,
@@ -66,6 +67,8 @@ interface StoreState {
   recordGeneration: (input: GeneratedRecord) => string
   /** Attach the branded image to a recorded generation once it's rendered. */
   setHeroImage: (campaignId: string, dataUrl: string) => void
+  /** Replace a campaign's article with a full, AI-written long-form piece. */
+  setArticleContent: (campaignId: string, content: ArticleContent) => void
 
   // --- Campaign / channel actions ---
   /** Approve one channel → it moves to Ready and distributes to its space. */
@@ -235,6 +238,17 @@ export const useStore = create<StoreState>()(
         set((s) => ({
           campaigns: s.campaigns.map((c) =>
             c.id === campaignId ? { ...c, heroImage: dataUrl } : c,
+          ),
+        })),
+
+      // `edited: true` marks the article as a real, AI-written long-form piece
+      // (vs. the quick draft assembled at generation time).
+      setArticleContent: (campaignId, content) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? { ...c, article: { ...c.article, content, edited: true, status: 'Ready' } }
+              : c,
           ),
         })),
 
