@@ -13,9 +13,10 @@ import {
   type NewsItem,
   type HealthFlags,
 } from '../../lib/api'
-import { buildEmailHtml } from '../../lib/emailTemplate'
+import { buildEmailHtml, type EmailSource } from '../../lib/emailTemplate'
 import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
 import { renderBrandedCard } from '../../lib/brandedImage'
+import { renderChartOfDay, pickChartItems } from '../../lib/chartImage'
 import { useStore } from '../../store/useStore'
 import { FocusCombobox } from './FocusCombobox'
 import { type LinkedInContent, type EmailContent } from '../../types'
@@ -73,6 +74,21 @@ function dateLabelFrom(iso: string): string {
   return use.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+const pctLabel = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(2)}%`
+
+/** A grounded one-liner under the Chart of the Day — leader, laggard, breadth. */
+function buildChartCaption(items: PulseItem[]): string {
+  const rows = pickChartItems(items, 7)
+  if (!rows.length) return ''
+  const sorted = rows.slice().sort((a, b) => b.d1 - a.d1)
+  const leader = sorted[0]
+  const laggard = sorted[sorted.length - 1]
+  const up = rows.filter((r) => r.d1 > 0).length
+  const breadth = `${up} of ${rows.length} lines closed higher`
+  if (leader.id === laggard.id) return `${leader.name} at ${pctLabel(leader.d1)} — ${breadth}.`
+  return `${leader.name} led at ${pctLabel(leader.d1)}; ${laggard.name} lagged at ${pctLabel(laggard.d1)} — ${breadth}.`
+}
+
 /** Drop a leading emoji (+ variation selector) so it reads as a headline. */
 function stripLeadingEmoji(s: string): string {
   return String(s || '')
@@ -115,6 +131,8 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
+  /** the "Chart of the Day" — a cross-market bar chart rendered from the feed */
+  const [chartCard, setChartCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
 
   const [scheduleLocal, setScheduleLocal] = useState('')
   const [publishing, setPublishing] = useState(false)
@@ -163,10 +181,36 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     }
   }, [post, resultKind, imageStyle, feed])
 
+  // Render the cross-market "Chart of the Day" from the feed once a post exists.
+  useEffect(() => {
+    if (!post) {
+      setChartCard(null)
+      return
+    }
+    let cancelled = false
+    renderChartOfDay(feed.items, { dateLabel: dateLabelFrom(feed.fetchedAt) })
+      .then((c) => !cancelled && setChartCard(c))
+      .catch(() => !cancelled && setChartCard(null))
+    return () => {
+      cancelled = true
+    }
+  }, [post, feed])
+
   // Attach the branded card to the recorded history entry once it renders.
   useEffect(() => {
     if (historyId && card?.dataUrl) setHeroImage(historyId, card.dataUrl)
   }, [card, historyId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chartCaption = useMemo(() => buildChartCaption(feed.items), [feed])
+  const emailSources = useMemo<EmailSource[] | undefined>(
+    () =>
+      resultKind === 'topic' && sources.length
+        ? sources.map((s) => ({ source: s.source, link: s.link, title: s.title, date: s.date }))
+        : undefined,
+    [resultKind, sources],
+  )
+  const emailDateLabel = useMemo(() => dateLabelFrom(feed.fetchedAt), [feed])
+  const emailHeadline = post ? stripLeadingEmoji(post.linkedin.hook) || post.focus : ''
 
   const caption = useMemo(() => {
     if (!post) return ''
@@ -262,6 +306,16 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     }
   }
 
+  /** Host any rendered blob (e.g. the Chart of the Day) → public URL, or undefined. */
+  async function hostBlob(blob?: Blob): Promise<string | undefined> {
+    if (!blob || !health?.images) return undefined
+    try {
+      return (await api.uploadImage(blob)).url
+    } catch {
+      return undefined
+    }
+  }
+
   async function handlePublish() {
     if (!post || publishing) return
     setPublishing(true)
@@ -298,9 +352,14 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     setSendNote(null)
     try {
       const { url } = await hostedImageUrl()
+      const chartUrl = await hostBlob(chartCard?.blob)
       const html = buildEmailHtml(post.email, {
         heroImageUrl: url,
-        sources: resultKind === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined,
+        chartImageUrl: chartUrl,
+        chartCaption,
+        sources: emailSources,
+        headline: emailHeadline,
+        dateLabel: emailDateLabel,
       })
       const recipients = recipientsText
         .split(/[\n,;]+/)
@@ -348,6 +407,8 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     story: post.email.story,
     takeaway: post.email.takeaway,
     ctaLabel: post.email.ctaLabel,
+    keyPoints: post.email.keyPoints,
+    spotlight: post.email.spotlight,
   }
 
   const toneSelect = (
@@ -620,7 +681,11 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
             <EmailPreview
               content={emailPreview}
               heroImage={card?.dataUrl}
-              sources={resultKind === 'topic' ? sources.map((s) => ({ source: s.source, link: s.link })) : undefined}
+              sources={emailSources}
+              headline={emailHeadline}
+              dateLabel={emailDateLabel}
+              chartImage={chartCard?.dataUrl}
+              chartCaption={chartCaption}
             />
 
             <div className="mt-4 space-y-3">
