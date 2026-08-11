@@ -9,7 +9,7 @@ import type { Env } from './env'
 import { ApiError } from './http'
 import { callClaudeJson, aiConfigured } from './llm'
 import { fetchTopicNews, newsConfigured, type NewsItem } from './news'
-import { type PulsePost } from './pulsegen'
+import { type PulsePost, normalizeKeyPoints, normalizeSpotlight } from './pulsegen'
 
 export interface TopicGenInput {
   topic: string
@@ -23,11 +23,18 @@ Mirror the house format:
 - bullets: 4 to 6 short lines. EACH must START with a single relevant emoji, then one concrete, specific fact drawn from the sources (a number, a decision, an event, a named quote). One sentence each, no trailing hashtags, no leading "•" (the app adds it).
 - hashtags: 3 to 5 single #Tags relevant to the topic.
 
-Email newsletter section:
+Email newsletter section (a rich, multi-part digest — like a professional research briefing):
 - subject: a credible, non-clickbait subject.
 - preheader: one line, ~90 characters.
-- idea: the core story in 1-2 sentences.
-- story: why it matters, grounded in the sourced facts (2-3 sentences).
+- idea: the core story in 1-2 sentences (the welcome/intro read).
+- story: the Top Story narrative — why it matters, grounded in the sourced facts (2-3 sentences).
+- keyPoints: 3 to 4 key findings for the Top Story. Each is an object { lead, detail }: "lead" is a 2-4 word bold label; "detail" is ONE sentence carrying a HARD, specific fact from the sources (a number, %, date, or named figure). No vague leads, no filler.
+- spotlight: a deeper dive on ONE important facet of the story, as an object:
+    - headline: a sharp 4-9 word headline for the dive.
+    - story: 2-3 sentences of analysis, grounded strictly in the sources.
+    - wallStreetView: 1-2 sentences on how markets/investors/analysts read it (the financial angle), grounded in the sources.
+    - pressView: 1-2 sentences on how the press/coverage frames it, grounded in the sources.
+    - pressQuote: ONE short verbatim quote that actually appears in the provided sources, copied EXACTLY. If no direct quote is present in the sources, use an empty string "" — never invent, paraphrase, or attribute a quote that is not in the sources.
 - takeaway: the one thing to remember.
 - ctaLabel: a short button label pointing to Munshot.
 
@@ -64,10 +71,40 @@ const SCHEMA = {
         preheader: { type: 'string' },
         idea: { type: 'string' },
         story: { type: 'string' },
+        keyPoints: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: { lead: { type: 'string' }, detail: { type: 'string' } },
+            required: ['lead', 'detail'],
+          },
+        },
+        spotlight: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            headline: { type: 'string' },
+            story: { type: 'string' },
+            wallStreetView: { type: 'string' },
+            pressView: { type: 'string' },
+            pressQuote: { type: 'string' },
+          },
+          required: ['headline', 'story', 'wallStreetView', 'pressView', 'pressQuote'],
+        },
         takeaway: { type: 'string' },
         ctaLabel: { type: 'string' },
       },
-      required: ['subject', 'preheader', 'idea', 'story', 'takeaway', 'ctaLabel'],
+      required: [
+        'subject',
+        'preheader',
+        'idea',
+        'story',
+        'keyPoints',
+        'spotlight',
+        'takeaway',
+        'ctaLabel',
+      ],
     },
   },
   required: ['focus', 'linkedin', 'email'],
@@ -117,6 +154,8 @@ export async function generateTopicPost(
   post.email = post.email || ({} as any)
   post.linkedin.bullets = Array.isArray(post.linkedin.bullets) ? post.linkedin.bullets : []
   post.linkedin.hashtags = Array.isArray(post.linkedin.hashtags) ? post.linkedin.hashtags : []
+  post.email.keyPoints = normalizeKeyPoints(post.email.keyPoints)
+  post.email.spotlight = normalizeSpotlight(post.email.spotlight)
   if (!post.focus) post.focus = topic
   return { post, sources, topic }
 }

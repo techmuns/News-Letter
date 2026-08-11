@@ -80,6 +80,21 @@ export interface LinkedInContent {
   reposts: number
 }
 
+/** A bold-lead key finding for the Top Story. */
+export interface EmailKeyPoint {
+  lead: string
+  detail: string
+}
+
+/** The Spotlight deep-dive (Wall Street view vs. Press view + a pulled quote). */
+export interface EmailSpotlight {
+  headline: string
+  story: string
+  wallStreetView: string
+  pressView: string
+  pressQuote: string
+}
+
 export interface EmailContent {
   subject: string
   from: string
@@ -88,6 +103,10 @@ export interface EmailContent {
   story: string
   takeaway: string
   ctaLabel: string
+  /** Top-Story key findings (bold lead + detail). */
+  keyPoints?: EmailKeyPoint[]
+  /** the Spotlight deep-dive section. */
+  spotlight?: EmailSpotlight
 }
 
 export interface ArticleSection {

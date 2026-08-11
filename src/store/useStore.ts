@@ -5,6 +5,8 @@ import {
   type Campaign,
   type ChannelKind,
   type ChannelStatus,
+  type EmailKeyPoint,
+  type EmailSpotlight,
   type WorkspaceItem,
   type WorkspaceItemType,
 } from '../types'
@@ -28,6 +30,8 @@ export interface GeneratedRecord {
     story: string
     takeaway: string
     ctaLabel: string
+    keyPoints?: EmailKeyPoint[]
+    spotlight?: EmailSpotlight
   }
   heroImage?: string
   /** where it came from, e.g. "Studio" or "Daily Pulse · Topic" */
@@ -207,6 +211,8 @@ export const useStore = create<StoreState>()(
               story: input.email.story,
               takeaway: input.email.takeaway,
               ctaLabel: input.email.ctaLabel,
+              keyPoints: input.email.keyPoints,
+              spotlight: input.email.spotlight,
             },
           },
           // The long-form version is assembled from the same generation.

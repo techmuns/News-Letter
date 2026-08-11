@@ -4,6 +4,7 @@
 import type { Env } from './env'
 import { ApiError } from './http'
 import { callClaudeJson, aiConfigured, type ImageInput } from './llm'
+import { type EmailSection, normalizeKeyPoints, normalizeSpotlight } from './pulsegen'
 
 export interface GenerateInput {
   sourceText: string
@@ -16,14 +17,7 @@ export interface GenerateInput {
 export interface GeneratedContent {
   topic: string
   linkedin: { headline: string; body: string; hashtags: string[] }
-  email: {
-    subject: string
-    preheader: string
-    idea: string
-    story: string
-    takeaway: string
-    ctaLabel: string
-  }
+  email: EmailSection
 }
 
 const SYSTEM = `You are the content engine for Munshot — a market-intelligence platform whose dashboards turn financial data into clear, decision-ready insight for fund managers and serious investors.
@@ -33,7 +27,15 @@ Your job: take a raw source (a standout finance post from a top LinkedIn voice, 
 Rules:
 - LinkedIn: open with a scroll-stopping hook line, then 3-6 short punchy lines separated by line breaks (not paragraphs). Concrete, specific, useful. Written to earn comments and reposts. Roughly 500-900 characters in the body. No emojis unless one genuinely adds signal. Do NOT put hashtags in the body — return them separately, 3 sharp ones max.
 - headline: a punchy 3-8 word phrase for the branded graphic card.
-- Email: a compelling, non-clickbait subject; a one-line preheader; then three short sections — idea (the core insight), story (why it matters now, grounded in the data point if one is given), takeaway (the one thing to do or remember). Plus a short CTA label pointing to Munshot.
+- Email: a rich, multi-part newsletter digest built from the SAME source material:
+    - subject: a compelling, non-clickbait subject.
+    - preheader: one line, ~90 characters.
+    - idea: the core insight in 1-2 sentences (the welcome/intro read).
+    - story: the Top Story narrative — why it matters now, grounded in the source/data (2-3 sentences).
+    - keyPoints: 3 to 4 key findings, each an object { lead, detail }: "lead" is a 2-4 word bold label; "detail" is ONE sentence with a hard, specific fact from the source material (a number, %, or named detail). No vague leads.
+    - spotlight: a deeper dive on ONE facet, as an object: headline (4-9 words); story (2-3 sentences); wallStreetView (1-2 sentences, the financial/investor angle); pressView (1-2 sentences, how the coverage frames it); pressQuote (ONE short verbatim quote that actually appears in the provided source material, copied exactly — or an empty string "" if there is no direct quote to lift; never invent one).
+    - takeaway: the one thing to do or remember.
+    - ctaLabel: a short button label pointing to Munshot.
 - Ground every claim in the provided source/data. Never invent specific numbers that were not given. If a data point is provided, feature it prominently.
 - Make it worth reading: the post MUST leave the reader with at least ONE concrete, non-obvious takeaway they can act on or remember — a specific figure, a second-order implication, or a "what most people miss" insight. No platitudes, no filler lines.
 - Be granular and specific. Name the actual numbers, mechanisms, and details rather than gesturing at them ("this matters" is not analysis). Prefer one sharp, fully-argued point over three shallow ones. Add a nuanced angle — a tension, a counter-intuitive read, or a consequence others overlook.
@@ -64,10 +66,40 @@ const SCHEMA = {
         preheader: { type: 'string' },
         idea: { type: 'string' },
         story: { type: 'string' },
+        keyPoints: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: { lead: { type: 'string' }, detail: { type: 'string' } },
+            required: ['lead', 'detail'],
+          },
+        },
+        spotlight: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            headline: { type: 'string' },
+            story: { type: 'string' },
+            wallStreetView: { type: 'string' },
+            pressView: { type: 'string' },
+            pressQuote: { type: 'string' },
+          },
+          required: ['headline', 'story', 'wallStreetView', 'pressView', 'pressQuote'],
+        },
         takeaway: { type: 'string' },
         ctaLabel: { type: 'string' },
       },
-      required: ['subject', 'preheader', 'idea', 'story', 'takeaway', 'ctaLabel'],
+      required: [
+        'subject',
+        'preheader',
+        'idea',
+        'story',
+        'keyPoints',
+        'spotlight',
+        'takeaway',
+        'ctaLabel',
+      ],
     },
   },
   required: ['topic', 'linkedin', 'email'],
@@ -107,5 +139,7 @@ export async function generateContent(env: Env, input: GenerateInput): Promise<G
   parsed.linkedin = parsed.linkedin || ({} as any)
   parsed.email = parsed.email || ({} as any)
   parsed.linkedin.hashtags = Array.isArray(parsed.linkedin.hashtags) ? parsed.linkedin.hashtags : []
+  parsed.email.keyPoints = normalizeKeyPoints(parsed.email.keyPoints)
+  parsed.email.spotlight = normalizeSpotlight(parsed.email.spotlight)
   return parsed
 }

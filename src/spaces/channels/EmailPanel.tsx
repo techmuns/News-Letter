@@ -105,7 +105,17 @@ export function EmailPanel() {
 
   const preview = previewCampaign ? (
     <PreviewShell campaign={previewCampaign} kind="email" onBack={() => setSelectedId(null)}>
-      <EmailPreview content={previewCampaign.email.content} heroImage={previewCampaign.heroImage} />
+      <EmailPreview
+        content={previewCampaign.email.content}
+        heroImage={previewCampaign.heroImage}
+        headline={previewCampaign.linkedin.content.headline}
+        dateLabel={new Date(previewCampaign.createdAt).toLocaleDateString('en-IN', {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })}
+      />
     </PreviewShell>
   ) : (
     <PreviewEmpty label="Select a send to preview the newsletter." />

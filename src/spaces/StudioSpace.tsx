@@ -233,6 +233,17 @@ export function StudioSpace() {
     return [draft.linkedin.body.trim(), tags.join(' ')].filter(Boolean).join('\n\n')
   }, [draft])
 
+  const emailDateLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    [],
+  )
+
   const effectiveImage = imageUrl.trim() || card?.dataUrl
 
   const allSelected = pile.length > 0 && pile.every((i) => selected.has(i.id))
@@ -256,6 +267,8 @@ export function StudioSpace() {
     story: draft.email.story,
     takeaway: draft.email.takeaway,
     ctaLabel: draft.email.ctaLabel,
+    keyPoints: draft.email.keyPoints,
+    spotlight: draft.email.spotlight,
   }
 
   /* patch nested draft fields immutably */
@@ -445,7 +458,10 @@ export function StudioSpace() {
     setSending(true)
     setSendNote(null)
     try {
-      const html = buildEmailHtml(draft.email)
+      const html = buildEmailHtml(draft.email, {
+        headline: draft.linkedin.headline,
+        dateLabel: emailDateLabel,
+      })
       const recipients = recipientsText
         .split(/[\n,;]+/)
         .map((s) => s.trim())
@@ -731,7 +747,11 @@ export function StudioSpace() {
                 <MicroLabel tone="violet">Email newsletter</MicroLabel>
               </div>
 
-              <EmailPreview content={emailPreview} />
+              <EmailPreview
+                content={emailPreview}
+                headline={draft.linkedin.headline}
+                dateLabel={emailDateLabel}
+              />
 
               <div className="mt-4 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">

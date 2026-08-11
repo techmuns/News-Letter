@@ -15,6 +15,32 @@ import { ApiError } from './http'
 import { callClaudeJson, aiConfigured } from './llm'
 import { fetchDailyPulse, type PulseFeed, type PulseItem } from './dailypulse'
 
+/** A bold-lead key finding for the Top Story. */
+export interface KeyPoint {
+  lead: string
+  detail: string
+}
+
+/** The Spotlight deep-dive (two views + an optional grounded quote). */
+export interface EmailSpotlight {
+  headline: string
+  story: string
+  wallStreetView: string
+  pressView: string
+  pressQuote: string
+}
+
+export interface EmailSection {
+  subject: string
+  preheader: string
+  idea: string
+  story: string
+  takeaway: string
+  ctaLabel: string
+  keyPoints: KeyPoint[]
+  spotlight: EmailSpotlight
+}
+
 export interface PulsePost {
   /** what the post centers on — "Whole-market wrap" or a specific instrument */
   focus: string
@@ -25,13 +51,30 @@ export interface PulsePost {
     bullets: string[]
     hashtags: string[]
   }
-  email: {
-    subject: string
-    preheader: string
-    idea: string
-    story: string
-    takeaway: string
-    ctaLabel: string
+  email: EmailSection
+}
+
+/** Coerce the model's key-findings into a clean {lead, detail}[] (never throws). */
+export function normalizeKeyPoints(raw: unknown): KeyPoint[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((k: any) => ({
+      lead: String(k?.lead ?? '').trim(),
+      detail: String(k?.detail ?? '').trim(),
+    }))
+    .filter((k) => k.lead || k.detail)
+    .slice(0, 5)
+}
+
+/** Coerce the model's spotlight into a safe object, or undefined if empty. */
+export function normalizeSpotlight(raw: unknown): EmailSpotlight {
+  const s = (raw || {}) as any
+  return {
+    headline: String(s.headline ?? '').trim(),
+    story: String(s.story ?? '').trim(),
+    wallStreetView: String(s.wallStreetView ?? '').trim(),
+    pressView: String(s.pressView ?? '').trim(),
+    pressQuote: String(s.pressQuote ?? '').trim(),
   }
 }
 
@@ -96,11 +139,18 @@ LinkedIn caption:
 - bullets: 4 to 6 short theme lines. EACH bullet must START with a single relevant emoji, then a concise, specific point drawn from the data (e.g. an index move, a standout holding, a commodity/FX shift, a risk to watch). One sentence each, no trailing hashtags. Do NOT include a leading "•" — the app adds it.
 - hashtags: 3 to 5, each a single #Tag. Favor relevant, real tags (e.g. #StockMarket, #Sensex, #Nifty, #Markets). No spaces inside a tag.
 
-Email newsletter (a matching section):
+Email newsletter (a rich, multi-part digest):
 - subject: a credible, non-clickbait subject for today's update.
 - preheader: one line, ~90 characters.
-- idea: the core read on the day in 1-2 sentences.
-- story: why it matters now, grounded in the specific moves in the data (2-3 sentences).
+- idea: the core read on the day in 1-2 sentences (the welcome/intro read).
+- story: the Top Story narrative — why it matters now, grounded in the specific moves in the data (2-3 sentences).
+- keyPoints: 3 to 4 key findings for the Top Story. Each is an object { lead, detail }: "lead" is a 2-4 word bold label; "detail" is ONE sentence carrying a HARD number from the feed (a level or a % move). No vague leads.
+- spotlight: a deeper dive on ONE standout instrument or theme from the feed, as an object:
+    - headline: a sharp 4-9 word headline.
+    - story: 2-3 sentences of analysis, grounded strictly in the feed's levels and % moves.
+    - wallStreetView: 1-2 sentences on the trading/positioning read of this move (grounded in the numbers).
+    - pressView: 1-2 sentences on the wider macro / cross-asset read — what it implies for other instruments in the feed (grounded in the numbers).
+    - pressQuote: ALWAYS an empty string "" for this data-only update — there are no news sources to quote, so never invent or attribute a quote.
 - takeaway: the one thing to remember or do.
 - ctaLabel: a short button label pointing to Munshot.
 
@@ -134,10 +184,40 @@ const SCHEMA = {
         preheader: { type: 'string' },
         idea: { type: 'string' },
         story: { type: 'string' },
+        keyPoints: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: { lead: { type: 'string' }, detail: { type: 'string' } },
+            required: ['lead', 'detail'],
+          },
+        },
+        spotlight: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            headline: { type: 'string' },
+            story: { type: 'string' },
+            wallStreetView: { type: 'string' },
+            pressView: { type: 'string' },
+            pressQuote: { type: 'string' },
+          },
+          required: ['headline', 'story', 'wallStreetView', 'pressView', 'pressQuote'],
+        },
         takeaway: { type: 'string' },
         ctaLabel: { type: 'string' },
       },
-      required: ['subject', 'preheader', 'idea', 'story', 'takeaway', 'ctaLabel'],
+      required: [
+        'subject',
+        'preheader',
+        'idea',
+        'story',
+        'keyPoints',
+        'spotlight',
+        'takeaway',
+        'ctaLabel',
+      ],
     },
   },
   required: ['focus', 'linkedin', 'email'],
@@ -178,6 +258,8 @@ export async function generatePulsePost(
   post.email = post.email || ({} as any)
   post.linkedin.bullets = Array.isArray(post.linkedin.bullets) ? post.linkedin.bullets : []
   post.linkedin.hashtags = Array.isArray(post.linkedin.hashtags) ? post.linkedin.hashtags : []
+  post.email.keyPoints = normalizeKeyPoints(post.email.keyPoints)
+  post.email.spotlight = normalizeSpotlight(post.email.spotlight)
   if (!post.focus) post.focus = focus ? focus.name : 'Whole-market wrap'
   return { post, fetchedAt: feed.fetchedAt }
 }

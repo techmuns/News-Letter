@@ -2,17 +2,41 @@
    Same-origin in production; override with VITE_API_BASE for split local dev. */
 import type { ArticleContent as ArticleType } from '../types'
 
+/** A bold-lead key finding for the Top Story ("Lead" bolded, then the detail). */
+export interface KeyPoint {
+  lead: string
+  detail: string
+}
+
+/** The "Spotlight" section — a deeper read split into the two views the
+    reference newsletter uses (what the Street thinks vs. what the press says). */
+export interface EmailSpotlight {
+  headline: string
+  story: string
+  wallStreetView: string
+  pressView: string
+  /** a verbatim quote lifted from a provided source; empty when none is grounded */
+  pressQuote: string
+}
+
+/** The full newsletter-digest section produced alongside every post. */
+export interface EmailSection {
+  subject: string
+  preheader: string
+  idea: string
+  story: string
+  takeaway: string
+  ctaLabel: string
+  /** Top-Story key findings (bold lead + detail). */
+  keyPoints?: KeyPoint[]
+  /** the Spotlight deep-dive (headline → Wall Street / Press views). */
+  spotlight?: EmailSpotlight
+}
+
 export interface GeneratedContent {
   topic: string
   linkedin: { headline: string; body: string; hashtags: string[] }
-  email: {
-    subject: string
-    preheader: string
-    idea: string
-    story: string
-    takeaway: string
-    ctaLabel: string
-  }
+  email: EmailSection
 }
 
 /** A sourced news result backing a Topic-mode post. */
@@ -28,14 +52,7 @@ export interface NewsItem {
 export interface PulsePost {
   focus: string
   linkedin: { hook: string; bullets: string[]; hashtags: string[] }
-  email: {
-    subject: string
-    preheader: string
-    idea: string
-    story: string
-    takeaway: string
-    ctaLabel: string
-  }
+  email: EmailSection
 }
 
 export interface HealthFlags {
