@@ -150,20 +150,58 @@ async function callClaudeText(env: Env, input: CallInput): Promise<string> {
   throw new ApiError('No AI provider configured — set BEDROCK_API_KEY (see SETUP.md).', 400)
 }
 
-/** Strip code fences / prose and isolate the outermost JSON object. */
+/** Strip code fences, then isolate the FIRST complete, balanced JSON object.
+    Scans while tracking string/escape state, so it tolerates trailing prose and
+    braces that appear inside string values (naive first-{/last-} slicing does
+    not). Falls back to a first-{/last-} slice if no balanced object is found
+    (e.g. a truncated reply). */
 function extractJson(text: string): string {
   let t = text.trim()
   const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
   if (fenced) t = fenced[1].trim()
   const start = t.indexOf('{')
+  if (start < 0) return t
+  let depth = 0
+  let inStr = false
+  let esc = false
+  for (let i = start; i < t.length; i++) {
+    const ch = t[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (ch === '\\') esc = true
+      else if (ch === '"') inStr = false
+    } else if (ch === '"') inStr = true
+    else if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return t.slice(start, i + 1)
+    }
+  }
   const end = t.lastIndexOf('}')
-  if (start >= 0 && end > start) t = t.slice(start, end + 1)
-  return t
+  return end > start ? t.slice(start, end + 1) : t.slice(start)
+}
+
+/** Parse the model's reply into an object, trying a couple of safe repairs
+    (balanced-object extraction, then trailing-comma removal). Returns null if
+    nothing parses. */
+function parseJsonLoose<T>(text: string): T | null {
+  const raw = extractJson(text)
+  const candidates = [raw, raw.replace(/,\s*([}\]])/g, '$1')]
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c) as T
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  return null
 }
 
 /** Generate a JSON object of shape `schema`. Schema is embedded in the prompt
     (portable across Bedrock invoke + the Anthropic API) and the reply is parsed
-    defensively. */
+    defensively. Retries once with a corrective nudge if the first reply doesn't
+    parse — model JSON is stochastic (an unescaped quote/newline in a string is
+    the usual culprit), and a second attempt almost always succeeds. */
 export async function callClaudeJson<T = any>(
   env: Env,
   input: { system: string; user: string; schema: unknown; images?: ImageInput[]; maxTokens?: number },
@@ -171,19 +209,25 @@ export async function callClaudeJson<T = any>(
   const system = `${input.system}
 
 # Output format
-Return ONLY a single JSON object — no prose, no explanation, and no markdown code fences. The object MUST conform to this JSON Schema:
+Return ONLY a single JSON object — no prose, no explanation, and no markdown code fences. The JSON must be strictly valid: escape every double quote (\\") and newline (\\n) that appears INSIDE a string value. The object MUST conform to this JSON Schema:
 ${JSON.stringify(input.schema)}`
 
-  const text = await callClaudeText(env, {
-    system,
-    user: input.user,
-    images: input.images,
-    maxTokens: input.maxTokens,
-  })
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const user =
+      attempt === 0
+        ? input.user
+        : `${input.user}
 
-  try {
-    return JSON.parse(extractJson(text)) as T
-  } catch {
-    throw new ApiError('The model did not return valid JSON. Try again.', 502)
+# Correction
+Your previous reply could not be parsed as JSON. Return ONLY the single JSON object again — strictly valid this time. Escape any double quotes and newlines inside string values, and include no text outside the object.`
+    const text = await callClaudeText(env, {
+      system,
+      user,
+      images: input.images,
+      maxTokens: input.maxTokens,
+    })
+    const parsed = parseJsonLoose<T>(text)
+    if (parsed) return parsed
   }
+  throw new ApiError('The model did not return valid JSON. Try again.', 502)
 }
