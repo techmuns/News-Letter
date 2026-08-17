@@ -18,6 +18,7 @@ import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
 import { renderBrandedCard } from '../../lib/brandedImage'
 import { renderChartOfDay, pickChartItems } from '../../lib/chartImage'
 import { useStore } from '../../store/useStore'
+import { usePulseDraft } from '../../store/usePulseDraft'
 import { FocusCombobox } from './FocusCombobox'
 import { type LinkedInContent, type EmailContent } from '../../types'
 import { cn } from '../../lib/cn'
@@ -114,20 +115,24 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   const [tone, setTone] = useState(TONES[0])
   const [imageStyle, setImageStyle] = useState<PulseImageStyle>('gainers')
 
-  const [post, setPost] = useState<PulsePost | null>(null)
+  // Restore the last generation (text) so the preview survives a page refresh.
+  const [savedDraft] = useState(() => usePulseDraft.getState().draft)
+  const [post, setPost] = useState<PulsePost | null>(savedDraft?.post ?? null)
   /** What the current preview was actually built from — the market feed vs.
       news. In Market mode, typing a company that isn't in the feed auto-routes
       to the news-grounded path, so the previews must follow the RESULT, not the
       selected input mode. */
-  const [resultKind, setResultKind] = useState<'market' | 'topic'>('market')
-  const [sources, setSources] = useState<NewsItem[]>([])
+  const [resultKind, setResultKind] = useState<'market' | 'topic'>(
+    savedDraft?.resultKind ?? 'market',
+  )
+  const [sources, setSources] = useState<NewsItem[]>(savedDraft?.sources ?? [])
 
   // channel history (LinkedIn / Email / Articles tabs read this)
   const recordGeneration = useStore((s) => s.recordGeneration)
   const setHeroImage = useStore((s) => s.setHeroImage)
   const setChannelStatus = useStore((s) => s.setChannelStatus)
   const scheduleChannel = useStore((s) => s.scheduleChannel)
-  const [historyId, setHistoryId] = useState<string | null>(null)
+  const [historyId, setHistoryId] = useState<string | null>(savedDraft?.historyId ?? null)
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
@@ -211,6 +216,12 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   )
   const emailDateLabel = useMemo(() => dateLabelFrom(feed.fetchedAt), [feed])
   const emailHeadline = post ? stripLeadingEmoji(post.linkedin.hook) || post.focus : ''
+
+  // Remember the last generation (text only) so the preview survives a refresh.
+  // Only saves when a post exists — switching modes never wipes the saved one.
+  useEffect(() => {
+    if (post) usePulseDraft.getState().setDraft({ post, sources, resultKind, historyId })
+  }, [post, sources, resultKind, historyId])
 
   const caption = useMemo(() => {
     if (!post) return ''
