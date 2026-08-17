@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import {
   type ArticleContent,
   type Campaign,
@@ -47,6 +47,33 @@ export function typeFromName(name: string): WorkspaceItemType {
 }
 
 const PROCESSING_MS = 2000
+
+/** localStorage that never throws on a full quota — a failed write just means
+    the change won't survive a reload, never a crash/blank screen. Mirrors the
+    Studio pile's guard. */
+const safeStorage = {
+  getItem: (name: string) => {
+    try {
+      return localStorage.getItem(name)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value)
+    } catch {
+      /* quota exceeded / unavailable — keep in-memory state, skip persistence */
+    }
+  },
+  removeItem: (name: string) => {
+    try {
+      localStorage.removeItem(name)
+    } catch {
+      /* ignore */
+    }
+  },
+}
 
 interface StoreState {
   items: WorkspaceItem[]
@@ -331,9 +358,19 @@ export const useStore = create<StoreState>()(
     {
       name: 'munshot-content-store',
       version: 4,
+      storage: createJSONStorage(() => safeStorage),
+      // Persist text only. Rendered images (heroImage) are big data: URLs — a
+      // full-res PNG each — and a handful of them blows the ~5MB localStorage
+      // quota, which previously threw and blanked the screen. They stay in
+      // memory for the session (previews still show); we just don't store them.
+      // A hosted http(s) image URL is small, so keep those.
       partialize: (s) => ({
-        items: s.items,
-        campaigns: s.campaigns,
+        items: s.items.map((it) =>
+          it.imageUrl && it.imageUrl.startsWith('data:') ? { ...it, imageUrl: undefined } : it,
+        ),
+        campaigns: s.campaigns.map((c) =>
+          c.heroImage && c.heroImage.startsWith('data:') ? { ...c, heroImage: undefined } : c,
+        ),
         genIndex: s.genIndex,
       }),
       // The channel spaces now show REAL generated history, not demo campaigns —
