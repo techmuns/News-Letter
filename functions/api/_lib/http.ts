@@ -19,8 +19,8 @@ export class ApiError extends Error {
 
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type,x-app-secret',
+  'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
+  'access-control-allow-headers': 'content-type,x-app-secret,authorization',
 }
 
 export function json(data: unknown, status = 200): Response {

@@ -67,6 +67,8 @@ export interface HealthFlags {
   /** Live stock/company search is wired — Munshot token set */
   stockSearch: boolean
   linkedin: boolean
+  /** per-user "Connect Buffer" OAuth is wired (client id/secret/redirect + D1 + encryption key) */
+  bufferOAuth: boolean
   email: boolean
   emailProvider: string
   authRequired: boolean

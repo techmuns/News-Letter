@@ -78,6 +78,48 @@ To let Buffer attach the auto-rendered graphic, it must be hosted at a public UR
 
 Until you do this the app runs fine — Studio just posts **text-only** (or whatever Custom image URL you paste). **Don't commit a fake id** — the deploy validates the namespace and would fail.
 
+## 3b. Buffer OAuth — "Connect Buffer" (per-user LinkedIn publishing)
+
+This is a **separate, optional** feature from §3 above: instead of one shared `BUFFER_ACCESS_TOKEN` posting to the Munshot page, each person opening this dashboard from inside Munshot can connect **their own** Buffer account and post to **their own** LinkedIn channel through it. Both paths work side by side — §3's static token keeps working as a fallback/escape hatch.
+
+**How identity works here:** "the authenticated user" is whoever the Munshot host says they are — the `email` claim inside the Munshot JWT that's already wired up via the host-session SDK (`src/lib/sdk.ts` / `useHostSession()`). The frontend forwards that JWT as `Authorization: Bearer <token>` to every `/api/buffer/*` and `/api/auth/buffer*` call, and the backend reads the `email` claim out of it (`functions/api/_lib/munshotAuth.ts`).
+
+> ⚠️ **Known gap, on purpose:** the backend does **not** verify that JWT's signature — it just decodes the payload. This was an explicit "do the minimum for now" call, not an oversight. It means the per-user isolation here is really per-*claimed-email*: nothing currently stops a request from claiming to be any email address it wants and reading/hijacking that email's Buffer connection. Close this before treating any of this as real multi-tenant security — `functions/api/_lib/munshotAuth.ts` has the details on what's needed (JWKS/public-key verification, a Munshot introspection endpoint, or a shared signing secret — whichever matches how Munshot actually signs the token) and is the only place that needs to change.
+
+### Setup
+
+1. **Register a Buffer OAuth app** (not the same as the personal API key from §3): https://buffer.com/developers/apps → New App.
+   - Redirect URI: `https://<your-domain>/api/auth/buffer/callback` (and `http://localhost:5173/api/auth/buffer/callback` too if you want OAuth to work in local dev).
+   - Copy the **Client ID** and **Client Secret** it gives you.
+2. **Create a D1 database** for the per-user connection rows:
+   ```bash
+   npx wrangler d1 create news-letter-db
+   ```
+   Paste the printed `database_id` into the commented `d1_databases` block at the bottom of [`wrangler.jsonc`](wrangler.jsonc) and un-comment it (same pattern as the KV block above).
+3. **Run the migration** to create the tables:
+   ```bash
+   npx wrangler d1 migrations apply news-letter-db --remote   # production
+   npx wrangler d1 migrations apply news-letter-db            # local dev DB
+   ```
+4. **Generate an encryption key** for tokens at rest:
+   ```bash
+   openssl rand -base64 32
+   ```
+5. Set four variables (see §6 for where to paste them): `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY`.
+6. Redeploy. `/api/health` then shows `"bufferOAuth": true`. Open **Channels → LinkedIn** — a **Connect Buffer** card appears above the post list (only when opened from inside Munshot, since that's where the session identity comes from).
+
+### How the pieces fit together
+
+- **Endpoints** (`worker/index.ts`, logic in `functions/api/_lib/bufferOAuth.ts` / `bufferAccounts.ts` / `buffer.ts`):
+  - `GET /api/auth/buffer` — fetch-based (not a raw navigation, so it can carry the Munshot `Authorization` header); returns `{ authorizeUrl }`, generating and storing the PKCE `code_verifier` + `state` in D1. The frontend does the actual redirect.
+  - `GET /api/auth/buffer/callback` — Buffer redirects the browser here after approval. Verifies `state`, exchanges the code (with the matching `code_verifier`) for tokens server-side, encrypts and stores them, then redirects back into the app (`/channels?buffer=connected` or `?buffer=error&reason=…`).
+  - `GET /api/buffer/organizations`, `GET /api/buffer/channels?organizationId=…`, `GET /api/buffer/connection` — read-only discovery + current status.
+  - `POST /api/buffer/select-channel` — persists the chosen channel, after independently re-fetching that org's channels server-side and confirming the id actually belongs there (never trusts a client-supplied channel id).
+  - `POST /api/buffer/posts` — publishes to the caller's selected channel via their (auto-refreshed) OAuth token.
+  - `DELETE /api/buffer/disconnect` — marks the connection disconnected and wipes the stored tokens; the user has to reconnect from scratch.
+- **Tokens at rest:** AES-256-GCM via `functions/api/_lib/crypto.ts`, keyed by `TOKEN_ENCRYPTION_KEY`. Nothing ever logs a token value.
+- **Refresh:** Buffer refresh tokens are **single-use** — every refresh rotates it, and the rotated value is what gets persisted. If a refresh ever fails (revoked, expired), the connection is marked disconnected and the next call returns a 401 telling the user to reconnect, instead of a confusing raw Buffer error.
+
 ## 4. Email (newsletter) → `RESEND_API_KEY` + `EMAIL_FROM` (+ `EMAIL_RECIPIENTS`)
 
 Default provider is **Resend** (simplest). To use SendGrid instead, set `EMAIL_PROVIDER=sendgrid` and `SENDGRID_API_KEY`.

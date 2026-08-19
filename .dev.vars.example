@@ -41,6 +41,19 @@ BUFFER_LINKEDIN_CHANNEL_ID=
 # Optional: enables the /api/buffer-channels helper to list your channels
 # BUFFER_ORG_ID=
 
+# --- Buffer OAuth ("Connect Buffer" — per-user LinkedIn publishing) ---
+# Requires a D1 database bound as `DB` (see wrangler.jsonc + SETUP.md — D1
+# can't be configured via .dev.vars; it's a real binding).
+# Register an OAuth app at https://buffer.com/developers/apps.
+BUFFER_CLIENT_ID=
+BUFFER_CLIENT_SECRET=
+# Must exactly match the redirect URI registered with the Buffer app, e.g.
+# http://localhost:5173/api/auth/buffer/callback for local dev.
+BUFFER_REDIRECT_URI=
+# Base64-encoded 32-byte AES-256-GCM key for encrypting stored Buffer OAuth
+# tokens at rest. Generate with: openssl rand -base64 32
+TOKEN_ENCRYPTION_KEY=
+
 # --- Email newsletter ---
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=
