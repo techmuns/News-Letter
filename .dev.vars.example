@@ -44,9 +44,12 @@ BUFFER_LINKEDIN_CHANNEL_ID=
 # --- Buffer OAuth ("Connect Buffer" — per-user LinkedIn publishing) ---
 # Requires a D1 database bound as `DB` (see wrangler.jsonc + SETUP.md — D1
 # can't be configured via .dev.vars; it's a real binding).
-# Register an OAuth app at https://buffer.com/developers/apps.
+# Register an app at publish.buffer.com/settings/api -> App Clients tab.
 BUFFER_CLIENT_ID=
-BUFFER_CLIENT_SECRET=
+# Optional — Buffer's current "App Clients" UI only issues a client_id (a
+# public PKCE client, no secret). Leave this unset; only fill it in if a
+# future Buffer app type actually gives you one.
+# BUFFER_CLIENT_SECRET=
 # Must exactly match the redirect URI registered with the Buffer app, e.g.
 # http://localhost:5173/api/auth/buffer/callback for local dev.
 BUFFER_REDIRECT_URI=

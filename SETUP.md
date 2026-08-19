@@ -88,9 +88,9 @@ This is a **separate, optional** feature from §3 above: instead of one shared `
 
 ### Setup
 
-1. **Register a Buffer OAuth app** (not the same as the personal API key from §3): https://buffer.com/developers/apps → New App.
+1. **Register a Buffer OAuth app** (not the same as the personal API key from §3): **publish.buffer.com/settings/api → App Clients tab → New Client**. (The old `buffer.com/developers/apps` page is for Buffer's legacy REST API, being retired — it has no "create app" option anymore.)
    - Redirect URI: `https://<your-domain>/api/auth/buffer/callback` (and `http://localhost:5173/api/auth/buffer/callback` too if you want OAuth to work in local dev).
-   - Copy the **Client ID** and **Client Secret** it gives you.
+   - Copy the **Client ID**. Buffer's "App Clients" currently only issue a client_id — no client_secret — meaning this is a **public PKCE client**. That's expected and fully supported: PKCE (which Buffer requires on every client) is specifically designed to secure a client without a secret. Leave `BUFFER_CLIENT_SECRET` unset.
 2. **Create a D1 database** for the per-user connection rows:
    ```bash
    npx wrangler d1 create news-letter-db
@@ -105,7 +105,7 @@ This is a **separate, optional** feature from §3 above: instead of one shared `
    ```bash
    openssl rand -base64 32
    ```
-5. Set four variables (see §6 for where to paste them): `BUFFER_CLIENT_ID`, `BUFFER_CLIENT_SECRET`, `BUFFER_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY`.
+5. Set three variables (see §6 for where to paste them): `BUFFER_CLIENT_ID`, `BUFFER_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY`. Skip `BUFFER_CLIENT_SECRET` unless Buffer actually gave you one.
 6. Redeploy. `/api/health` then shows `"bufferOAuth": true`. Open **Channels → LinkedIn** — a **Connect Buffer** card appears above the post list (only when opened from inside Munshot, since that's where the session identity comes from).
 
 ### How the pieces fit together

@@ -84,7 +84,9 @@ export interface Env {
   DB?: D1Like
   /** Buffer OAuth app client id — register an app at https://buffer.com/developers/apps. */
   BUFFER_CLIENT_ID?: string
-  /** Buffer OAuth app client secret. Confidential-client secret — server-side only. */
+  /** Buffer OAuth app client secret — OPTIONAL. Buffer's current "App Clients" UI only
+      issues a client_id (public PKCE client, no secret); set this only if a future Buffer
+      app type actually issues one. Never sent to Buffer when unset (see bufferOAuth.ts). */
   BUFFER_CLIENT_SECRET?: string
   /** Must exactly match the redirect URI registered with the Buffer OAuth app,
       e.g. https://<your-domain>/api/auth/buffer/callback */
@@ -131,10 +133,11 @@ export function configuredFlags(env: Env) {
     /** Live stock/company search is wired — Munshot token set */
     stockSearch: Boolean(env.MUNS_ACCESS_TOKEN),
     linkedin: Boolean(env.BUFFER_ACCESS_TOKEN && env.BUFFER_LINKEDIN_CHANNEL_ID),
-    /** per-user "Connect Buffer" OAuth is wired (client id/secret/redirect + DB + encryption key) */
-    bufferOAuth: Boolean(
-      env.BUFFER_CLIENT_ID && env.BUFFER_CLIENT_SECRET && env.BUFFER_REDIRECT_URI && env.TOKEN_ENCRYPTION_KEY && env.DB,
-    ),
+    /** per-user "Connect Buffer" OAuth is wired (client id/redirect + DB + encryption key).
+        BUFFER_CLIENT_SECRET is deliberately NOT required here — Buffer's "App Clients"
+        only issue a client_id (public PKCE client, no secret), so this app supports
+        running without one; see bufferOAuth.ts, which only sends client_secret if set. */
+    bufferOAuth: Boolean(env.BUFFER_CLIENT_ID && env.BUFFER_REDIRECT_URI && env.TOKEN_ENCRYPTION_KEY && env.DB),
     email: Boolean(emailKey && env.EMAIL_FROM),
     emailProvider: provider,
     /** whether a shared app secret is required to call the write endpoints */
