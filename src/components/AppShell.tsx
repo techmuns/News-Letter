@@ -2,6 +2,22 @@ import { Outlet } from 'react-router-dom'
 import { ProductMark } from './ProductMark'
 import { NAV_ITEMS, RailItem, BottomNavItem } from './nav'
 import { MicroLabel } from './MicroLabel'
+import { useHostSession } from '../lib/HostSessionProvider'
+
+/** Small, non-blocking indicator of where the session came from — never a
+    full-page error, since `token: null` is a normal, transient state. */
+function SessionIndicator() {
+  const { session, status } = useHostSession()
+
+  if (status === 'waiting') return <MicroLabel className="text-text-dim">Waiting for session…</MicroLabel>
+  if (status === 'guest') return <MicroLabel className="text-text-dim">Guest session</MicroLabel>
+  return (
+    <MicroLabel className="text-text-dim">
+      {session.userName ?? session.email ?? 'Munshot session'}
+      {session.orgName ? ` · ${session.orgName}` : ''}
+    </MicroLabel>
+  )
+}
 
 function TopBar() {
   return (
@@ -10,7 +26,7 @@ function TopBar() {
         <ProductMark compact />
       </div>
       <div className="hidden md:block">
-        <MicroLabel className="text-text-dim">Internal · mock preview</MicroLabel>
+        <SessionIndicator />
       </div>
     </header>
   )

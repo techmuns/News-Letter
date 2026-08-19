@@ -93,6 +93,14 @@ Your publish/send endpoints spend money and post publicly, so lock them down: se
 
 ---
 
+## 5b. Munshot host embedding (JWT session) → `VITE_MUNSHOT_ALLOWED_ORIGINS`
+
+When embedded in the Munshot host (`https://chat.muns.io`) as an iframe, the app takes its session (JWT + identity) automatically via the **Munshot Dashboard SDK** — no login screen. `VITE_MUNSHOT_ALLOWED_ORIGINS` is the trust boundary for that handshake: a comma-separated list of exact scheme+host origins allowed to hand the app a session. It's a **client-side build var** (copy [`.env.example`](.env.example) to `.env`, or set it in your host's build environment) — it defaults to `https://chat.muns.io` if unset, so you only need to set it to add another origin, never to enable the default one.
+
+Outside the Munshot iframe — opening the app directly, or before any session arrives — it signs in as a local **Guest** session instead of hanging on a loading screen. See `src/lib/sdk.ts`, `src/lib/hostMessageGuard.ts`, and `src/hooks/useHostContext.ts`.
+
+---
+
 ## 6. Where to paste the keys
 
 This deploys as a **Cloudflare Worker** (`news-letter`, config in [`wrangler.jsonc`](wrangler.jsonc); the API lives in [`worker/index.ts`](worker/index.ts)). Add keys in:
