@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeMunshotEmail, requireMunshotUser } from './munshotAuth'
+import { GUEST_IDENTITY_EMAIL, decodeMunshotEmail, requireMunshotUser } from './munshotAuth'
 
 function base64Url(obj: unknown): string {
   const json = JSON.stringify(obj)
@@ -62,10 +62,18 @@ describe('requireMunshotUser', () => {
     expect(requireMunshotUser(requestWithAuth(`Bearer ${token}`))).toBe('user@munshot.io')
   })
 
-  it('throws a 401 ApiError when there is no valid token', () => {
-    expect(() => requireMunshotUser(requestWithAuth(null))).toThrow()
+  it('falls back to the shared guest identity when no Authorization header is sent at all', () => {
+    // This is the standalone / not-embedded-in-Munshot case — see the
+    // GUEST FALLBACK note in munshotAuth.ts. It must NOT throw: without
+    // this, "Connect Buffer" would be unusable until something actually
+    // embeds this app in Munshot.
+    expect(requireMunshotUser(requestWithAuth(null))).toBe(GUEST_IDENTITY_EMAIL)
+  })
+
+  it('throws a 401 ApiError when a session was attempted but is malformed', () => {
+    expect(() => requireMunshotUser(requestWithAuth('Bearer not-a-jwt'))).toThrow()
     try {
-      requireMunshotUser(requestWithAuth(null))
+      requireMunshotUser(requestWithAuth('Bearer not-a-jwt'))
       expect.unreachable()
     } catch (e: any) {
       expect(e.status).toBe(401)

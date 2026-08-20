@@ -109,6 +109,8 @@ export default {
         // can be sent as a normal Authorization header; the frontend does the
         // actual browser redirect once it gets `authorizeUrl` back.
         return guard(async () => {
+          const unauthorized = checkAuth(ctx)
+          if (unauthorized) return unauthorized
           const email = requireMunshotUser(request)
           const codeVerifier = generateCodeVerifier()
           const codeChallenge = await codeChallengeFromVerifier(codeVerifier)

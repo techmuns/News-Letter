@@ -16,8 +16,25 @@
    publishes for that purpose, then swap the body of decodeMunshotEmail for a
    verified decode. Everything downstream (buffer.ts, bufferAccounts.ts,
    worker/index.ts) already treats "email" as the trust boundary, so closing
-   this one function closes the gap everywhere at once. */
+   this one function closes the gap everywhere at once.
+
+   GUEST FALLBACK — when the app isn't embedded in Munshot at all (no
+   Authorization header sent), requireMunshotUser resolves to a single fixed
+   identity instead of rejecting the request outright. Without this, "Connect
+   Buffer" would only ever work once something actually embeds this app in
+   Munshot — which nothing does yet. All guest visitors share ONE Buffer
+   connection under this identity (this is the same shared-account model the
+   pre-OAuth BUFFER_ACCESS_TOKEN path already used). These routes are also
+   covered by the existing `checkAuth`/APP_SECRET gate (see worker/index.ts) —
+   set APP_SECRET if this app is reachable at a public URL, or anyone who
+   finds the link can connect/disconnect/post through that shared guest
+   connection. A real Munshot session (Authorization header present and
+   valid) always takes priority and gets its own isolated connection. */
 import { ApiError } from './http'
+
+/** Fallback identity used only when no Authorization header is present at
+    all — see the GUEST FALLBACK note above. */
+export const GUEST_IDENTITY_EMAIL = 'guest@standalone.local'
 
 function base64UrlDecodeToString(segment: string): string {
   const padded = segment.replace(/-/g, '+').replace(/_/g, '/')
@@ -44,9 +61,13 @@ export function decodeMunshotEmail(request: Request): string | null {
   }
 }
 
-/** Guard for every Buffer OAuth route: returns the caller's email or throws
-    a 401 ApiError (catch it the same way as any other route error via `guard`). */
+/** Guard for every Buffer OAuth route: returns the caller's email (falling
+    back to GUEST_IDENTITY_EMAIL when the app isn't embedded in Munshot at
+    all — see the GUEST FALLBACK note above), or throws a 401 ApiError when a
+    session WAS attempted but is malformed (catch it the same way as any
+    other route error via `guard`). */
 export function requireMunshotUser(request: Request): string {
+  if (!request.headers.get('authorization')) return GUEST_IDENTITY_EMAIL
   const email = decodeMunshotEmail(request)
   if (!email) {
     throw new ApiError(

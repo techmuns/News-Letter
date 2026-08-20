@@ -64,9 +64,13 @@ export function BufferConnectCard() {
   const [postNote, setPostNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const token = session.token
+  // Guest mode still works — it just shares one connection identity across
+  // every visitor without a Munshot session (see munshotAuth.ts). Only the
+  // transient "waiting for session" state has nothing to act on yet.
+  const canAct = status !== 'waiting'
 
   useEffect(() => {
-    if (!token) {
+    if (!canAct) {
       setConnection(null)
       return
     }
@@ -92,10 +96,9 @@ export function BufferConnectCard() {
       cancelled = true
     }
     // Re-check right after the OAuth redirect lands too.
-  }, [token, redirectNotice])
+  }, [canAct, token, redirectNotice])
 
   async function loadOrganizations() {
-    if (!token) return
     setBusy('select')
     setNote(null)
     try {
@@ -113,7 +116,7 @@ export function BufferConnectCard() {
   }
 
   async function loadChannels(orgId: string) {
-    if (!token || !orgId) return
+    if (!orgId) return
     setBusy('select')
     setNote(null)
     try {
@@ -127,7 +130,6 @@ export function BufferConnectCard() {
   }
 
   async function handleConnect() {
-    if (!token) return
     setBusy('connect')
     setNote(null)
     try {
@@ -139,7 +141,7 @@ export function BufferConnectCard() {
   }
 
   async function handleSelectChannel() {
-    if (!token || !organizationId || !channelId) return
+    if (!organizationId || !channelId) return
     setBusy('select')
     setNote(null)
     try {
@@ -154,7 +156,6 @@ export function BufferConnectCard() {
   }
 
   async function handleDisconnect() {
-    if (!token) return
     setBusy('disconnect')
     setNote(null)
     try {
@@ -172,7 +173,7 @@ export function BufferConnectCard() {
   }
 
   async function handlePost() {
-    if (!token || !postText.trim()) return
+    if (!postText.trim()) return
     setBusy('post')
     setPostNote(null)
     try {
@@ -205,12 +206,12 @@ export function BufferConnectCard() {
 
       {status === 'guest' && (
         <p className="mt-2 text-[13px] leading-relaxed text-text-muted">
-          Open this dashboard from inside Munshot to connect your Buffer account — it identifies you from your
-          Munshot session.
+          Not opened from inside Munshot, so this uses one shared connection for anyone with this link — open it
+          from inside Munshot instead to get your own isolated Buffer connection.
         </p>
       )}
 
-      {status === 'host' && (
+      {canAct && (
         <>
           {loadingConnection && !connection && (
             <p className="mt-2 text-[13px] text-text-dim">Checking your Buffer connection…</p>
