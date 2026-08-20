@@ -7,6 +7,7 @@ import { SplitLayout, PreviewEmpty } from '../../components/SplitLayout'
 import { ChannelListRow } from '../../components/ChannelListRow'
 import { PreviewShell } from '../../components/preview/PreviewShell'
 import { LinkedInPost } from '../../components/preview/LinkedInPost'
+import { BufferConnectCard } from '../../components/channels/BufferConnectCard'
 
 function firstLine(s: string): string {
   return s.split('\n')[0]
@@ -54,5 +55,10 @@ export function LinkedInPanel() {
     <PreviewEmpty label="Select a post to preview how it will look on LinkedIn." />
   )
 
-  return <SplitLayout list={list} preview={preview} hasSelection={!!selectedId} />
+  return (
+    <div className="flex flex-col gap-5">
+      <BufferConnectCard />
+      <SplitLayout list={list} preview={preview} hasSelection={!!selectedId} />
+    </div>
+  )
 }

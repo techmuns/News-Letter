@@ -21,4 +21,18 @@
   // a Custom image URL manually). Do NOT commit a fake id — deploy will fail.
   //
   // ,"kv_namespaces": [{ "binding": "STORE", "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE" }]
+
+  // ── Buffer OAuth ("Connect Buffer" — optional) ───────────────────────────
+  // Per-user Buffer OAuth connections/PKCE state live in a D1 database. To
+  // turn this on:
+  //   1. Run:  npx wrangler d1 create news-letter-db
+  //   2. Copy the printed database_id into the block below and UN-comment it.
+  //   3. Run:  npx wrangler d1 migrations apply news-letter-db --remote
+  //      (drop --remote for local dev against .wrangler's local D1)
+  //   4. Set BUFFER_CLIENT_ID / BUFFER_REDIRECT_URI / TOKEN_ENCRYPTION_KEY
+  //      (see .dev.vars.example + SETUP.md). BUFFER_CLIENT_SECRET is optional —
+  //      Buffer's "App Clients" currently only issue a client_id.
+  // Until then the app runs fine; the static BUFFER_ACCESS_TOKEN path keeps
+  // working as-is. Do NOT commit a fake database_id — deploy will fail.
+  ,"d1_databases": [{ "binding": "DB", "database_name": "news-letter-db", "database_id": "484e83cc-884b-48eb-972d-a4cec529beae" }]
 }

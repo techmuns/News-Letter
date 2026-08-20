@@ -46,19 +46,23 @@ export interface PublishInput {
   scheduledAt?: string
 }
 
-export async function publishToBuffer(env: Env, input: PublishInput) {
-  if (!env.BUFFER_ACCESS_TOKEN) throw new ApiError('BUFFER_ACCESS_TOKEN is not set (see SETUP.md).', 400)
-  if (!env.BUFFER_LINKEDIN_CHANNEL_ID) {
-    throw new ApiError('BUFFER_LINKEDIN_CHANNEL_ID is not set (see SETUP.md).', 400)
-  }
+export interface CreatePostInput extends PublishInput {
+  channelId: string
+}
+
+/** Publishes through Buffer's createPost mutation for a specific channel and
+    bearer token — the token can be the app-wide BUFFER_ACCESS_TOKEN or a
+    per-user OAuth access token; this function doesn't care which. */
+export async function createBufferPost(token: string, input: CreatePostInput) {
   if (!input.text || !input.text.trim()) throw new ApiError('Post text is required.', 400)
+  if (!input.channelId) throw new ApiError('channelId is required.', 400)
 
   const scheduled = Boolean(input.scheduledAt)
   // JSON.stringify produces a valid GraphQL string literal for arbitrary text
   // (handles quotes, newlines, unicode) — matches the docs' inline-input example.
   const fields = [
     `text: ${JSON.stringify(input.text)}`,
-    `channelId: ${JSON.stringify(env.BUFFER_LINKEDIN_CHANNEL_ID)}`,
+    `channelId: ${JSON.stringify(input.channelId)}`,
     `schedulingType: automatic`,
     `mode: ${scheduled ? 'customScheduled' : 'addToQueue'}`,
   ]
@@ -74,7 +78,7 @@ export async function publishToBuffer(env: Env, input: PublishInput) {
     }
   }`
 
-  const data = await bufferGraphQL(env.BUFFER_ACCESS_TOKEN, mutation)
+  const data = await bufferGraphQL(token, mutation)
   const result = data?.createPost
   if (result?.message) throw new ApiError(`Buffer rejected the post: ${result.message}`, 400)
   const post = result?.post
@@ -84,6 +88,53 @@ export async function publishToBuffer(env: Env, input: PublishInput) {
     dueAt: post?.dueAt ?? null,
     scheduled,
   }
+}
+
+/** The app-wide static-token publish path (BUFFER_ACCESS_TOKEN +
+    BUFFER_LINKEDIN_CHANNEL_ID) — kept alongside the per-user OAuth path as a
+    manual fallback/escape hatch. */
+export async function publishToBuffer(env: Env, input: PublishInput) {
+  if (!env.BUFFER_ACCESS_TOKEN) throw new ApiError('BUFFER_ACCESS_TOKEN is not set (see SETUP.md).', 400)
+  if (!env.BUFFER_LINKEDIN_CHANNEL_ID) {
+    throw new ApiError('BUFFER_LINKEDIN_CHANNEL_ID is not set (see SETUP.md).', 400)
+  }
+  return createBufferPost(env.BUFFER_ACCESS_TOKEN, { ...input, channelId: env.BUFFER_LINKEDIN_CHANNEL_ID })
+}
+
+export interface BufferOrganization {
+  id: string
+  name: string
+  ownerEmail?: string
+}
+
+export interface BufferChannel {
+  id: string
+  name?: string
+  displayName?: string
+  service: string
+  /** true when `service` names LinkedIn — the field the UI filters on to
+      show only channels this feature can publish to. */
+  isLinkedIn: boolean
+}
+
+/** Organizations the token's Buffer account has access to. */
+export async function fetchBufferOrganizations(token: string): Promise<BufferOrganization[]> {
+  const data = await bufferGraphQL(token, `query { account { organizations { id name ownerEmail } } }`)
+  return Array.isArray(data?.account?.organizations) ? data.account.organizations : []
+}
+
+/** Channels in one organization, each flagged with whether it's a LinkedIn channel. */
+export async function fetchBufferChannels(token: string, organizationId: string): Promise<BufferChannel[]> {
+  if (!organizationId) throw new ApiError('organizationId is required.', 400)
+  const data = await bufferGraphQL(
+    token,
+    `query { channels(input: { organizationId: ${JSON.stringify(organizationId)} }) { id name displayName service } }`,
+  )
+  const channels = Array.isArray(data?.channels) ? data.channels : []
+  return channels.map((c: any) => ({
+    ...c,
+    isLinkedIn: String(c?.service || '').toLowerCase().includes('linkedin'),
+  }))
 }
 
 /** List connected channels so you can find the LinkedIn channel id. Only the
@@ -118,14 +169,8 @@ export async function listBufferChannels(env: Env) {
     }
   }
 
-  const data = await bufferGraphQL(
-    env.BUFFER_ACCESS_TOKEN,
-    `query { channels(input: { organizationId: ${JSON.stringify(orgId)} }) { id name service } }`,
-  )
-  const channels = Array.isArray(data?.channels) ? data.channels : []
-  const linkedin = channels.filter((c: any) =>
-    String(c?.service || '').toLowerCase().includes('linkedin'),
-  )
+  const channels = await fetchBufferChannels(env.BUFFER_ACCESS_TOKEN, orgId)
+  const linkedin = channels.filter((c) => c.isLinkedIn)
   return {
     organizationId: orgId,
     channels,

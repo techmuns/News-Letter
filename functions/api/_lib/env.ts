@@ -20,6 +20,19 @@ export interface KVLike {
   put(key: string, value: any, opts?: any): Promise<void>
 }
 
+/** Minimal D1 surface (avoids a @cloudflare/workers-types dependency) —
+    covers the subset used by functions/api/_lib/bufferOAuth.ts and
+    bufferAccounts.ts. */
+export interface D1Like {
+  prepare(query: string): D1PreparedStatementLike
+}
+export interface D1PreparedStatementLike {
+  bind(...values: unknown[]): D1PreparedStatementLike
+  first<T = any>(colName?: string): Promise<T | null>
+  run(): Promise<{ meta?: { changes?: number }; changes?: number }>
+  all<T = any>(): Promise<{ results: T[] }>
+}
+
 export interface Env {
   // --- Daily Pulse (content source) ---
   /** Optional override for the Daily Market Pulse feed URL. Defaults to the
@@ -65,6 +78,23 @@ export interface Env {
   /** Optional — only used by the /api/buffer-channels discovery helper. */
   BUFFER_ORG_ID?: string
 
+  // --- Buffer OAuth (per-user "Connect Buffer" — see SETUP.md) ---
+  /** D1 binding storing per-user Buffer OAuth connections + PKCE handshake
+      state (see migrations/0001_buffer_oauth.sql). */
+  DB?: D1Like
+  /** Buffer OAuth app client id — register an app at https://buffer.com/developers/apps. */
+  BUFFER_CLIENT_ID?: string
+  /** Buffer OAuth app client secret — OPTIONAL. Buffer's current "App Clients" UI only
+      issues a client_id (public PKCE client, no secret); set this only if a future Buffer
+      app type actually issues one. Never sent to Buffer when unset (see bufferOAuth.ts). */
+  BUFFER_CLIENT_SECRET?: string
+  /** Must exactly match the redirect URI registered with the Buffer OAuth app,
+      e.g. https://<your-domain>/api/auth/buffer/callback */
+  BUFFER_REDIRECT_URI?: string
+  /** Base64-encoded 32-byte AES-256-GCM key used to encrypt stored Buffer
+      OAuth tokens at rest. Generate with: openssl rand -base64 32 */
+  TOKEN_ENCRYPTION_KEY?: string
+
   // --- Email newsletter ---
   /** 'resend' (default) | 'sendgrid'. Provider-agnostic — swap freely. */
   EMAIL_PROVIDER?: string
@@ -103,6 +133,11 @@ export function configuredFlags(env: Env) {
     /** Live stock/company search is wired — Munshot token set */
     stockSearch: Boolean(env.MUNS_ACCESS_TOKEN),
     linkedin: Boolean(env.BUFFER_ACCESS_TOKEN && env.BUFFER_LINKEDIN_CHANNEL_ID),
+    /** per-user "Connect Buffer" OAuth is wired (client id/redirect + DB + encryption key).
+        BUFFER_CLIENT_SECRET is deliberately NOT required here — Buffer's "App Clients"
+        only issue a client_id (public PKCE client, no secret), so this app supports
+        running without one; see bufferOAuth.ts, which only sends client_secret if set. */
+    bufferOAuth: Boolean(env.BUFFER_CLIENT_ID && env.BUFFER_REDIRECT_URI && env.TOKEN_ENCRYPTION_KEY && env.DB),
     email: Boolean(emailKey && env.EMAIL_FROM),
     emailProvider: provider,
     /** whether a shared app secret is required to call the write endpoints */
