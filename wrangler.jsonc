@@ -34,6 +34,5 @@
   //      Buffer's "App Clients" currently only issue a client_id.
   // Until then the app runs fine; the static BUFFER_ACCESS_TOKEN path keeps
   // working as-is. Do NOT commit a fake database_id — deploy will fail.
-  //
-  // ,"d1_databases": [{ "binding": "DB", "database_name": "news-letter-db", "database_id": "PASTE_YOUR_D1_DATABASE_ID_HERE" }]
+  ,"d1_databases": [{ "binding": "DB", "database_name": "news-letter-db", "database_id": "484e83cc-884b-48eb-972d-a4cec529beae" }]
 }
