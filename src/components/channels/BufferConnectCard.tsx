@@ -98,6 +98,27 @@ export function BufferConnectCard() {
     // Re-check right after the OAuth redirect lands too.
   }, [canAct, token, redirectNotice])
 
+  /** A call can fail because the backend just marked the connection
+      disconnected (expired token, no refresh token — see
+      functions/api/_lib/bufferAccounts.ts). When that happens, re-pull the
+      authoritative connection state from the server instead of leaving the
+      UI stuck showing a stale "connected" screen with a dead-end error and
+      no way back to the Connect button. */
+  async function resyncConnectionAfterError() {
+    try {
+      const r = await bufferApi.connection(token)
+      setConnection(r.connection)
+      if (r.connection.status !== 'connected') {
+        setOrganizations(null)
+        setChannels(null)
+        setOrganizationId('')
+        setChannelId('')
+      }
+    } catch {
+      // Best-effort — leave the error note from the original failure as-is.
+    }
+  }
+
   async function loadOrganizations() {
     setBusy('select')
     setNote(null)
@@ -110,6 +131,7 @@ export function BufferConnectCard() {
       }
     } catch (e) {
       setNote({ kind: 'err', text: (e as Error).message })
+      await resyncConnectionAfterError()
     } finally {
       setBusy(null)
     }
@@ -124,6 +146,7 @@ export function BufferConnectCard() {
       setChannels(r.channels)
     } catch (e) {
       setNote({ kind: 'err', text: (e as Error).message })
+      await resyncConnectionAfterError()
     } finally {
       setBusy(null)
     }
@@ -150,6 +173,7 @@ export function BufferConnectCard() {
       setNote({ kind: 'ok', text: `Using ${r.channel.displayName || r.channel.name || 'this channel'} for posts.` })
     } catch (e) {
       setNote({ kind: 'err', text: (e as Error).message })
+      await resyncConnectionAfterError()
     } finally {
       setBusy(null)
     }
@@ -182,6 +206,7 @@ export function BufferConnectCard() {
       setPostText('')
     } catch (e) {
       setPostNote({ kind: 'err', text: (e as Error).message })
+      await resyncConnectionAfterError()
     } finally {
       setBusy(null)
     }
