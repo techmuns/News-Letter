@@ -105,6 +105,10 @@ export interface BufferOrganization {
   id: string
   name: string
   ownerEmail?: string
+  channelCount?: number
+  /** Plan limits are the closest proxy the API exposes for "what plan is
+      this org on" — Buffer's GraphQL schema has no direct plan/tier field. */
+  limits?: { channels: number; members: number }
 }
 
 export interface BufferChannel {
@@ -119,7 +123,10 @@ export interface BufferChannel {
 
 /** Organizations the token's Buffer account has access to. */
 export async function fetchBufferOrganizations(token: string): Promise<BufferOrganization[]> {
-  const data = await bufferGraphQL(token, `query { account { organizations { id name ownerEmail } } }`)
+  const data = await bufferGraphQL(
+    token,
+    `query { account { organizations { id name ownerEmail channelCount limits { channels members } } } }`,
+  )
   return Array.isArray(data?.account?.organizations) ? data.account.organizations : []
 }
 
