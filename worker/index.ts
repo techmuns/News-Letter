@@ -274,6 +274,7 @@ export default {
             text: String(body.text),
             imageUrl: body.imageUrl ? String(body.imageUrl) : undefined,
             scheduledAt: body.scheduledAt ? String(body.scheduledAt) : undefined,
+            postNow: Boolean(body.postNow),
           })
           return json({ ok: true, ...result })
         })

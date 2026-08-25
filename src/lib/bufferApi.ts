@@ -94,7 +94,10 @@ export const bufferApi = {
       body: JSON.stringify(input),
     }),
 
-  post: (munshotToken: string | null, input: { text: string; imageUrl?: string; scheduledAt?: string }) =>
+  post: (
+    munshotToken: string | null,
+    input: { text: string; imageUrl?: string; scheduledAt?: string; postNow?: boolean },
+  ) =>
     request<{ ok: true; postId: string | null; status: string; dueAt: string | null; scheduled: boolean }>(
       munshotToken,
       '/buffer/posts',

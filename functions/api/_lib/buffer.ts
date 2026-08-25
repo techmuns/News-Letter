@@ -44,6 +44,9 @@ export interface PublishInput {
   imageUrl?: string
   /** ISO-8601 UTC timestamp for a scheduled post; omit to add to the Buffer queue */
   scheduledAt?: string
+  /** Publish immediately rather than adding to the channel's queue. Ignored
+      when scheduledAt is set. */
+  postNow?: boolean
 }
 
 export interface CreatePostInput extends PublishInput {
@@ -58,13 +61,17 @@ export async function createBufferPost(token: string, input: CreatePostInput) {
   if (!input.channelId) throw new ApiError('channelId is required.', 400)
 
   const scheduled = Boolean(input.scheduledAt)
+  // An explicit scheduledAt always wins; otherwise postNow publishes straight
+  // away (shareNow) instead of waiting for the channel's next queue slot,
+  // which may be hours out — or never, if no posting schedule is configured.
+  const mode = scheduled ? 'customScheduled' : input.postNow ? 'shareNow' : 'addToQueue'
   // JSON.stringify produces a valid GraphQL string literal for arbitrary text
   // (handles quotes, newlines, unicode) — matches the docs' inline-input example.
   const fields = [
     `text: ${JSON.stringify(input.text)}`,
     `channelId: ${JSON.stringify(input.channelId)}`,
     `schedulingType: automatic`,
-    `mode: ${scheduled ? 'customScheduled' : 'addToQueue'}`,
+    `mode: ${mode}`,
   ]
   if (scheduled) fields.push(`dueAt: ${JSON.stringify(input.scheduledAt)}`)
   if (input.imageUrl && input.imageUrl.trim()) {

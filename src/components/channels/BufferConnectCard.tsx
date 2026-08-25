@@ -61,6 +61,7 @@ export function BufferConnectCard() {
   const [note, setNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const [postText, setPostText] = useState('')
+  const [postNow, setPostNow] = useState(false)
   const [postNote, setPostNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
   const token = session.token
@@ -201,8 +202,13 @@ export function BufferConnectCard() {
     setBusy('post')
     setPostNote(null)
     try {
-      const r = await bufferApi.post(token, { text: postText.trim() })
-      setPostNote({ kind: 'ok', text: `Sent to Buffer — status: ${r.status}${r.scheduled ? ` (due ${r.dueAt})` : ''}.` })
+      const r = await bufferApi.post(token, { text: postText.trim(), postNow })
+      setPostNote({
+        kind: 'ok',
+        text: postNow
+          ? `Publishing now — Buffer status: ${r.status}. Check LinkedIn in a few seconds.`
+          : `Added to your Buffer queue — status: ${r.status}${r.dueAt ? ` (due ${r.dueAt})` : ''}. It publishes at the channel's next slot.`,
+      })
       setPostText('')
     } catch (e) {
       setPostNote({ kind: 'err', text: (e as Error).message })
@@ -325,8 +331,17 @@ export function BufferConnectCard() {
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
               />
+              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
+                <input
+                  type="checkbox"
+                  className="accent-violet"
+                  checked={postNow}
+                  onChange={(e) => setPostNow(e.target.checked)}
+                />
+                Publish immediately (otherwise it waits in Buffer's queue)
+              </label>
               <Button variant="primary" size="sm" onClick={handlePost} disabled={busy !== null || !postText.trim()}>
-                {busy === 'post' ? 'Posting…' : 'Post to LinkedIn'}
+                {busy === 'post' ? 'Posting…' : postNow ? 'Post to LinkedIn now' : 'Add to Buffer queue'}
               </Button>
               {postNote && <Note kind={postNote.kind}>{postNote.text}</Note>}
             </div>
