@@ -26,7 +26,14 @@ const CORS: Record<string, string> = {
 export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...CORS },
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      // These are live account/connection state, never cacheable — without
+      // this a GET like /api/buffer/connection can be served stale from the
+      // edge or the browser, showing a connection as live after it expired.
+      'cache-control': 'no-store',
+      ...CORS,
+    },
   })
 }
 
