@@ -31,6 +31,9 @@ export interface BufferConnection {
   channelId: string | null
   channelName: string | null
   channelService: string | null
+  /** False when Buffer issued no refresh token — the connection then dies
+      after ~1h and has to be reconnected by hand. */
+  longLived: boolean
 }
 
 class BufferApiError extends Error {}

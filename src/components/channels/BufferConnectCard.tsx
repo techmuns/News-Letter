@@ -87,7 +87,7 @@ export function BufferConnectCard() {
         // Still offer a way forward instead of leaving the user with only an
         // error and no button — Connect is safe to attempt even after a
         // failed status check (e.g. a transient network error).
-        setConnection({ status: 'disconnected', organizationId: null, channelId: null, channelName: null, channelService: null })
+        setConnection({ status: 'disconnected', organizationId: null, channelId: null, channelName: null, channelService: null, longLived: false })
       })
       .finally(() => {
         if (!cancelled) setLoadingConnection(false)
@@ -184,7 +184,7 @@ export function BufferConnectCard() {
     setNote(null)
     try {
       await bufferApi.disconnect(token)
-      setConnection({ status: 'disconnected', organizationId: null, channelId: null, channelName: null, channelService: null })
+      setConnection({ status: 'disconnected', organizationId: null, channelId: null, channelName: null, channelService: null, longLived: false })
       setOrganizations(null)
       setChannels(null)
       setOrganizationId('')
@@ -226,6 +226,14 @@ export function BufferConnectCard() {
       </div>
 
       {redirectNotice && <Note kind={redirectNotice.kind}>{redirectNotice.text}</Note>}
+
+      {connection?.status === 'connected' && !connection.longLived && (
+        <Note kind="err">
+          Buffer didn't issue a renewable session for this connection, so it will stop working about an hour after
+          it was made and need reconnecting. If this keeps happening, it's a Buffer-side setting on the app client
+          rather than something this dashboard controls.
+        </Note>
+      )}
 
       {status === 'waiting' && <p className="mt-2 text-[13px] text-text-dim">Waiting for session…</p>}
 

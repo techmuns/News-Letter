@@ -13,6 +13,12 @@ export interface BufferConnectionSummary {
   channelId: string | null
   channelName: string | null
   channelService: string | null
+  /** True when a refresh token is stored, i.e. the connection can renew
+      itself and will survive past the access token's ~1h lifetime. When
+      false, the connection dies at token_expires_at and the user has to
+      reconnect by hand — worth warning about rather than letting it
+      surprise them mid-post. */
+  longLived: boolean
 }
 
 function requireDb(env: Env) {
@@ -50,6 +56,7 @@ export async function getConnectionSummary(env: Env, email: string): Promise<Buf
     channelId: row.channel_id,
     channelName: row.channel_name,
     channelService: row.channel_service,
+    longLived: Boolean(row.refresh_token_enc),
   }
 }
 

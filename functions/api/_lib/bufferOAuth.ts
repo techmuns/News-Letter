@@ -33,6 +33,12 @@ export function buildAuthorizeUrl(env: Env, opts: { state: string; codeChallenge
     code_challenge_method: 'S256',
     scope: SCOPES,
     state: opts.state,
+    // Present in Buffer's own documented authorize example. Forces a fresh
+    // consent screen rather than silently reusing a prior grant — without
+    // it Buffer was observed dropping `offline_access` from the granted
+    // scope and returning no refresh_token, which capped every connection
+    // at the access token's 1-hour lifetime.
+    prompt: 'consent',
   })
   return `${AUTHORIZE_URL}?${params.toString()}`
 }
