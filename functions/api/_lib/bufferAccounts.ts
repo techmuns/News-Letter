@@ -26,14 +26,26 @@ export async function getConnectionSummary(env: Env, email: string): Promise<Buf
   const db = requireDb(env)
   const row = await db
     .prepare(
-      `SELECT status, organization_id, channel_id, channel_name, channel_service
+      `SELECT status, organization_id, channel_id, channel_name, channel_service,
+              token_expires_at, refresh_token_enc
        FROM buffer_connections WHERE user_email = ?`,
     )
     .bind(email)
     .first<any>()
   if (!row) return null
+
+  // A stored status of 'connected' isn't enough on its own: the access token
+  // may have expired since, and without a refresh token there is no way back
+  // (Buffer has been observed not issuing one — see SETUP.md §3b). Report
+  // that as disconnected so the UI offers "Connect Buffer" straight away,
+  // instead of showing a connected card that dead-ends on the first click.
+  const unrecoverable =
+    row.status === 'connected' &&
+    Number(row.token_expires_at) <= now() &&
+    !row.refresh_token_enc
+
   return {
-    status: row.status,
+    status: unrecoverable ? 'disconnected' : row.status,
     organizationId: row.organization_id,
     channelId: row.channel_id,
     channelName: row.channel_name,
