@@ -20,7 +20,7 @@
   // Until then the app runs fine; Studio just posts text-only (or you can paste
   // a Custom image URL manually). Do NOT commit a fake id — deploy will fail.
   //
-  // ,"kv_namespaces": [{ "binding": "STORE", "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE" }]
+  ,"kv_namespaces": [{ "binding": "STORE", "id": "9e1b04eec67d47daa4127f9a6ee27478" }]
 
   // ── Buffer OAuth ("Connect Buffer" — optional) ───────────────────────────
   // Per-user Buffer OAuth connections/PKCE state live in a D1 database. To
