@@ -4,16 +4,19 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { HostSessionProvider } from './lib/HostSessionProvider'
+import { AppSecretGate } from './components/AppSecretGate'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <HostSessionProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </HostSessionProvider>
+      <AppSecretGate>
+        <HostSessionProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </HostSessionProvider>
+      </AppSecretGate>
     </ErrorBoundary>
   </React.StrictMode>,
 )

@@ -47,7 +47,7 @@ export function checkAuth(ctx: Ctx): Response | null {
   if (!required) return null // open in dev; SETUP.md recommends setting APP_SECRET in production
   const got = ctx.request.headers.get('x-app-secret')
   if (got !== required) {
-    return json({ error: 'Unauthorized — set the app secret in Studio → Settings.' }, 401)
+    return json({ error: 'Unauthorized — enter the app passphrase to continue.' }, 401)
   }
   return null
 }
