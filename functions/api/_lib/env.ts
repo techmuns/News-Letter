@@ -95,6 +95,24 @@ export interface Env {
       OAuth tokens at rest. Generate with: openssl rand -base64 32 */
   TOKEN_ENCRYPTION_KEY?: string
 
+  // --- Munshot session verification (per-client isolation — see SETUP.md) ---
+  // The email claim in a Munshot JWT keys every per-user Buffer connection,
+  // so it must be verified before it can be trusted. Set exactly ONE key
+  // source, whichever Munshot's auth team provides.
+  /** JWKS endpoint for the Munshot issuer (RS256/ES256, supports rotation). */
+  MUNSHOT_JWKS_URL?: string
+  /** A single Munshot public key as a JWK JSON object (RS256/ES256). */
+  MUNSHOT_JWT_PUBLIC_KEY?: string
+  /** Shared symmetric signing secret, if Munshot signs with HS256. */
+  MUNSHOT_JWT_HMAC_SECRET?: string
+  /** Optional expected `iss` claim — checked only when set. */
+  MUNSHOT_JWT_ISSUER?: string
+  /** Optional expected `aud` claim — checked only when set. */
+  MUNSHOT_JWT_AUDIENCE?: string
+  /** 'true' to reject any request without a verified Munshot session — no
+      shared-guest fallback. Required for real multi-client isolation. */
+  MUNSHOT_REQUIRE_VERIFIED_SESSION?: string
+
   // --- Email newsletter ---
   /** 'resend' (default) | 'sendgrid'. Provider-agnostic — swap freely. */
   EMAIL_PROVIDER?: string
@@ -142,6 +160,20 @@ export function configuredFlags(env: Env) {
     emailProvider: provider,
     /** whether a shared app secret is required to call the write endpoints */
     authRequired: Boolean(env.APP_SECRET),
+    /** Munshot session handling: 'enforced' = every request needs a verified
+        Munshot JWT (per-client isolation is real); 'verified' = signatures are
+        checked but a session-less caller still falls back to the shared guest
+        identity; 'unverified' = the email claim is trusted without checking a
+        signature, so clients are NOT isolated. See functions/api/_lib/munshotAuth.ts. */
+    munshotSession: (() => {
+      const configured = Boolean(
+        env.MUNSHOT_JWKS_URL || env.MUNSHOT_JWT_PUBLIC_KEY || env.MUNSHOT_JWT_HMAC_SECRET,
+      )
+      const enforce = String(env.MUNSHOT_REQUIRE_VERIFIED_SESSION || '').toLowerCase() === 'true'
+      if (configured && enforce) return 'enforced'
+      if (configured) return 'verified'
+      return 'unverified'
+    })(),
     model,
     hasDefaultRecipients: Boolean(env.EMAIL_RECIPIENTS && env.EMAIL_RECIPIENTS.trim()),
   }

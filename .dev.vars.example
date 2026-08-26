@@ -57,6 +57,21 @@ BUFFER_REDIRECT_URI=
 # tokens at rest. Generate with: openssl rand -base64 32
 TOKEN_ENCRYPTION_KEY=
 
+# --- Munshot session verification (per-client isolation) ---
+# The email claim in a Munshot JWT keys every per-user Buffer connection.
+# WITHOUT one of these set, that claim is trusted WITHOUT checking the
+# signature — meaning clients are NOT isolated from each other. Set exactly
+# ONE, whichever Munshot's auth team provides. See SETUP.md §3b.
+# MUNSHOT_JWKS_URL=https://.../.well-known/jwks.json
+# MUNSHOT_JWT_PUBLIC_KEY={"kty":"RSA","n":"...","e":"AQAB","alg":"RS256"}
+# MUNSHOT_JWT_HMAC_SECRET=
+# Optional — each checked only when set:
+# MUNSHOT_JWT_ISSUER=
+# MUNSHOT_JWT_AUDIENCE=
+# Set to 'true' ONLY once a key above is configured and tested: rejects any
+# request without a verified Munshot session (no shared-guest fallback).
+# MUNSHOT_REQUIRE_VERIFIED_SESSION=true
+
 # --- Email newsletter ---
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=

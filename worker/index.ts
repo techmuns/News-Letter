@@ -111,7 +111,7 @@ export default {
         return guard(async () => {
           const unauthorized = checkAuth(ctx)
           if (unauthorized) return unauthorized
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           const codeVerifier = generateCodeVerifier()
           const codeChallenge = await codeChallengeFromVerifier(codeVerifier)
           const state = generateState()
@@ -127,7 +127,7 @@ export default {
         return guard(async () => {
           const unauthorized = checkAuth(ctx)
           if (unauthorized) return unauthorized
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           const token = await getValidAccessToken(env, email)
           const organizations = await fetchBufferOrganizations(token)
           return json({ ok: true, organizations })
@@ -137,7 +137,7 @@ export default {
         return guard(async () => {
           const unauthorized = checkAuth(ctx)
           if (unauthorized) return unauthorized
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           const organizationId = url.searchParams.get('organizationId') || ''
           if (!organizationId) throw new ApiError('organizationId query param is required.', 400)
           const token = await getValidAccessToken(env, email)
@@ -149,9 +149,19 @@ export default {
         return guard(async () => {
           const unauthorized = checkAuth(ctx)
           if (unauthorized) return unauthorized
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           const connection = await getConnectionSummary(env, email)
-          return json({ ok: true, connection: connection ?? { status: 'disconnected', organizationId: null, channelId: null, channelName: null, channelService: null } })
+          return json({
+            ok: true,
+            connection: connection ?? {
+              status: 'disconnected',
+              organizationId: null,
+              channelId: null,
+              channelName: null,
+              channelService: null,
+              longLived: false,
+            },
+          })
         })
       }
 
@@ -235,7 +245,7 @@ export default {
 
       if (pathname === '/api/buffer/select-channel') {
         return guard(async () => {
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           const organizationId = body?.organizationId ? String(body.organizationId) : ''
           const channelId = body?.channelId ? String(body.channelId) : ''
           if (!organizationId || !channelId) {
@@ -260,7 +270,7 @@ export default {
 
       if (pathname === '/api/buffer/posts') {
         return guard(async () => {
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           if (!body?.text || !String(body.text).trim()) {
             return json({ error: 'text is required.' }, 400)
           }
@@ -320,7 +330,7 @@ export default {
 
       if (pathname === '/api/buffer/disconnect') {
         return guard(async () => {
-          const email = requireMunshotUser(request)
+          const email = await requireMunshotUser(request, env)
           await disconnectBuffer(env, email)
           return json({ ok: true })
         })

@@ -84,7 +84,33 @@ This is a **separate, optional** feature from §3 above: instead of one shared `
 
 **How identity works here:** "the authenticated user" is whoever the Munshot host says they are — the `email` claim inside the Munshot JWT that's already wired up via the host-session SDK (`src/lib/sdk.ts` / `useHostSession()`). The frontend forwards that JWT as `Authorization: Bearer <token>` to every `/api/buffer/*` and `/api/auth/buffer*` call, and the backend reads the `email` claim out of it (`functions/api/_lib/munshotAuth.ts`).
 
-> ⚠️ **Known gap, on purpose:** the backend does **not** verify that JWT's signature — it just decodes the payload. This was an explicit "do the minimum for now" call, not an oversight. It means the per-user isolation here is really per-*claimed-email*: nothing currently stops a request from claiming to be any email address it wants and reading/hijacking that email's Buffer connection. Close this before treating any of this as real multi-tenant security — `functions/api/_lib/munshotAuth.ts` has the details on what's needed (JWKS/public-key verification, a Munshot introspection endpoint, or a shared signing secret — whichever matches how Munshot actually signs the token) and is the only place that needs to change.
+> ⚠️ **By default the backend does NOT verify that JWT's signature** — it decodes the payload and trusts the email. In that state there is **no real isolation between clients**: anyone who can reach these endpoints can claim to be any email and reach that email's Buffer connection. **Do not put two real clients on a deployment in this state.** The verification code is written and tested; it just needs a key — see below.
+
+### Turning on real per-client isolation
+
+`/api/health` reports which mode you're in as `munshotSession`:
+
+| Mode | Meaning |
+| --- | --- |
+| `unverified` | Default. Email claim trusted without checking a signature. **Clients are not isolated.** |
+| `verified` | Signatures checked, but a caller with no session still falls back to the shared guest identity. Rollout only. |
+| `enforced` | Every request needs a validly-signed Munshot session. **This is the one to run in production.** |
+
+**Step 1 — get a key from whoever runs Munshot's auth.** Exactly one of these:
+
+| Variable | When to use it |
+| --- | --- |
+| `MUNSHOT_JWKS_URL` | Munshot publishes a JWKS endpoint (RS256/ES256). Preferred — handles key rotation automatically. |
+| `MUNSHOT_JWT_PUBLIC_KEY` | A single static public key, as a **JWK JSON object** (RS256/ES256). |
+| `MUNSHOT_JWT_HMAC_SECRET` | Munshot signs with HS256 using a shared secret. |
+
+Optionally also set `MUNSHOT_JWT_ISSUER` and `MUNSHOT_JWT_AUDIENCE` — each is checked only when set, and both are worth setting if Munshot populates them.
+
+**Step 2 — verify before enforcing.** Set just the key first and redeploy. `/api/health` should show `"munshotSession": "verified"`. Open the dashboard from inside Munshot and confirm it still works — a valid session now proves itself, while a forged one is rejected.
+
+**Step 3 — enforce.** Set `MUNSHOT_REQUIRE_VERIFIED_SESSION=true` and redeploy. `/api/health` shows `"enforced"`. The shared guest fallback is now gone: the dashboard only works embedded in Munshot, and each client's email gets its own isolated Buffer connection.
+
+No code changes are needed for any of this — it's configuration. If enforcement is switched on without a key configured, the API fails loudly (500) rather than silently letting everyone in.
 
 ### Setup
 

@@ -2,38 +2,37 @@
    Munshot host JWT (the same token the frontend receives from the Munshot
    Dashboard SDK — see src/lib/sdk.ts) forwarded as `Authorization: Bearer`.
 
-   ⚠️ KNOWN GAP — decodeMunshotEmail does NOT verify the JWT's signature. It
-   only base64-decodes the payload and reads the `email` claim. This was a
-   deliberate, explicit call for now: the app has no way yet to verify a
-   Munshot-issued JWT server-side (no JWKS/public key, no introspection
-   endpoint, no shared secret has been wired up). That means, as it stands,
-   anyone who can reach these endpoints can claim to be any email address and
-   read/write that email's Buffer connection — there is no real per-user
-   isolation yet, only per-*claimed-email* separation.
+   This identity is what every per-user Buffer connection is keyed on, so it
+   is the boundary between one client's LinkedIn account and another's.
 
-   Before this is safe for real multi-tenant use, close this gap by verifying
-   the token server-side (signature + iss/aud/exp) against whatever Munshot
-   publishes for that purpose, then swap the body of decodeMunshotEmail for a
-   verified decode. Everything downstream (buffer.ts, bufferAccounts.ts,
-   worker/index.ts) already treats "email" as the trust boundary, so closing
-   this one function closes the gap everywhere at once.
+   THREE MODES, chosen by configuration (see jwtVerify.ts):
 
-   GUEST FALLBACK — when the app isn't embedded in Munshot at all (no
-   Authorization header sent), requireMunshotUser resolves to a single fixed
-   identity instead of rejecting the request outright. Without this, "Connect
-   Buffer" would only ever work once something actually embeds this app in
-   Munshot — which nothing does yet. All guest visitors share ONE Buffer
-   connection under this identity (this is the same shared-account model the
-   pre-OAuth BUFFER_ACCESS_TOKEN path already used). These routes are also
-   covered by the existing `checkAuth`/APP_SECRET gate (see worker/index.ts) —
-   set APP_SECRET if this app is reachable at a public URL, or anyone who
-   finds the link can connect/disconnect/post through that shared guest
-   connection. A real Munshot session (Authorization header present and
-   valid) always takes priority and gets its own isolated connection. */
+   1. VERIFIED + ENFORCED — a key source is configured AND
+      MUNSHOT_REQUIRE_VERIFIED_SESSION=true. Every request must carry a
+      Munshot JWT with a valid signature; nothing else gets in. This is the
+      only mode safe for multiple real clients, and the one to run in
+      production.
+
+   2. VERIFIED + PERMISSIVE — a key source is configured but enforcement is
+      off. A valid token gives that user their own isolated connection; a
+      request with no token at all still falls back to the shared guest
+      identity. Useful while rolling out, not a place to stay.
+
+   3. UNVERIFIED (current default) — no key source configured, so the email
+      claim is read WITHOUT checking the signature. Anyone who can reach
+      these endpoints can claim to be any email and reach that email's Buffer
+      connection. There is no real per-client isolation in this mode.
+
+   To reach mode 1, set one of MUNSHOT_JWKS_URL / MUNSHOT_JWT_PUBLIC_KEY /
+   MUNSHOT_JWT_HMAC_SECRET (whichever Munshot's auth team provides), then set
+   MUNSHOT_REQUIRE_VERIFIED_SESSION=true. No code change is needed. */
+import type { Env } from './env'
 import { ApiError } from './http'
+import { jwtVerificationConfigured, requiresVerifiedSession, verifyMunshotJwt } from './jwtVerify'
 
-/** Fallback identity used only when no Authorization header is present at
-    all — see the GUEST FALLBACK note above. */
+/** Fallback identity used only in modes 2/3 when no Authorization header is
+    present at all — i.e. the app opened standalone rather than embedded in
+    Munshot. Everyone in this bucket SHARES one Buffer connection. */
 export const GUEST_IDENTITY_EMAIL = 'guest@standalone.local'
 
 function base64UrlDecodeToString(segment: string): string {
@@ -42,14 +41,17 @@ function base64UrlDecodeToString(segment: string): string {
   return atob(withPadding)
 }
 
-/** Reads the `email` claim out of a JWT's payload without checking its
-    signature. Returns null if the header is missing, malformed, or the
-    payload has no plausible email. See the file-level ⚠️ above. */
-export function decodeMunshotEmail(request: Request): string | null {
+function bearerToken(request: Request): string | null {
   const header = request.headers.get('authorization') || ''
   const match = header.match(/^Bearer\s+(.+)$/i)
-  if (!match) return null
-  const token = match[1].trim()
+  return match ? match[1].trim() : null
+}
+
+/** Reads the `email` claim out of a JWT's payload WITHOUT checking its
+    signature. Only used in mode 3 — see the file header. */
+export function decodeMunshotEmail(request: Request): string | null {
+  const token = bearerToken(request)
+  if (!token) return null
   const parts = token.split('.')
   if (parts.length < 2) return null
   try {
@@ -61,13 +63,36 @@ export function decodeMunshotEmail(request: Request): string | null {
   }
 }
 
-/** Guard for every Buffer OAuth route: returns the caller's email (falling
-    back to GUEST_IDENTITY_EMAIL when the app isn't embedded in Munshot at
-    all — see the GUEST FALLBACK note above), or throws a 401 ApiError when a
-    session WAS attempted but is malformed (catch it the same way as any
-    other route error via `guard`). */
-export function requireMunshotUser(request: Request): string {
-  if (!request.headers.get('authorization')) return GUEST_IDENTITY_EMAIL
+/**
+ * Resolves the caller's identity for every Buffer route. Throws ApiError so
+ * routes can surface it through `guard` like any other failure.
+ */
+export async function requireMunshotUser(request: Request, env: Env): Promise<string> {
+  const token = bearerToken(request)
+  const verificationOn = jwtVerificationConfigured(env)
+  const enforce = requiresVerifiedSession(env)
+
+  if (verificationOn) {
+    if (token) return (await verifyMunshotJwt(env, token)).email
+    if (enforce) {
+      throw new ApiError(
+        'This dashboard must be opened from inside Munshot — a verified Munshot session is required.',
+        401,
+      )
+    }
+    return GUEST_IDENTITY_EMAIL
+  }
+
+  // Mode 3 — no key configured. Enforcement without a way to verify would
+  // lock everyone out, so it's refused loudly as a misconfiguration rather
+  // than silently ignored.
+  if (enforce) {
+    throw new ApiError(
+      'MUNSHOT_REQUIRE_VERIFIED_SESSION is on but no verification key is configured (see SETUP.md).',
+      500,
+    )
+  }
+  if (!token) return GUEST_IDENTITY_EMAIL
   const email = decodeMunshotEmail(request)
   if (!email) {
     throw new ApiError(
