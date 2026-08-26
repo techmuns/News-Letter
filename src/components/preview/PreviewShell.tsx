@@ -77,7 +77,11 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
             variant="primary"
             size="sm"
             onClick={() => {
-              sendToCompose(linkedInText)
+              sendToCompose({
+                text: linkedInText,
+                headline: campaign.linkedin.content.headline,
+                topic: campaign.topic,
+              })
               // The compose box lives above the split view on the same page.
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}

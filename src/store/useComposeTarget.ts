@@ -4,16 +4,24 @@
    panels. Deliberately not persisted — it's a within-session handoff. */
 import { create } from 'zustand'
 
+export interface ComposeHandoff {
+  text: string
+  /** Headline + topic are carried alongside the text so the compose box can
+      re-render the same branded graphic the preview showed. */
+  headline?: string
+  topic?: string
+  /** A nonce so re-sending the same draft still registers as a fresh handoff. */
+  nonce: number
+}
+
 interface ComposeTargetState {
-  /** Text staged for the Buffer compose box, plus a nonce so re-sending the
-      same draft still registers as a fresh handoff. */
-  pending: { text: string; nonce: number } | null
-  sendToCompose: (text: string) => void
+  pending: ComposeHandoff | null
+  sendToCompose: (input: { text: string; headline?: string; topic?: string }) => void
   clear: () => void
 }
 
 export const useComposeTarget = create<ComposeTargetState>((set) => ({
   pending: null,
-  sendToCompose: (text) => set({ pending: { text, nonce: Date.now() } }),
+  sendToCompose: (input) => set({ pending: { ...input, nonce: Date.now() } }),
   clear: () => set({ pending: null }),
 }))

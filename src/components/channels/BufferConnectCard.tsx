@@ -6,6 +6,8 @@ import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
 import { cn } from '../../lib/cn'
 import { useComposeTarget } from '../../store/useComposeTarget'
+import { renderBrandedCard } from '../../lib/brandedImage'
+import { api } from '../../lib/api'
 
 const inputCls =
   'w-full rounded-lg border border-border bg-[rgba(255,255,255,0.02)] px-3 py-2 text-[14px] text-text ' +
@@ -65,14 +67,44 @@ export function BufferConnectCard() {
   const [postNow, setPostNow] = useState(false)
   const [postNote, setPostNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
 
-  // "Use this draft" on a preview below stages its text here.
+  /** The branded graphic to attach, rendered client-side from the staged
+      draft's headline. Hosting it needs the KV STORE binding — `imagesReady`
+      reflects whether that's configured, so we can say so plainly rather
+      than silently dropping the image at publish time. */
+  const [card, setCard] = useState<{ blob: Blob; dataUrl: string } | null>(null)
+  const [attachImage, setAttachImage] = useState(true)
+  const [imagesReady, setImagesReady] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .health()
+      .then((h) => {
+        if (!cancelled) setImagesReady(Boolean(h.images))
+      })
+      .catch(() => {
+        if (!cancelled) setImagesReady(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // "Use this draft" on a preview below stages its text (and headline) here.
   const pendingCompose = useComposeTarget((s) => s.pending)
   const clearCompose = useComposeTarget((s) => s.clear)
   useEffect(() => {
     if (!pendingCompose) return
-    setPostText(pendingCompose.text)
+    const { text, headline, topic } = pendingCompose
+    setPostText(text)
     setPostNote(null)
+    setCard(null)
     clearCompose()
+    if (headline) {
+      renderBrandedCard({ headline, topic })
+        .then(setCard)
+        .catch(() => setCard(null)) // preview-only; publishing still works text-only
+    }
   }, [pendingCompose, clearCompose])
 
   const token = session.token
@@ -213,14 +245,34 @@ export function BufferConnectCard() {
     setBusy('post')
     setPostNote(null)
     try {
-      const r = await bufferApi.post(token, { text: postText.trim(), postNow })
+      // Buffer attaches images by public URL only, so the rendered card has
+      // to be hosted first. If that fails, fall back to a text-only post and
+      // say so rather than failing the whole publish.
+      let imageUrl: string | undefined
+      let imageNote = ''
+      if (attachImage && card) {
+        if (imagesReady) {
+          try {
+            imageUrl = (await api.uploadImage(card.blob)).url
+          } catch (e) {
+            imageNote = ` (posted without the image — upload failed: ${(e as Error).message})`
+          }
+        } else {
+          imageNote = ' (posted as text — image hosting isn’t set up yet)'
+        }
+      }
+
+      const r = await bufferApi.post(token, { text: postText.trim(), postNow, imageUrl })
       setPostNote({
         kind: 'ok',
-        text: postNow
-          ? `Publishing now — Buffer status: ${r.status}. Check LinkedIn in a few seconds.`
-          : `Added to your Buffer queue — status: ${r.status}${r.dueAt ? ` (due ${r.dueAt})` : ''}. It publishes at the channel's next slot.`,
+        text:
+          (postNow
+            ? `Publishing now — Buffer status: ${r.status}. Check LinkedIn in a few seconds.`
+            : `Added to your Buffer queue — status: ${r.status}${r.dueAt ? ` (due ${r.dueAt})` : ''}. It publishes at the channel's next slot.`) +
+          imageNote,
       })
       setPostText('')
+      setCard(null)
     } catch (e) {
       setPostNote({ kind: 'err', text: (e as Error).message })
       await resyncConnectionAfterError()
@@ -342,6 +394,35 @@ export function BufferConnectCard() {
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
               />
+              {card && (
+                <div className="flex flex-col gap-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
+                    <input
+                      type="checkbox"
+                      className="accent-violet"
+                      checked={attachImage}
+                      onChange={(e) => setAttachImage(e.target.checked)}
+                    />
+                    Attach the branded graphic
+                  </label>
+                  {attachImage && (
+                    <>
+                      <img
+                        src={card.dataUrl}
+                        alt="Branded graphic preview"
+                        className="w-full max-w-[380px] rounded-lg border border-border"
+                      />
+                      {imagesReady === false && (
+                        <p className="text-[12.5px] leading-relaxed text-[#f7a3a3]">
+                          Image hosting isn't set up, so this will post as text only. Buffer can only attach images
+                          by public URL — see SETUP.md (Workers KV `STORE` binding).
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
                 <input
                   type="checkbox"
