@@ -65,6 +65,12 @@ TOKEN_ENCRYPTION_KEY=
 # MUNSHOT_JWKS_URL=https://.../.well-known/jwks.json
 # MUNSHOT_JWT_PUBLIC_KEY={"kty":"RSA","n":"...","e":"AQAB","alg":"RS256"}
 # MUNSHOT_JWT_HMAC_SECRET=
+# No-key alternative: verify by calling a Munshot endpoint with the caller's
+# own token. A token Munshot accepts must be Munshot-signed, so its claims are
+# authentic. Any bearer-protected endpoint that 401s on a bad token works.
+# MUNSHOT_VERIFY_URL=https://devde.muns.io/stock/search
+# MUNSHOT_VERIFY_BODY={"query":"AAPL","user_index":124}
+# MUNSHOT_VERIFY_METHOD=POST
 # Optional — each checked only when set:
 # MUNSHOT_JWT_ISSUER=
 # MUNSHOT_JWT_AUDIENCE=

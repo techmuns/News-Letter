@@ -105,6 +105,15 @@ export interface Env {
   MUNSHOT_JWT_PUBLIC_KEY?: string
   /** Shared symmetric signing secret, if Munshot signs with HS256. */
   MUNSHOT_JWT_HMAC_SECRET?: string
+  /** Verify by calling a Munshot endpoint with the caller's token instead of
+      holding a key: a token Munshot accepts must be Munshot-signed, so its
+      claims are authentic. Used only when no key source above is set. e.g.
+      https://devde.muns.io/stock/search */
+  MUNSHOT_VERIFY_URL?: string
+  /** HTTP method for MUNSHOT_VERIFY_URL (default POST). */
+  MUNSHOT_VERIFY_METHOD?: string
+  /** JSON body sent to MUNSHOT_VERIFY_URL on non-GET (default '{}'). */
+  MUNSHOT_VERIFY_BODY?: string
   /** Optional expected `iss` claim — checked only when set. */
   MUNSHOT_JWT_ISSUER?: string
   /** Optional expected `aud` claim — checked only when set. */
@@ -167,7 +176,10 @@ export function configuredFlags(env: Env) {
         signature, so clients are NOT isolated. See functions/api/_lib/munshotAuth.ts. */
     munshotSession: (() => {
       const configured = Boolean(
-        env.MUNSHOT_JWKS_URL || env.MUNSHOT_JWT_PUBLIC_KEY || env.MUNSHOT_JWT_HMAC_SECRET,
+        env.MUNSHOT_JWKS_URL ||
+          env.MUNSHOT_JWT_PUBLIC_KEY ||
+          env.MUNSHOT_JWT_HMAC_SECRET ||
+          env.MUNSHOT_VERIFY_URL,
       )
       const enforce = String(env.MUNSHOT_REQUIRE_VERIFIED_SESSION || '').toLowerCase() === 'true'
       if (configured && enforce) return 'enforced'

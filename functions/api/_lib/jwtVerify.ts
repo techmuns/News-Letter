@@ -46,7 +46,78 @@ function base64UrlToJson(segment: string): any {
     is, verified sessions are impossible and the caller must decide whether
     to fail closed (see MUNSHOT_REQUIRE_VERIFIED_SESSION). */
 export function jwtVerificationConfigured(env: Env): boolean {
-  return Boolean(env.MUNSHOT_JWKS_URL || env.MUNSHOT_JWT_PUBLIC_KEY || env.MUNSHOT_JWT_HMAC_SECRET)
+  return Boolean(
+    env.MUNSHOT_JWKS_URL ||
+      env.MUNSHOT_JWT_PUBLIC_KEY ||
+      env.MUNSHOT_JWT_HMAC_SECRET ||
+      env.MUNSHOT_VERIFY_URL,
+  )
+}
+
+/* ---- Verification by asking Munshot (no key needed) ----
+
+   The dashboard spec allows verifying "by calling a Munshot API with it".
+   The reasoning: a Munshot endpoint validates the signature itself, so a
+   token it accepts must have been signed by Munshot — which makes the
+   claims inside it (notably `email`) authentic. A forged token is rejected
+   with 401 and never reaches the claim-reading step.
+
+   Trade-offs, deliberately visible rather than buried:
+   - It proves the token is genuine, NOT that it was minted for this app.
+     Set MUNSHOT_JWT_AUDIENCE as well if Munshot populates `aud`.
+   - It costs a network round-trip, so accepted tokens are cached briefly,
+     keyed by a hash of the token (never the token itself).
+   - It depends on that endpoint staying available; a key source
+     (MUNSHOT_JWKS_URL etc.) is stronger and takes priority when set. */
+
+const VERIFY_CACHE_TTL_MS = 5 * 60 * 1000
+const verifyCache = new Map<string, number>()
+
+async function tokenFingerprint(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function verifyByMunshotApi(env: Env, token: string): Promise<boolean> {
+  const url = env.MUNSHOT_VERIFY_URL!
+  const fingerprint = await tokenFingerprint(token)
+  const cached = verifyCache.get(fingerprint)
+  const now = Date.now()
+  if (cached && now - cached < VERIFY_CACHE_TTL_MS) return true
+
+  const method = (env.MUNSHOT_VERIFY_METHOD || 'POST').toUpperCase()
+  const init: RequestInit = {
+    method,
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: 'application/json',
+      ...(method === 'GET' ? {} : { 'content-type': 'application/json' }),
+    },
+  }
+  if (method !== 'GET') init.body = env.MUNSHOT_VERIFY_BODY || '{}'
+
+  let res: Response
+  try {
+    res = await fetch(url, init)
+  } catch {
+    throw new ApiError('Could not reach Munshot to verify your session.', 502)
+  }
+
+  // 401/403 is a definitive "this token is not valid" — anything else
+  // unexpected is an outage, which must not be mistaken for a valid session.
+  if (res.status === 401 || res.status === 403) return false
+  if (!res.ok) {
+    throw new ApiError(`Munshot session check failed (${res.status}).`, 502)
+  }
+
+  verifyCache.set(fingerprint, now)
+  // Bound the cache so a long-lived isolate can't grow it without limit.
+  if (verifyCache.size > 500) {
+    for (const [k, t] of verifyCache) {
+      if (now - t >= VERIFY_CACHE_TTL_MS) verifyCache.delete(k)
+    }
+  }
+  return true
 }
 
 /** Whether unverified/missing sessions must be rejected outright. Off by
@@ -178,6 +249,9 @@ export async function verifyMunshotJwt(env: Env, token: string): Promise<Munshot
       throw new ApiError('MUNSHOT_JWT_PUBLIC_KEY must be a JWK JSON object.', 500)
     }
     valid = await verifyWithJwk(jwk, String(jwk.alg || alg), signed, signature)
+  } else if (env.MUNSHOT_VERIFY_URL) {
+    // No local key — let Munshot itself judge the signature.
+    valid = await verifyByMunshotApi(env, token)
   } else {
     throw new ApiError(`No configured key can verify a ${alg || 'unknown'} token.`, 500)
   }

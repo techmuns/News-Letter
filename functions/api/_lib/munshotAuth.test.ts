@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { GUEST_IDENTITY_EMAIL, decodeMunshotEmail, requireMunshotUser } from './munshotAuth'
 import type { Env } from './env'
 
@@ -11,6 +11,12 @@ function base64Url(obj: unknown): string {
 /** An unsigned token — the exact thing an attacker can trivially mint. */
 function fakeJwt(payload: Record<string, unknown>): string {
   return `${base64Url({ alg: 'none', typ: 'JWT' })}.${base64Url(payload)}.not-a-real-signature`
+}
+
+/** Claims an algorithm but carries a bogus signature — what a forged token
+    actually looks like once `alg: none` is refused outright. */
+function forgedSignedJwt(payload: Record<string, unknown>): string {
+  return `${base64Url({ alg: 'HS256', typ: 'JWT' })}.${base64Url(payload)}.bm90LWEtcmVhbC1zaWc`
 }
 
 function requestWithAuth(value: string | null): Request {
@@ -153,6 +159,82 @@ describe('requireMunshotUser — mode 1: verified + enforced', () => {
     const env = { ...ENFORCED_ENV, MUNSHOT_JWT_AUDIENCE: 'news-letter' } as Env
     const token = await signHs256({ email: 'a@b.com', exp: future(), aud: ['x', 'news-letter'] }, HMAC_SECRET)
     await expect(requireMunshotUser(requestWithAuth(`Bearer ${token}`), env)).resolves.toBe('a@b.com')
+  })
+})
+
+describe('requireMunshotUser — verification by calling a Munshot API', () => {
+  const VERIFY_URL = 'https://munshot.test/verify'
+  const API_ENV = {
+    MUNSHOT_VERIFY_URL: VERIFY_URL,
+    MUNSHOT_REQUIRE_VERIFIED_SESSION: 'true',
+  } as Env
+
+  const originalFetch = globalThis.fetch
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  /** Stubs fetch and records the Authorization header it was called with. */
+  function stubMunshot(status: number) {
+    const seen: string[] = []
+    globalThis.fetch = (async (_url: any, init: any) => {
+      seen.push(String(init?.headers?.authorization || ''))
+      return new Response(status === 200 ? '{"ok":true}' : '{"error":"nope"}', { status })
+    }) as typeof fetch
+    return seen
+  }
+
+  it('accepts a token Munshot accepts, and forwards it as a bearer', async () => {
+    const seen = stubMunshot(200)
+    // Deliberately unsigned locally — Munshot's verdict is what counts here.
+    const token = forgedSignedJwt({ email: 'client-a@corp.com', exp: future() })
+    await expect(requireMunshotUser(requestWithAuth(`Bearer ${token}`), API_ENV)).resolves.toBe(
+      'client-a@corp.com',
+    )
+    expect(seen[0]).toBe(`Bearer ${token}`)
+  })
+
+  it('REJECTS a token Munshot rejects with 401', async () => {
+    stubMunshot(401)
+    await expect(
+      requireMunshotUser(requestWithAuth(`Bearer ${forgedSignedJwt({ email: 'victim@client.com' })}`), API_ENV),
+    ).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('rejects on 403 as well', async () => {
+    stubMunshot(403)
+    await expect(
+      requireMunshotUser(requestWithAuth(`Bearer ${forgedSignedJwt({ email: 'victim@client.com' })}`), API_ENV),
+    ).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('does NOT treat a Munshot outage as a valid session', async () => {
+    // A 500 upstream must surface as an error, never as an accepted login.
+    stubMunshot(500)
+    await expect(
+      requireMunshotUser(requestWithAuth(`Bearer ${forgedSignedJwt({ email: 'a@b.com' })}`), API_ENV),
+    ).rejects.toMatchObject({ status: 502 })
+  })
+
+  it('still rejects an expired token even when Munshot accepts it', async () => {
+    stubMunshot(200)
+    const expired = forgedSignedJwt({ email: 'a@b.com', exp: Math.floor(Date.now() / 1000) - 60 })
+    await expect(requireMunshotUser(requestWithAuth(`Bearer ${expired}`), API_ENV)).rejects.toMatchObject({
+      status: 401,
+    })
+  })
+
+  it('rejects an unsigned "alg: none" token before any network call', async () => {
+    let called = false
+    globalThis.fetch = (async () => {
+      called = true
+      return new Response('{}', { status: 200 })
+    }) as typeof fetch
+    const noneToken = `${base64Url({ alg: 'none' })}.${base64Url({ email: 'a@b.com', exp: future() })}.`
+    await expect(requireMunshotUser(requestWithAuth(`Bearer ${noneToken}`), API_ENV)).rejects.toMatchObject({
+      status: 401,
+    })
+    expect(called).toBe(false)
   })
 })
 

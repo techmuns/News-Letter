@@ -96,13 +96,23 @@ This is a **separate, optional** feature from §3 above: instead of one shared `
 | `verified` | Signatures checked, but a caller with no session still falls back to the shared guest identity. Rollout only. |
 | `enforced` | Every request needs a validly-signed Munshot session. **This is the one to run in production.** |
 
-**Step 1 — get a key from whoever runs Munshot's auth.** Exactly one of these:
+**Step 1 — configure how a session gets verified.** Exactly one of these:
 
 | Variable | When to use it |
 | --- | --- |
-| `MUNSHOT_JWKS_URL` | Munshot publishes a JWKS endpoint (RS256/ES256). Preferred — handles key rotation automatically. |
+| `MUNSHOT_JWKS_URL` | Munshot publishes a JWKS endpoint (RS256/ES256). Strongest — handles key rotation automatically. |
 | `MUNSHOT_JWT_PUBLIC_KEY` | A single static public key, as a **JWK JSON object** (RS256/ES256). |
 | `MUNSHOT_JWT_HMAC_SECRET` | Munshot signs with HS256 using a shared secret. |
+| `MUNSHOT_VERIFY_URL` | **No key needed.** Verifies by calling a Munshot endpoint with the caller's own token — a token Munshot accepts must be Munshot-signed, so its claims are authentic. Use this when the auth team can't hand over a key. |
+
+**The no-key option** is the fastest way to get isolated clients. Point it at any Munshot endpoint that requires a bearer token and returns 401 for a bad one — `https://devde.muns.io/stock/search` is confirmed to behave this way:
+
+```
+MUNSHOT_VERIFY_URL=https://devde.muns.io/stock/search
+MUNSHOT_VERIFY_BODY={"query":"AAPL","user_index":124}
+```
+
+Know its limits before relying on it: it proves a token is **genuine**, not that it was issued **for this app** — so set `MUNSHOT_JWT_AUDIENCE` too if Munshot populates `aud`. It also costs one round-trip per new token (accepted tokens are cached for 5 minutes, keyed by a hash — never the token itself), and a Munshot outage surfaces as a 502 rather than being mistaken for a valid login. A real key source is stronger and takes priority whenever one is set.
 
 Optionally also set `MUNSHOT_JWT_ISSUER` and `MUNSHOT_JWT_AUDIENCE` — each is checked only when set, and both are worth setting if Munshot populates them.
 
