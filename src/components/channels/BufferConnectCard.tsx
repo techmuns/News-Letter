@@ -5,6 +5,7 @@ import { Card } from '../Card'
 import { Button } from '../Button'
 import { MicroLabel } from '../MicroLabel'
 import { cn } from '../../lib/cn'
+import { useComposeTarget } from '../../store/useComposeTarget'
 
 const inputCls =
   'w-full rounded-lg border border-border bg-[rgba(255,255,255,0.02)] px-3 py-2 text-[14px] text-text ' +
@@ -63,6 +64,16 @@ export function BufferConnectCard() {
   const [postText, setPostText] = useState('')
   const [postNow, setPostNow] = useState(false)
   const [postNote, setPostNote] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+
+  // "Use this draft" on a preview below stages its text here.
+  const pendingCompose = useComposeTarget((s) => s.pending)
+  const clearCompose = useComposeTarget((s) => s.clear)
+  useEffect(() => {
+    if (!pendingCompose) return
+    setPostText(pendingCompose.text)
+    setPostNote(null)
+    clearCompose()
+  }, [pendingCompose, clearCompose])
 
   const token = session.token
   // Guest mode still works — it just shares one connection identity across

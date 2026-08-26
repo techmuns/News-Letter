@@ -11,6 +11,8 @@ import { MicroLabel } from '../MicroLabel'
 import { StatusChip } from '../StatusChip'
 import { Menu, MenuItem } from '../Menu'
 import { IconCalendar } from '../icons'
+import { Button } from '../Button'
+import { useComposeTarget } from '../../store/useComposeTarget'
 
 const SETTABLE_STATUSES: ChannelStatus[] = CHANNEL_STATUS_FLOW.filter((s) => s !== 'Scheduled')
 
@@ -32,7 +34,17 @@ interface PreviewShellProps {
 export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellProps) {
   const setChannelStatus = useStore((s) => s.setChannelStatus)
   const scheduleChannel = useStore((s) => s.scheduleChannel)
+  const sendToCompose = useComposeTarget((s) => s.sendToCompose)
   const ch = campaign[kind]
+
+  // The post text as it should actually go out: the hook line, then the body.
+  const linkedInText =
+    kind === 'linkedin'
+      ? [campaign.linkedin.content.headline, campaign.linkedin.content.body]
+          .map((s) => (s ?? '').trim())
+          .filter(Boolean)
+          .join('\n\n')
+      : ''
 
   return (
     <div className="animate-fade-up">
@@ -60,6 +72,20 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
 
       {/* Minimal actions: status, and schedule for email only */}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(255,255,255,0.07)] pt-5">
+        {kind === 'linkedin' && linkedInText && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              sendToCompose(linkedInText)
+              // The compose box lives above the split view on the same page.
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          >
+            Use this draft ↑
+          </Button>
+        )}
+
         <Menu
           trigger={
             <span className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-[13px] text-text-2 transition-colors hover:border-border-strong">
