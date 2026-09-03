@@ -49,6 +49,11 @@ export function LinkedInPanel() {
         content={previewCampaign.linkedin.content}
         image={previewCampaign.heroImage}
         topic={previewCampaign.topic}
+        // heroImage is already a fully rendered branded card (Studio and
+        // Daily Pulse both produce one). Without this the preview draws the
+        // branding template over it a second time — two brand marks and a
+        // ghosted duplicate headline.
+        plainImage
       />
     </PreviewShell>
   ) : (
