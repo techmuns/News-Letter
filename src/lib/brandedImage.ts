@@ -37,6 +37,18 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
   return lines
 }
 
+/** Trims the topic eyebrow to fit without cutting mid-word — a generated
+    topic is often a full sentence, and a hard character slice leaves
+    fragments like "FOR THIRD C" on the card. */
+function truncateWords(text: string, max: number): string {
+  const clean = text.trim()
+  if (clean.length <= max) return clean
+  const cut = clean.slice(0, max)
+  const lastSpace = cut.lastIndexOf(' ')
+  // Only fall back to a hard cut when the first "word" is itself too long.
+  return (lastSpace > max * 0.5 ? cut.slice(0, lastSpace) : cut).replace(/[\s,.;:—-]+$/, '') + '…'
+}
+
 export async function renderBrandedCard(input: CardInput): Promise<{ blob: Blob; dataUrl: string }> {
   const canvas = document.createElement('canvas')
   canvas.width = W
@@ -112,7 +124,7 @@ export async function renderBrandedCard(input: CardInput): Promise<{ blob: Blob;
     }
     ctx.fillStyle = '#a896f7'
     ctx.font = '600 20px ui-monospace, SFMono-Regular, Menlo, monospace'
-    ctx.fillText(input.topic.toUpperCase().slice(0, 42), PAD, y - blockH - 24)
+    ctx.fillText(truncateWords(input.topic.toUpperCase(), 42), PAD, y - blockH - 24)
     try {
       ;(ctx as any).letterSpacing = '0px'
     } catch {
