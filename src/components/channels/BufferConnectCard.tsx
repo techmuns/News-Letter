@@ -283,6 +283,20 @@ export function BufferConnectCard() {
 
   const linkedInChannels = (channels || []).filter((c) => c.isLinkedIn)
 
+  // The compose box shows as soon as the session resolves, whatever the Buffer
+  // state. "Use this draft ↑" on a preview below has to land somewhere the user
+  // can see and edit — when this was gated on a selected channel, the staged
+  // text went into state and rendered nowhere, so the draft looked lost. Only
+  // the publish action itself needs a connected channel.
+  const connected = connection?.status === 'connected'
+  const publishBlocked = !connection
+    ? 'Checking your Buffer connection…'
+    : !connected
+      ? 'Connect Buffer above before this can be published.'
+      : !connection.channelId
+        ? 'Pick your LinkedIn channel above before this can be published.'
+        : null
+
   return (
     <Card className="p-5" solid>
       <div className="flex items-center justify-between gap-3">
@@ -383,61 +397,85 @@ export function BufferConnectCard() {
             </div>
           )}
 
-          {connection && connection.status === 'connected' && connection.channelId && (
-            <div className="mt-3 flex flex-col gap-3">
+          <div className="mt-3 flex flex-col gap-3">
+            {connected && connection.channelId ? (
               <p className="text-[13px] text-text-muted">
                 Posting to <strong className="text-text">{connection.channelName || connection.channelId}</strong>
               </p>
-              <textarea
-                className={cn(inputCls, 'min-h-[90px] resize-y leading-relaxed')}
-                placeholder="Write your LinkedIn post…"
-                value={postText}
-                onChange={(e) => setPostText(e.target.value)}
-              />
-              {card && (
-                <div className="flex flex-col gap-2">
-                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
-                    <input
-                      type="checkbox"
-                      className="accent-violet"
-                      checked={attachImage}
-                      onChange={(e) => setAttachImage(e.target.checked)}
-                    />
-                    Attach the branded graphic
-                  </label>
-                  {attachImage && (
-                    <>
-                      <img
-                        src={card.dataUrl}
-                        alt="Branded graphic preview"
-                        className="w-full max-w-[380px] rounded-lg border border-border"
-                      />
-                      {imagesReady === false && (
-                        <p className="text-[12.5px] leading-relaxed text-[#f7a3a3]">
-                          Image hosting isn't set up, so this will post as text only. Buffer can only attach images
-                          by public URL — see SETUP.md (Workers KV `STORE` binding).
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
+            ) : (
+              <MicroLabel className="text-text-dim">Compose</MicroLabel>
+            )}
+            <textarea
+              className={cn(inputCls, 'min-h-[180px] resize-y leading-relaxed')}
+              placeholder="Write your LinkedIn post, or send one up from a draft below…"
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <span className="micro text-text-dim">{postText.trim().length} / 3000</span>
+              {postText.trim() !== '' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPostText('')
+                    setCard(null)
+                    setPostNote(null)
+                  }}
+                  className="micro text-text-dim transition-colors hover:text-text-2"
+                >
+                  Clear
+                </button>
               )}
-
-              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
-                <input
-                  type="checkbox"
-                  className="accent-violet"
-                  checked={postNow}
-                  onChange={(e) => setPostNow(e.target.checked)}
-                />
-                Publish immediately (otherwise it waits in Buffer's queue)
-              </label>
-              <Button variant="primary" size="sm" onClick={handlePost} disabled={busy !== null || !postText.trim()}>
-                {busy === 'post' ? 'Posting…' : postNow ? 'Post to LinkedIn now' : 'Add to Buffer queue'}
-              </Button>
-              {postNote && <Note kind={postNote.kind}>{postNote.text}</Note>}
             </div>
-          )}
+            {card && (
+              <div className="flex flex-col gap-2">
+                <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
+                  <input
+                    type="checkbox"
+                    className="accent-violet"
+                    checked={attachImage}
+                    onChange={(e) => setAttachImage(e.target.checked)}
+                  />
+                  Attach the branded graphic
+                </label>
+                {attachImage && (
+                  <>
+                    <img
+                      src={card.dataUrl}
+                      alt="Branded graphic preview"
+                      className="w-full max-w-[380px] rounded-lg border border-border"
+                    />
+                    {imagesReady === false && (
+                      <p className="text-[12.5px] leading-relaxed text-[#f7a3a3]">
+                        Image hosting isn't set up, so this will post as text only. Buffer can only attach images
+                        by public URL — see SETUP.md (Workers KV `STORE` binding).
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-muted">
+              <input
+                type="checkbox"
+                className="accent-violet"
+                checked={postNow}
+                onChange={(e) => setPostNow(e.target.checked)}
+              />
+              Publish immediately (otherwise it waits in Buffer's queue)
+            </label>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handlePost}
+              disabled={busy !== null || !postText.trim() || publishBlocked !== null}
+            >
+              {busy === 'post' ? 'Posting…' : postNow ? 'Post to LinkedIn now' : 'Add to Buffer queue'}
+            </Button>
+            {publishBlocked && <p className="text-[12.5px] text-text-dim">{publishBlocked}</p>}
+            {postNote && <Note kind={postNote.kind}>{postNote.text}</Note>}
+          </div>
         </>
       )}
 

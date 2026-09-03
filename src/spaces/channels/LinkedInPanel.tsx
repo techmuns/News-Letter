@@ -6,8 +6,8 @@ import { MicroLabel } from '../../components/MicroLabel'
 import { SplitLayout, PreviewEmpty } from '../../components/SplitLayout'
 import { ChannelListRow } from '../../components/ChannelListRow'
 import { PreviewShell } from '../../components/preview/PreviewShell'
-import { LinkedInPost } from '../../components/preview/LinkedInPost'
 import { BufferConnectCard } from '../../components/channels/BufferConnectCard'
+import { LinkedInDraftEditor } from '../../components/channels/LinkedInDraftEditor'
 
 function firstLine(s: string): string {
   return s.split('\n')[0]
@@ -50,16 +50,7 @@ export function LinkedInPanel() {
 
   const preview = previewCampaign ? (
     <PreviewShell campaign={previewCampaign} kind="linkedin" onBack={() => setSelectedId(null)}>
-      <LinkedInPost
-        content={previewCampaign.linkedin.content}
-        image={previewCampaign.heroImage}
-        topic={previewCampaign.topic}
-        // heroImage is already a fully rendered branded card (Studio and
-        // Daily Pulse both produce one). Without this the preview draws the
-        // branding template over it a second time — two brand marks and a
-        // ghosted duplicate headline.
-        plainImage
-      />
+      <LinkedInDraftEditor campaign={previewCampaign} />
     </PreviewShell>
   ) : (
     <PreviewEmpty label="Select a post to preview how it will look on LinkedIn." />

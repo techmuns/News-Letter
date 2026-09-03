@@ -103,6 +103,8 @@ interface StoreState {
   setHeroImage: (campaignId: string, dataUrl: string) => void
   /** Replace a campaign's article with a full, AI-written long-form piece. */
   setArticleContent: (campaignId: string, content: ArticleContent) => void
+  /** Hand-edit the generated LinkedIn copy (hook and/or body). */
+  setLinkedInText: (campaignId: string, patch: { headline?: string; body?: string }) => void
 
   // --- Campaign / channel actions ---
   /** Approve one channel → it moves to Ready and distributes to its space. */
@@ -291,6 +293,24 @@ export const useStore = create<StoreState>()(
           campaigns: s.campaigns.map((c) =>
             c.id === campaignId
               ? { ...c, article: { ...c.article, content, edited: true, status: 'Ready' } }
+              : c,
+          ),
+        })),
+
+      // Marks the channel edited too, so the draft reads as touched rather
+      // than as straight generator output.
+      setLinkedInText: (campaignId, patch) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId
+              ? {
+                  ...c,
+                  linkedin: {
+                    ...c.linkedin,
+                    content: { ...c.linkedin.content, ...patch },
+                    edited: true,
+                  },
+                }
               : c,
           ),
         })),
