@@ -105,7 +105,8 @@ function composeCaption(post: PulsePost): string {
     .map((b) => `• ${b.replace(/^•\s*/, '')}`)
     .join('\n')
   const tags = normalizeTags(post.linkedin.hashtags).join(' ')
-  return [post.linkedin.hook.trim(), bullets, tags].filter(Boolean).join('\n\n')
+  const close = (post.linkedin.close || '').trim()
+  return [post.linkedin.hook.trim(), bullets, close, tags].filter(Boolean).join('\n\n')
 }
 
 export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: HealthFlags | null }) {
@@ -630,6 +631,15 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
                   className={cn(inputCls, 'min-h-[130px] resize-y leading-relaxed')}
                   value={post.linkedin.bullets.join('\n')}
                   onChange={(e) => patchLinkedIn({ bullets: e.target.value.split('\n') })}
+                />
+              </div>
+              <div>
+                <Label>Closing line (an open question beats a summary)</Label>
+                <textarea
+                  className={cn(inputCls, 'min-h-[52px] resize-y')}
+                  placeholder="What should the reader be left arguing about?"
+                  value={post.linkedin.close || ''}
+                  onChange={(e) => patchLinkedIn({ close: e.target.value })}
                 />
               </div>
               <div>

@@ -51,7 +51,14 @@ export interface NewsItem {
 /** Daily Pulse post — style #1 caption (hook → emoji bullets → hashtags) + email. */
 export interface PulsePost {
   focus: string
-  linkedin: { hook: string; bullets: string[]; hashtags: string[] }
+  linkedin: {
+    hook: string
+    bullets: string[]
+    /** closing line — an open question rather than a summary; may be absent
+        on posts generated before this field existed. */
+    close?: string
+    hashtags: string[]
+  }
   email: EmailSection
 }
 

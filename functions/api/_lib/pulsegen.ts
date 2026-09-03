@@ -49,6 +49,8 @@ export interface PulsePost {
     hook: string
     /** 4-6 theme bullets, each STARTING with a relevant emoji (no leading "•") */
     bullets: string[]
+    /** closing line — an open question, not a summary */
+    close: string
     hashtags: string[]
   }
   email: EmailSection
@@ -135,8 +137,12 @@ You are given today's feed: Indian + global indices, FX, commodities, and Munsho
 Produce a punchy, original market update. Mirror the STRUCTURE of a great "Stock Market Today" LinkedIn post — never anyone's exact words.
 
 LinkedIn caption:
-- hook: one short scroll-stopping line summarizing the day's tone. It may start with ONE fitting emoji (e.g. 📈 / 📉 / ⚡). Keep it under ~60 characters.
+- hook: one short scroll-stopping line. It may start with ONE fitting emoji (e.g. 📈 / 📉 / ⚡). Keep it under ~60 characters.
+  The hook must carry a TENSION, not a summary of the day's tone. Lead with what is surprising, contradictory, or asymmetric in the data — two facts that shouldn't both be true, or a move whose consequence differs sharply across assets or markets.
+  NEVER open with a neutral recap. Banned hook shapes: "X slides/rises for Nth session", "X and Y extend losses", "Here's what moved", "Market update", "What you need to know".
 - bullets: 4 to 6 short theme lines. EACH bullet must START with a single relevant emoji, then a concise, specific point drawn from the data (e.g. an index move, a standout holding, a commodity/FX shift, a risk to watch). One sentence each, no trailing hashtags. Do NOT include a leading "•" — the app adds it.
+  Order them by what MATTERS, not by size or by what appears first in the data. Never spend a bullet on a move too small to change a decision (a sub-0.2% currency tick, a rounding-error index move) unless that specific move is itself the story.
+- close: ONE final line that leaves the reader something to answer, not a summary. A genuine open question raised by the data, or the tension left unresolved. No emoji, no hashtags, never a platitude, and never a restatement of the hook. Under ~120 characters.
 - hashtags: 3 to 5, each a single #Tag. Favor relevant, real tags (e.g. #StockMarket, #Sensex, #Nifty, #Markets). No spaces inside a tag.
 
 Email newsletter (a rich, multi-part digest):
@@ -172,9 +178,10 @@ const SCHEMA = {
       properties: {
         hook: { type: 'string' },
         bullets: { type: 'array', items: { type: 'string' } },
+        close: { type: 'string' },
         hashtags: { type: 'array', items: { type: 'string' } },
       },
-      required: ['hook', 'bullets', 'hashtags'],
+      required: ['hook', 'bullets', 'close', 'hashtags'],
     },
     email: {
       type: 'object',
@@ -257,6 +264,7 @@ export async function generatePulsePost(
   post.linkedin = post.linkedin || ({} as any)
   post.email = post.email || ({} as any)
   post.linkedin.bullets = Array.isArray(post.linkedin.bullets) ? post.linkedin.bullets : []
+  post.linkedin.close = typeof post.linkedin.close === 'string' ? post.linkedin.close : ''
   post.linkedin.hashtags = Array.isArray(post.linkedin.hashtags) ? post.linkedin.hashtags : []
   post.email.keyPoints = normalizeKeyPoints(post.email.keyPoints)
   post.email.spotlight = normalizeSpotlight(post.email.spotlight)

@@ -20,7 +20,11 @@ const SYSTEM = `You are the content engine for Munshot — a market-intelligence
 
 Mirror the house format:
 - hook: one short scroll-stopping line. It may start with ONE fitting emoji. Under ~70 characters.
+  The hook must carry a TENSION, not a summary. Lead with the thing that is surprising, contradictory, or asymmetric in the sources — two facts that shouldn't both be true, a consequence readers won't expect, or who is affected differently and why.
+  NEVER open with a neutral recap of what happened. Banned hook shapes: "X slides/rises/falls for Nth session", "X and Y extend losses", "Here's what moved", "Market update", "What you need to know". If the only honest hook is a recap, find the tension inside the detail instead.
 - bullets: 4 to 6 short lines. EACH must START with a single relevant emoji, then one concrete, specific fact drawn from the sources (a number, a decision, an event, a named quote). One sentence each, no trailing hashtags, no leading "•" (the app adds it).
+  Order them by what MATTERS, not by what the sources led with. Never spend a bullet on a move too small to change a decision (a sub-0.2% currency tick, a rounding-error index move) unless the sources say that specific move is itself the story. Prefer a fact that reframes the story over a fact that merely repeats the headline.
+- close: ONE final line that leaves the reader something to answer, not a summary. A genuine open question raised by the sources, or the tension left unresolved. No emoji, no hashtags, never a platitude, and never a restatement of the hook. Keep it under ~120 characters.
 - hashtags: 3 to 5 single #Tags relevant to the topic.
 
 Email newsletter section (a rich, multi-part digest — like a professional research briefing):
@@ -59,9 +63,10 @@ const SCHEMA = {
       properties: {
         hook: { type: 'string' },
         bullets: { type: 'array', items: { type: 'string' } },
+        close: { type: 'string' },
         hashtags: { type: 'array', items: { type: 'string' } },
       },
-      required: ['hook', 'bullets', 'hashtags'],
+      required: ['hook', 'bullets', 'close', 'hashtags'],
     },
     email: {
       type: 'object',
@@ -153,6 +158,7 @@ export async function generateTopicPost(
   post.linkedin = post.linkedin || ({} as any)
   post.email = post.email || ({} as any)
   post.linkedin.bullets = Array.isArray(post.linkedin.bullets) ? post.linkedin.bullets : []
+  post.linkedin.close = typeof post.linkedin.close === 'string' ? post.linkedin.close : ''
   post.linkedin.hashtags = Array.isArray(post.linkedin.hashtags) ? post.linkedin.hashtags : []
   post.email.keyPoints = normalizeKeyPoints(post.email.keyPoints)
   post.email.spotlight = normalizeSpotlight(post.email.spotlight)
