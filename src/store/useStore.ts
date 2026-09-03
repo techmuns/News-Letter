@@ -91,6 +91,9 @@ interface StoreState {
   ) => void
   removeItem: (id: string) => void
 
+  /** Delete a generated campaign (and its channel drafts) from the history. */
+  removeCampaign: (id: string) => void
+
   /** Mocked "Turn into content": creates a Campaign + 3 channel drafts. */
   turnIntoContent: (itemIds: string[]) => string
 
@@ -160,6 +163,13 @@ export const useStore = create<StoreState>()(
 
       removeItem: (id) =>
         set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
+
+      removeCampaign: (id) =>
+        set((s) => ({
+          campaigns: s.campaigns.filter((c) => c.id !== id),
+          // Don't leave lastGeneratedId dangling at a campaign that's gone.
+          lastGeneratedId: s.lastGeneratedId === id ? null : s.lastGeneratedId,
+        })),
 
       turnIntoContent: (itemIds) => {
         const tpl = GENERATABLE[get().genIndex % GENERATABLE.length]

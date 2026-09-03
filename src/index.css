@@ -106,6 +106,19 @@
     background: rgba(160, 140, 220, 0.32);
     background-clip: padding-box;
   }
+
+  /* Native dropdown options are rendered by the OS, so they ignore the dark
+     styling on the <select> itself — which left near-invisible light text on
+     a light system menu. Paint them explicitly. */
+  select option {
+    background-color: var(--surface-solid);
+    color: var(--text);
+  }
+  select option:checked,
+  select option:hover {
+    background-color: #33294a;
+    color: #ffffff;
+  }
 }
 
 @layer components {

@@ -33,16 +33,37 @@ function EmailRow({
   campaign,
   active,
   onClick,
+  onDelete,
 }: {
   campaign: Campaign
   active: boolean
   onClick: () => void
+  onDelete?: () => void
 }) {
   const email = campaign.email
   const date = email.scheduledDate
   const wday = date ? weekdayName(date).slice(0, 3).toUpperCase() : '—'
   return (
-    <Card active={active} interactive onClick={onClick} className="flex items-stretch gap-0 p-0">
+    <Card
+      active={active}
+      interactive
+      onClick={onClick}
+      className="group relative flex items-stretch gap-0 p-0"
+    >
+      {onDelete && (
+        <button
+          type="button"
+          aria-label={`Delete "${campaign.name}"`}
+          title="Delete this draft"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-lg text-[15px] leading-none text-text-dim opacity-0 transition-all hover:bg-[rgba(248,113,113,0.12)] hover:text-[#f7a3a3] focus-visible:opacity-100 group-hover:opacity-100"
+        >
+          ×
+        </button>
+      )}
       <div className="flex w-16 shrink-0 flex-col items-center justify-center gap-1 border-r border-[rgba(255,255,255,0.07)] py-4">
         <span className="micro text-[10px] text-violet">{wday}</span>
         <span className="font-display text-[16px] font-bold leading-none text-text">
@@ -64,6 +85,7 @@ function EmailRow({
 export function EmailPanel() {
   const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.email))
   const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const removeCampaign = useStore((s) => s.removeCampaign)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const previewCampaign =
     campaigns.find((c) => c.id === selectedId) ?? (isDesktop ? campaigns[0] ?? null : null)
@@ -95,6 +117,10 @@ export function EmailPanel() {
                 campaign={c}
                 active={c.id === previewCampaign?.id}
                 onClick={() => setSelectedId(c.id)}
+                onDelete={() => {
+                  removeCampaign(c.id)
+                  if (selectedId === c.id) setSelectedId(null)
+                }}
               />
             ))}
           </div>

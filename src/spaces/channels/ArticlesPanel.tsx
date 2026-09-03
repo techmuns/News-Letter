@@ -17,6 +17,7 @@ export function ArticlesPanel() {
   const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.article))
   const setArticleContent = useStore((s) => s.setArticleContent)
   const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const removeCampaign = useStore((s) => s.removeCampaign)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const previewCampaign =
     campaigns.find((c) => c.id === selectedId) ?? (isDesktop ? campaigns[0] ?? null : null)
@@ -68,6 +69,10 @@ export function ArticlesPanel() {
           active={c.id === previewCampaign?.id}
           snippet={c.article.content.deck}
           onClick={() => setSelectedId(c.id)}
+          onDelete={() => {
+            removeCampaign(c.id)
+            if (selectedId === c.id) setSelectedId(null)
+          }}
         />
       ))}
     </div>

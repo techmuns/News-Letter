@@ -17,6 +17,7 @@ function firstLine(s: string): string {
 export function LinkedInPanel() {
   const campaigns = useStore((s) => s.campaigns).filter((c) => channelApproved(c.linkedin))
   const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const removeCampaign = useStore((s) => s.removeCampaign)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const previewCampaign =
     campaigns.find((c) => c.id === selectedId) ?? (isDesktop ? campaigns[0] ?? null : null)
@@ -38,6 +39,10 @@ export function LinkedInPanel() {
           active={c.id === previewCampaign?.id}
           snippet={firstLine(c.linkedin.content.body)}
           onClick={() => setSelectedId(c.id)}
+          onDelete={() => {
+            removeCampaign(c.id)
+            if (selectedId === c.id) setSelectedId(null)
+          }}
         />
       ))}
     </div>
