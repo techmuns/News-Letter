@@ -278,9 +278,9 @@ export async function renderMarketCard(data: MarketCardData): Promise<{ blob: Bl
     ...data.headline.split(/\s+/).filter(Boolean).map((t) => ({ t, accent: false })),
     ...data.accent.split(/\s+/).filter(Boolean).map((t) => ({ t, accent: true })),
   ]
-  let titleSize = 36
+  let titleSize = 44
   let rows: Tok[][] = []
-  for (; titleSize >= 24; titleSize -= 2) {
+  for (; titleSize >= 30; titleSize -= 2) {
     ctx.font = `700 ${titleSize}px ${SERIF}`
     const space = ctx.measureText(' ').width
     rows = [[]]
@@ -300,7 +300,9 @@ export async function renderMarketCard(data: MarketCardData): Promise<{ blob: Bl
   ctx.font = `700 ${titleSize}px ${SERIF}`
   const space = ctx.measureText(' ').width
   const lineH = Math.round(titleSize * 1.16)
-  let ty = PAD + 108 + Math.round(titleSize * 1.05)
+  // Clear gap below the eyebrow (its baseline is at PAD+108) so a taller title
+  // never crowds it.
+  let ty = PAD + 124 + titleSize
   for (const row of rows) {
     let tx = PAD
     for (const tok of row) {
