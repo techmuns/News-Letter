@@ -31,3 +31,41 @@ export function toPlain(s: string): string {
     .map((ch) => BOLD_REV.get(ch) ?? ch)
     .join('')
 }
+
+/* ---- Auto-bold: bold the "lead" of each line (the topic word / index name),
+   matching how a market post reads — 𝗦𝗲𝗻𝘀𝗲𝘅 closed…, 𝗔𝘂𝘁𝗼 𝘀𝘁𝗼𝗰𝗸𝘀 led… ---- */
+
+const LEAD_STOP = /[—–,:;]/
+const FIN_VERB =
+  /\b(closed?|fell|rose|drops?|dropped|slips?|slipped|jumps?|jumped|climbs?|climbed|led|gains?|gained|lost|slid|ends?|ended|settled?|tumbled?|surged?|rallied|sank|sinks?|plunged?|advanced?|declined?|rises?|edged|weakened?|strengthened?)\b/i
+
+/** Bold the opening phrase of one caption line — up to the first delimiter or
+    finance verb, else the first two words. Blank lines and the hashtag line are
+    left alone. Idempotent (un-bolds first, so re-running doesn't grow it). */
+export function autoBoldLead(line: string): string {
+  const plain = toPlain(line)
+  if (!plain.trim() || plain.trim().startsWith('#')) return plain
+  const m = plain.match(/^(\s*(?:[•\-*]\s*)?(?:\p{Extended_Pictographic}️?\s*)*)(.*)$/u)
+  const prefix = m?.[1] ?? ''
+  const rest = m?.[2] ?? plain
+  if (!rest.trim()) return plain
+
+  let cut = -1
+  const delim = rest.search(LEAD_STOP)
+  if (delim > 0) cut = delim
+  const verb = rest.search(FIN_VERB)
+  if (verb > 0) cut = cut < 0 ? verb : Math.min(cut, verb)
+  // No natural stop (or it's very far off) → just bold the first two words.
+  if (cut < 0 || cut > 30) {
+    const firstTwo = rest.match(/^\s*\S+(?:\s+\S+)?/)
+    cut = firstTwo ? firstTwo[0].length : Math.min(rest.length, 20)
+  }
+  const lead = rest.slice(0, cut).replace(/\s+$/, '')
+  const after = rest.slice(lead.length)
+  return prefix + toBold(lead) + after
+}
+
+/** Bold the lead of every line in a caption body. */
+export function autoBoldBody(body: string): string {
+  return body.split('\n').map(autoBoldLead).join('\n')
+}

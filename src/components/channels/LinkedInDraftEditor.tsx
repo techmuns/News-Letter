@@ -7,7 +7,7 @@ import { LinkedInPost } from '../preview/LinkedInPost'
 import { cn } from '../../lib/cn'
 import { renderMarketCard, type MarketCardData, type Direction } from '../../lib/marketCard'
 import { seedMarketCard } from '../../lib/marketCardSeed'
-import { toBold, toPlain } from '../../lib/unicodeBold'
+import { toBold, toPlain, autoBoldBody } from '../../lib/unicodeBold'
 
 /** LinkedIn rejects posts past this length, so warn before Buffer does. */
 const LINKEDIN_LIMIT = 3000
@@ -88,6 +88,12 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     })
   }
 
+  /** One-click styling: bold the whole hook, and the lead of each body line. */
+  function autoBold() {
+    setDraftHeadline(toBold(toPlain(draftHeadline)))
+    setDraftBody(autoBoldBody(draftBody))
+  }
+
   function updateIndex(i: number, patch: Partial<MarketCardData['indices'][number]>) {
     setMc((m) => ({ ...m, indices: m.indices.map((idx, j) => (j === i ? { ...idx, ...patch } : idx)) }))
   }
@@ -157,8 +163,16 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
+                onClick={autoBold}
+                title="Bold the hook and each line's lead word automatically"
+                className="rounded-md border border-[rgba(160,140,220,0.28)] bg-[rgba(160,140,220,0.1)] px-2 py-1 text-[12px] font-semibold text-violet transition-colors hover:bg-[rgba(160,140,220,0.16)]"
+              >
+                ✨ Auto-bold
+              </button>
+              <button
+                type="button"
                 onClick={() => transformSelection(toBold)}
-                title="Select text, then Bold it (LinkedIn fake-bold)"
+                title="Select text, then Bold just that (LinkedIn fake-bold)"
                 className="rounded-md border border-border px-2 py-1 text-[13px] font-bold text-text-2 transition-colors hover:border-border-strong hover:text-text"
               >
                 𝗕
@@ -183,8 +197,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
         </label>
 
         <p className="text-[12.5px] leading-relaxed text-text-dim">
-          Select the important words (a hook, an index name) and press <strong className="text-text-2">𝗕</strong> to
-          bold them. Delete a bullet by deleting its line.
+          <strong className="text-text-2">✨ Auto-bold</strong> bolds the hook and each line's lead word in one click.
+          Or select any words and press <strong className="text-text-2">𝗕</strong> to bold just those.
         </p>
 
         {overLimit && (
