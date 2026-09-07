@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest'
-import { seedMarketCard, marketCardIsUsable } from './marketCardSeed'
+import { seedMarketCard, marketCardIsUsable, marketCardFromFeed } from './marketCardSeed'
+import { type PulseItem } from './api'
+
+const pulse = (over: Partial<PulseItem>): PulseItem => ({
+  id: 'x',
+  group: 'index' as PulseItem['group'],
+  name: 'X',
+  ticker: 'X',
+  current: 0,
+  d1: 0,
+  d5: 0,
+  m1: 0,
+  spark: [1, 2, 3],
+  ...over,
+})
 
 const MARKET_POST = {
   headline: "Third straight loss — but oil's the real culprit",
@@ -56,5 +70,42 @@ describe('marketCardIsUsable', () => {
     expect(seed.indices[0].value).toBe('23,914.45')
     expect(seed.indices[1].value).toBe('')
     expect(marketCardIsUsable(seed)).toBe(false)
+  })
+})
+
+describe('marketCardFromFeed', () => {
+  const POST = { headline: 'Markets slip — oil weighs', body: 'A down day.' }
+  const FEED = [
+    pulse({ name: 'India VIX', current: 11.27, d1: 5.57, spark: [10, 11, 11.3] }),
+    pulse({ name: 'SENSEX', current: 76082.96, d1: -0.57, spark: [76500, 76300, 76082.96] }),
+    pulse({ name: 'NIFTY 50', current: 23774.45, d1: -0.52, spark: [23900, 23820, 23774.45] }),
+    pulse({ name: 'NIFTY Midcap 100', current: 18042.2, d1: -0.47 }),
+  ]
+
+  it('picks NIFTY 50 (not Midcap) and SENSEX with exact live numbers', () => {
+    const card = marketCardFromFeed(FEED, POST)!
+    expect(card).not.toBeNull()
+    const [nifty, sensex] = card.indices
+    expect(nifty.name).toBe('NIFTY 50')
+    expect(nifty.value).toBe('23,774.45')
+    expect(sensex.value).toBe('76,082.96')
+  })
+
+  it('carries the exact percentage, direction and the real spark', () => {
+    const [nifty, sensex] = marketCardFromFeed(FEED, POST)!.indices
+    expect(nifty.changePct).toBe('0.52')
+    expect(nifty.direction).toBe('down')
+    expect(sensex.changePct).toBe('0.57')
+    expect(sensex.spark).toEqual([76500, 76300, 76082.96])
+  })
+
+  it('computes points from level and %', () => {
+    const [nifty] = marketCardFromFeed(FEED, POST)!.indices
+    // 23774.45 down 0.52% → previous ≈ 23898.7 → ~124.3 pts
+    expect(parseFloat(nifty.changePts.replace(/,/g, ''))).toBeCloseTo(124.3, 0)
+  })
+
+  it('returns null when the feed lacks the indices', () => {
+    expect(marketCardFromFeed([pulse({ name: 'Gold', current: 100, d1: 1 })], POST)).toBeNull()
   })
 })

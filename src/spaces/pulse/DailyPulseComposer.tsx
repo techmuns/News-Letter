@@ -17,7 +17,7 @@ import { buildEmailHtml, type EmailSource } from '../../lib/emailTemplate'
 import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
 import { renderBrandedCard } from '../../lib/brandedImage'
 import { renderMarketCard, type MarketCardData } from '../../lib/marketCard'
-import { seedMarketCard, marketCardIsUsable } from '../../lib/marketCardSeed'
+import { seedMarketCard, marketCardIsUsable, marketCardFromFeed } from '../../lib/marketCardSeed'
 import { renderChartOfDay, pickChartItems } from '../../lib/chartImage'
 import { useStore } from '../../store/useStore'
 import { usePulseDraft } from '../../store/usePulseDraft'
@@ -183,18 +183,19 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       return
     }
     let cancelled = false
-    // Default the post image to the branded market card whenever the copy
-    // carries real index data (both Nifty & Sensex levels parse). Falls back to
-    // the plain branded headline card (topic) or the gainers/losers board
-    // (market) when it doesn't — so a non-market post never gets index tiles.
-    const seed =
-      resultKind === 'topic'
-        ? seedMarketCard({ headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, body: composeCaption(post) })
-        : null
-    const useMarket = seed !== null && marketCardIsUsable(seed)
-    setMarketSeed(useMarket ? seed : null)
-    const render = useMarket
-      ? renderMarketCard(seed!)
+    // The post image is the branded market card, with ACCURATE numbers pulled
+    // straight from the live feed (Nifty 50 + Sensex level, %, points and the
+    // real trend) — nothing to type or correct. Editorial text still comes from
+    // the post. Two fallbacks: parse numbers out of the copy if the feed lacks
+    // the indices, else the plain branded card (topic) / gainers board (market)
+    // — so a non-market post never gets empty index tiles.
+    const postText = { headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, body: composeCaption(post) }
+    const fromFeed = marketCardFromFeed(feed.items, postText)
+    const fromText = fromFeed ?? (resultKind === 'topic' ? seedMarketCard(postText) : null)
+    const seed = fromFeed ?? (fromText && marketCardIsUsable(fromText) ? fromText : null)
+    setMarketSeed(seed)
+    const render = seed
+      ? renderMarketCard(seed)
       : resultKind === 'topic'
         ? renderBrandedCard({ headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, topic: post.focus })
         : renderPulseImage(imageStyle, feed.items, { dateLabel: dateLabelFrom(feed.fetchedAt) })
