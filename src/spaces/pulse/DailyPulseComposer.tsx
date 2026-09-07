@@ -228,6 +228,16 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     if (historyId && marketSeed) setMarketCard(historyId, marketSeed)
   }, [card, historyId, marketSeed]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Today's live index/FX numbers to hand the generator so the caption uses the
+  // SAME figures as the market card (no stale-date mismatch).
+  const marketSnapshot = useMemo(
+    () =>
+      feed.items
+        .filter((i) => i.group === 'index' || /usd\s*\/\s*inr/i.test(i.name))
+        .map((i) => ({ name: i.name, value: i.current, changePct: i.d1 })),
+    [feed],
+  )
+
   const chartCaption = useMemo(() => buildChartCaption(feed.items), [feed])
   const emailSources = useMemo<EmailSource[] | undefined>(
     () =>
@@ -277,7 +287,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       let generated: PulsePost | null = null
       let kind: 'market' | 'topic' = 'market'
       if (mode === 'topic') {
-        const { post: p, sources: s } = await api.topicGenerate({ topic: topic.trim(), tone })
+        const { post: p, sources: s } = await api.topicGenerate({ topic: topic.trim(), tone, market: marketSnapshot })
         setSources(s)
         setResultKind('topic')
         setPost(p)
@@ -288,7 +298,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
         if (q && !focusMatch) {
           // A company that isn't in the market feed → ground it in real news,
           // same engine as Topic mode (real sources, no fabrication).
-          const { post: p, sources: s } = await api.topicGenerate({ topic: q, tone })
+          const { post: p, sources: s } = await api.topicGenerate({ topic: q, tone, market: marketSnapshot })
           setSources(s)
           setResultKind('topic')
           setPost(p)

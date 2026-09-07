@@ -11,9 +11,17 @@ import { callClaudeJson, aiConfigured } from './llm'
 import { fetchTopicNews, newsConfigured, type NewsItem } from './news'
 import { type PulsePost, normalizeKeyPoints, normalizeSpotlight } from './pulsegen'
 
+export interface MarketQuote {
+  name: string
+  value: number
+  changePct: number
+}
+
 export interface TopicGenInput {
   topic: string
   tone?: string
+  /** today's live index/price numbers from the feed — authoritative */
+  market?: MarketQuote[]
 }
 
 const SYSTEM = `You are the content engine for Munshot — a market-intelligence platform. Write a LinkedIn post and a matching email newsletter about the TOPIC below, using ONLY the sourced news items provided.
@@ -52,6 +60,13 @@ Hard rules — this is about REAL people and companies, so accuracy is non-negot
 - Attribution like "per <source>" is welcome where it reads naturally.
 - Make it worth reading: within what the sources support, leave the reader with at least ONE concrete, non-obvious takeaway — a specific figure, a second-order implication, or a "what most people miss" angle. No platitudes, no filler.
 - Be granular and specific: cite the actual figures/decisions from the sources and connect them into a nuanced read (a tension, a consequence, why it matters beyond the headline) — never a bland recap. One sharp point fully made beats three shallow ones.
+MARKET DATA — AUTHORITATIVE, and it overrides the news for numbers.
+- When a "TODAY'S MARKET DATA (live)" block is provided in the user's message, those are the real, live index/price figures for TODAY'S session.
+- Use ONLY those figures for any index level, %, or points you state (Nifty, Sensex, and any others listed). Compute a points move from the level and %.
+- The sourced news is for the STORY and the DRIVERS (what moved markets and why) — NOT for the numbers. The news may describe OLDER sessions with different values; NEVER quote an index level, %, or point-move from the news. If the news and the market data disagree on a number, the market data wins, silently.
+- Write ONE coherent post about TODAY'S session only. Do NOT stitch several different dates together, and do NOT mention specific past dates like "on 1 September" / "on 3 September" — frame everything as today.
+- Direction must match the data: if the market data shows indices DOWN today, the hook and bullets describe a down day (and vice-versa) — never call a down day a "rebound".
+
 Keep it sharp, credible, and neutral — this publishes under the Munshot brand.`
 
 const SCHEMA = {
@@ -117,7 +132,21 @@ const SCHEMA = {
   required: ['focus', 'linkedin', 'email'],
 }
 
-function buildDigest(topic: string, tone: string, items: NewsItem[]): string {
+export function buildMarketBlock(market?: MarketQuote[]): string {
+  if (!market || market.length === 0) return ''
+  const lines = market.map((m) => {
+    const dir = m.changePct < 0 ? 'DOWN' : m.changePct > 0 ? 'UP' : 'flat'
+    const pts = Math.abs(m.value - m.value / (1 + m.changePct / 100))
+    return `- ${m.name}: ${m.value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${dir} ${Math.abs(m.changePct).toFixed(2)}%, ≈${pts.toLocaleString('en-IN', { maximumFractionDigits: 2 })} pts)`
+  })
+  return [
+    "TODAY'S MARKET DATA (live) — these are the authoritative numbers; use ONLY these for any index level/%/points, and write the post about TODAY:",
+    ...lines,
+    '',
+  ].join('\n')
+}
+
+function buildDigest(topic: string, tone: string, items: NewsItem[], market?: MarketQuote[]): string {
   const sources = items
     .map((n, i) => {
       const meta = [n.source, n.date].filter(Boolean).join(' · ')
@@ -128,9 +157,12 @@ function buildDigest(topic: string, tone: string, items: NewsItem[]): string {
     `TONE: ${tone || 'sharp, credible, neutral'}`,
     `TOPIC: ${topic}`,
     '',
-    'SOURCED NEWS — ground everything strictly in these items, and use nothing else:',
+    buildMarketBlock(market),
+    'SOURCED NEWS — use these for the STORY and DRIVERS only (NOT for index numbers, which come from the market data above):',
     sources,
-  ].join('\n')
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 export async function generateTopicPost(
@@ -153,7 +185,7 @@ export async function generateTopicPost(
 
   const post = await callClaudeJson<PulsePost>(env, {
     system: SYSTEM,
-    user: buildDigest(topic, input.tone || '', sources),
+    user: buildDigest(topic, input.tone || '', sources, input.market),
     schema: SCHEMA,
   })
   // Defensive defaults so the UI never crashes on a missing field.

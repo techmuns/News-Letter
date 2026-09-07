@@ -235,9 +235,18 @@ export default {
 
       if (pathname === '/api/topic-generate') {
         return guard(async () => {
+          const market = Array.isArray(body?.market)
+            ? (body.market as unknown[])
+                .map((m) => {
+                  const o = m as Record<string, unknown>
+                  return { name: String(o?.name ?? ''), value: Number(o?.value), changePct: Number(o?.changePct) }
+                })
+                .filter((m) => m.name && Number.isFinite(m.value) && Number.isFinite(m.changePct))
+            : undefined
           const { post, sources, topic } = await generateTopicPost(env, {
             topic: body?.topic ? String(body.topic) : '',
             tone: body?.tone ? String(body.tone) : undefined,
+            market,
           })
           return json({ ok: true, post, sources, topic })
         })

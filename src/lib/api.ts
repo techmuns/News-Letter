@@ -201,8 +201,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ query }),
     }),
-  /** Generate a post from recent news on a keyword/topic (grounded in sources). */
-  topicGenerate: (input: { topic: string; tone?: string }) =>
+  /** Generate a post from recent news on a keyword/topic (grounded in sources).
+      `market` carries today's live index/price numbers from the feed — when
+      present, the caption uses THOSE figures (not stale ones from the news), so
+      the words match the market card. */
+  topicGenerate: (input: {
+    topic: string
+    tone?: string
+    market?: { name: string; value: number; changePct: number }[]
+  }) =>
     request<{ ok: true; post: PulsePost; sources: NewsItem[]; topic: string }>('/topic-generate', {
       method: 'POST',
       body: JSON.stringify(input),
