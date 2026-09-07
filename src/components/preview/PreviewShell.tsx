@@ -37,14 +37,22 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
   const sendToCompose = useComposeTarget((s) => s.sendToCompose)
   const ch = campaign[kind]
 
-  // The post text as it should actually go out: the hook line, then the body.
-  const linkedInText =
-    kind === 'linkedin'
-      ? [campaign.linkedin.content.headline, campaign.linkedin.content.body]
-          .map((s) => (s ?? '').trim())
-          .filter(Boolean)
-          .join('\n\n')
-      : ''
+  // The post text as it should actually go out. Daily Pulse stores the FULL
+  // caption (hook + bullets + close + tags) in `body`, so prepending the
+  // headline would repeat the hook — only prepend when the body doesn't already
+  // open with it (e.g. the mock/seed campaigns, whose body is just the bullets).
+  const linkedInText = (() => {
+    if (kind !== 'linkedin') return ''
+    const head = (campaign.linkedin.content.headline ?? '').trim()
+    const body = (campaign.linkedin.content.body ?? '').trim()
+    const firstBodyLine = body
+      .split('\n')[0]
+      .replace(/^(\s*\p{Extended_Pictographic}️?\s*)+/u, '')
+      .trim()
+    const bodyOpensWithHook =
+      head.length > 0 && firstBodyLine.slice(0, 50).toLowerCase() === head.slice(0, 50).toLowerCase()
+    return bodyOpensWithHook ? body : [head, body].filter(Boolean).join('\n\n')
+  })()
 
   return (
     <div className="animate-fade-up">
