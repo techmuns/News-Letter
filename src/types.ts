@@ -156,6 +156,9 @@ export interface Campaign {
   sourceItemIds: string[]
   /** hero image (data URL) carried into LinkedIn + the article hero */
   heroImage?: string
+  /** the market-card inputs behind heroImage, kept so the card can be re-edited
+      (heroImage itself is a big data URL that isn't persisted) */
+  marketCard?: import('./lib/marketCard').MarketCardData
   linkedin: ChannelVersion<LinkedInContent>
   email: ChannelVersion<EmailContent>
   article: ChannelVersion<ArticleContent>

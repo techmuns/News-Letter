@@ -105,6 +105,8 @@ interface StoreState {
   setArticleContent: (campaignId: string, content: ArticleContent) => void
   /** Hand-edit the generated LinkedIn copy (hook and/or body). */
   setLinkedInText: (campaignId: string, patch: { headline?: string; body?: string }) => void
+  /** Persist the market-card inputs behind a campaign's heroImage. */
+  setMarketCard: (campaignId: string, data: import('../lib/marketCard').MarketCardData) => void
 
   // --- Campaign / channel actions ---
   /** Approve one channel → it moves to Ready and distributes to its space. */
@@ -283,6 +285,16 @@ export const useStore = create<StoreState>()(
         set((s) => ({
           campaigns: s.campaigns.map((c) =>
             c.id === campaignId ? { ...c, heroImage: dataUrl } : c,
+          ),
+        })),
+
+      // Store the market-card inputs alongside the rendered heroImage, so the
+      // card survives a reload (heroImage data URLs are stripped on persist)
+      // and can be re-opened and edited.
+      setMarketCard: (campaignId, data) =>
+        set((s) => ({
+          campaigns: s.campaigns.map((c) =>
+            c.id === campaignId ? { ...c, marketCard: data } : c,
           ),
         })),
 
