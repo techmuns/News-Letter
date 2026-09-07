@@ -16,6 +16,8 @@ import {
 import { buildEmailHtml, type EmailSource } from '../../lib/emailTemplate'
 import { renderPulseImage, type PulseImageStyle } from '../../lib/pulseImage'
 import { renderBrandedCard } from '../../lib/brandedImage'
+import { renderMarketCard, type MarketCardData } from '../../lib/marketCard'
+import { seedMarketCard, marketCardIsUsable } from '../../lib/marketCardSeed'
 import { renderChartOfDay, pickChartItems } from '../../lib/chartImage'
 import { useStore } from '../../store/useStore'
 import { usePulseDraft } from '../../store/usePulseDraft'
@@ -131,12 +133,16 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   // channel history (LinkedIn / Email / Articles tabs read this)
   const recordGeneration = useStore((s) => s.recordGeneration)
   const setHeroImage = useStore((s) => s.setHeroImage)
+  const setMarketCard = useStore((s) => s.setMarketCard)
   const setChannelStatus = useStore((s) => s.setChannelStatus)
   const scheduleChannel = useStore((s) => s.scheduleChannel)
   const [historyId, setHistoryId] = useState<string | null>(savedDraft?.historyId ?? null)
   const [generating, setGenerating] = useState(false)
   const [genError, setGenError] = useState('')
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
+  /** the market-card inputs, when the post carried index data and we auto-built
+      the market card as the hero image (kept so the editor can re-open it) */
+  const [marketSeed, setMarketSeed] = useState<MarketCardData | null>(null)
   /** the "Chart of the Day" — a cross-market bar chart rendered from the feed */
   const [chartCard, setChartCard] = useState<{ dataUrl: string; blob: Blob } | null>(null)
 
@@ -177,8 +183,19 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
       return
     }
     let cancelled = false
-    const render =
+    // Default the post image to the branded market card whenever the copy
+    // carries real index data (both Nifty & Sensex levels parse). Falls back to
+    // the plain branded headline card (topic) or the gainers/losers board
+    // (market) when it doesn't — so a non-market post never gets index tiles.
+    const seed =
       resultKind === 'topic'
+        ? seedMarketCard({ headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, body: composeCaption(post) })
+        : null
+    const useMarket = seed !== null && marketCardIsUsable(seed)
+    setMarketSeed(useMarket ? seed : null)
+    const render = useMarket
+      ? renderMarketCard(seed!)
+      : resultKind === 'topic'
         ? renderBrandedCard({ headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, topic: post.focus })
         : renderPulseImage(imageStyle, feed.items, { dateLabel: dateLabelFrom(feed.fetchedAt) })
     render.then((c) => !cancelled && setCard(c)).catch(() => !cancelled && setCard(null))
@@ -203,9 +220,12 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
   }, [post, feed])
 
   // Attach the branded card to the recorded history entry once it renders.
+  // When it's the market card, also persist its inputs so the LinkedIn draft
+  // editor re-opens it with the numbers filled in.
   useEffect(() => {
     if (historyId && card?.dataUrl) setHeroImage(historyId, card.dataUrl)
-  }, [card, historyId]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (historyId && marketSeed) setMarketCard(historyId, marketSeed)
+  }, [card, historyId, marketSeed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const chartCaption = useMemo(() => buildChartCaption(feed.items), [feed])
   const emailSources = useMemo<EmailSource[] | undefined>(

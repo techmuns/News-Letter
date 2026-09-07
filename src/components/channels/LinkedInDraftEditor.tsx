@@ -6,6 +6,8 @@ import { MicroLabel } from '../MicroLabel'
 import { LinkedInPost } from '../preview/LinkedInPost'
 import { cn } from '../../lib/cn'
 import { renderMarketCard, type MarketCardData, type Direction } from '../../lib/marketCard'
+import { seedMarketCard } from '../../lib/marketCardSeed'
+import { toBold, toPlain } from '../../lib/unicodeBold'
 
 /** LinkedIn rejects posts past this length, so warn before Buffer does. */
 const LINKEDIN_LIMIT = 3000
@@ -13,99 +15,6 @@ const LINKEDIN_LIMIT = 3000
 const fieldCls =
   'w-full rounded-lg border border-border bg-[rgba(255,255,255,0.02)] px-3 py-2 text-[14px] text-text ' +
   'placeholder:text-text-dim focus:outline-none focus-violet transition-colors'
-
-/* ---- Unicode "fake bold" (LinkedIn has no real bold in captions) ---- */
-function buildBoldMaps() {
-  const fwd = new Map<string, string>()
-  const rev = new Map<string, string>()
-  const add = (from: number, to: number, base: number) => {
-    for (let c = from; c <= to; c++) {
-      const plain = String.fromCharCode(c)
-      const bold = String.fromCodePoint(base + (c - from))
-      fwd.set(plain, bold)
-      rev.set(bold, plain)
-    }
-  }
-  add(65, 90, 0x1d5d4) // A-Z → 𝗔-𝗭
-  add(97, 122, 0x1d5ee) // a-z → 𝗮-𝘇
-  add(48, 57, 0x1d7ec) // 0-9 → 𝟬-𝟵
-  return { fwd, rev }
-}
-const { fwd: BOLD_FWD, rev: BOLD_REV } = buildBoldMaps()
-
-function toBold(s: string): string {
-  return Array.from(s)
-    .map((ch) => BOLD_FWD.get(ch) ?? ch)
-    .join('')
-}
-function toPlain(s: string): string {
-  return Array.from(s)
-    .map((ch) => BOLD_REV.get(ch) ?? ch)
-    .join('')
-}
-
-/* ---- Market card defaults ---- */
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-function todayLabel(): string {
-  const d = new Date()
-  return `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
-}
-
-const NUM = '[0-9][0-9,]*\\.?[0-9]*'
-/** The ~130-char stretch of copy starting at a keyword ("Nifty …"). */
-function segmentAround(text: string, keyword: string): string {
-  const i = text.toLowerCase().indexOf(keyword.toLowerCase())
-  return i < 0 ? '' : text.slice(i, i + 130)
-}
-function looksDown(text: string): boolean {
-  return /\b(fell|drop|lower|down|slid|slip|loss|declin|red|sink|slump|shed)/i.test(text)
-}
-
-/** Pull { value (index level), pts, pct, direction } out of a line like
-    "Sensex closed 373.93 points (0.49%) lower at 76,570.35". The level is the
-    number after "at"/"to"; the pts sit before "points"; the % before "%". */
-function extractIndex(text: string, keyword: string, name: string): MarketCardData['indices'][number] {
-  const seg = segmentAround(text, keyword)
-  const pct = seg.match(new RegExp(`(${NUM})\\s*%`))?.[1] ?? ''
-  const pts = seg.match(new RegExp(`(${NUM})\\s*(?:points|pts|point)`, 'i'))?.[1] ?? ''
-  const level =
-    seg.match(new RegExp(`\\b(?:at|to)\\s+(${NUM})`, 'i'))?.[1] ??
-    (seg.match(new RegExp(NUM, 'g')) ?? [])
-      .slice()
-      .sort((a, b) => parseFloat(b.replace(/,/g, '')) - parseFloat(a.replace(/,/g, '')))[0] ??
-    ''
-  return { name, value: level, changePts: pts, changePct: pct, direction: looksDown(seg) ? 'down' : 'up' }
-}
-
-/** Seed the builder from the draft's copy so the numbers auto-fill. */
-function seedMarketCard(campaign: Campaign): MarketCardData {
-  const { headline, body } = campaign.linkedin.content
-  const plainHead = toPlain(headline)
-  const dash = plainHead.search(/[—–-]/)
-  const lead = dash > 0 ? plainHead.slice(0, dash + 1).trim() : plainHead
-  const accent = dash > 0 ? plainHead.slice(dash + 1).trim() : ''
-  const text = toPlain(`${headline}\n${body}`)
-  const fallbackDir: Direction = looksDown(text) ? 'down' : 'up'
-  const nifty = extractIndex(text, 'nifty', 'NIFTY 50')
-  const sensex = extractIndex(text, 'sensex', 'SENSEX')
-  // If a keyword wasn't found the segment is empty → fall back to overall tone.
-  if (!segmentAround(text, 'nifty')) nifty.direction = fallbackDir
-  if (!segmentAround(text, 'sensex')) sensex.direction = fallbackDir
-  // driver = first substantial body line
-  const driver =
-    toPlain(body)
-      .split('\n')
-      .map((l) => l.replace(/^[^\p{L}\p{N}]+/u, '').trim())
-      .find((l) => l.length > 24) ?? ''
-  return {
-    date: todayLabel(),
-    eyebrow: 'INDIAN EQUITIES · DAILY PULSE',
-    headline: lead || 'Market close',
-    accent,
-    driver,
-    indices: [nifty, sensex],
-  }
-}
 
 /**
  * The LinkedIn draft — previewed as it appears in-feed, or opened to hand-edit
@@ -123,7 +32,7 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   const [draftBody, setDraftBody] = useState(body)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
 
-  const [mc, setMc] = useState<MarketCardData>(() => campaign.marketCard ?? seedMarketCard(campaign))
+  const [mc, setMc] = useState<MarketCardData>(() => campaign.marketCard ?? seedMarketCard(campaign.linkedin.content))
   const [cardUrl, setCardUrl] = useState<string | null>(campaign.heroImage ?? null)
   const [saved, setSaved] = useState(false)
 
@@ -132,7 +41,7 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     setEditing(false)
     setDraftHeadline(headline)
     setDraftBody(body)
-    setMc(campaign.marketCard ?? seedMarketCard(campaign))
+    setMc(campaign.marketCard ?? seedMarketCard(campaign.linkedin.content))
     setCardUrl(campaign.heroImage ?? null)
     setSaved(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
