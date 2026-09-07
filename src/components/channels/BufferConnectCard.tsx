@@ -95,12 +95,21 @@ export function BufferConnectCard() {
   const clearCompose = useComposeTarget((s) => s.clear)
   useEffect(() => {
     if (!pendingCompose) return
-    const { text, headline, topic } = pendingCompose
+    const { text, headline, topic, image } = pendingCompose
     setPostText(text)
     setPostNote(null)
     setCard(null)
     clearCompose()
-    if (headline) {
+    if (image) {
+      // The draft already has a rendered image (the market card) — attach THAT,
+      // so what publishes matches the preview. Turn the data URL back into a
+      // blob for upload.
+      fetch(image)
+        .then((r) => r.blob())
+        .then((blob) => setCard({ blob, dataUrl: image }))
+        .catch(() => setCard(null))
+    } else if (headline) {
+      // No rendered image on the draft → fall back to a branded headline card.
       renderBrandedCard({ headline, topic })
         .then(setCard)
         .catch(() => setCard(null)) // preview-only; publishing still works text-only

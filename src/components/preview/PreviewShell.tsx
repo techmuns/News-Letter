@@ -81,6 +81,9 @@ export function PreviewShell({ campaign, kind, children, onBack }: PreviewShellP
                 text: linkedInText,
                 headline: campaign.linkedin.content.headline,
                 topic: campaign.topic,
+                // Hand over the rendered market card so the compose box attaches
+                // the SAME image the preview shows, not a re-rendered plain one.
+                image: campaign.heroImage,
               })
               // The compose box lives above the split view on the same page.
               window.scrollTo({ top: 0, behavior: 'smooth' })
