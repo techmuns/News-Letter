@@ -278,9 +278,9 @@ export async function renderMarketCard(data: MarketCardData): Promise<{ blob: Bl
     ...data.headline.split(/\s+/).filter(Boolean).map((t) => ({ t, accent: false })),
     ...data.accent.split(/\s+/).filter(Boolean).map((t) => ({ t, accent: true })),
   ]
-  let titleSize = 44
+  let titleSize = 48
   let rows: Tok[][] = []
-  for (; titleSize >= 30; titleSize -= 2) {
+  for (; titleSize >= 32; titleSize -= 2) {
     ctx.font = `700 ${titleSize}px ${SERIF}`
     const space = ctx.measureText(' ').width
     rows = [[]]
