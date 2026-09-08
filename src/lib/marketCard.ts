@@ -17,6 +17,8 @@ export interface MarketIndex {
   spark?: number[]
 }
 
+export type CardStyle = 'sleek' | 'hand'
+
 export interface MarketCardData {
   date: string // "05 SEP 2026"
   eyebrow: string // "INDIAN EQUITIES · DAILY PULSE"
@@ -24,6 +26,8 @@ export interface MarketCardData {
   accent: string // coloured tail of the title
   driver: string // one-line "what moved it"
   indices: MarketIndex[] // 1 or 2
+  /** which look to render — sleek dark card (default) or hand-drawn */
+  style?: CardStyle
 }
 
 const W = 1200
@@ -200,6 +204,12 @@ function drawTile(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
 }
 
 export async function renderMarketCard(data: MarketCardData): Promise<{ blob: Blob; dataUrl: string }> {
+  // Hand-drawn look is a separate renderer; lazy-import so its fonts/rough.js
+  // aren't pulled in unless actually used.
+  if (data.style === 'hand') {
+    const { renderMarketCardHand } = await import('./marketCardHand')
+    return renderMarketCardHand(data)
+  }
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H

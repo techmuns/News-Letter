@@ -227,10 +227,30 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
 
       {/* ---------- market card builder ---------- */}
       <div className="flex flex-col gap-3 border-t border-[rgba(255,255,255,0.07)] pt-5">
-        <MicroLabel tone="violet">Post image · market card</MicroLabel>
+        <div className="flex items-center justify-between gap-3">
+          <MicroLabel tone="violet">Post image · market card</MicroLabel>
+          <div className="flex overflow-hidden rounded-lg border border-border text-[12.5px]">
+            {(['sleek', 'hand'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setMc((m) => ({ ...m, style: s }))}
+                className={cn(
+                  'px-3 py-1 font-semibold transition-colors',
+                  (mc.style ?? 'sleek') === s
+                    ? 'bg-[rgba(160,140,220,0.18)] text-violet'
+                    : 'text-text-dim hover:text-text-2',
+                )}
+              >
+                {s === 'sleek' ? 'Sleek' : '✍️ Hand-drawn'}
+              </button>
+            ))}
+          </div>
+        </div>
         <p className="text-[12.5px] leading-relaxed text-text-dim">
-          Type today's numbers — the card updates live. Then press <strong className="text-text-2">Use as post
-          image</strong> to attach it to this post.
+          Type today's numbers — the card updates live. Switch the look with{' '}
+          <strong className="text-text-2">Sleek / Hand-drawn</strong>, then press{' '}
+          <strong className="text-text-2">Use as post image</strong> to attach it.
         </p>
 
         {cardUrl && (
