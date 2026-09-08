@@ -6,8 +6,27 @@ import { MicroLabel } from '../MicroLabel'
 import { LinkedInPost } from '../preview/LinkedInPost'
 import { cn } from '../../lib/cn'
 import { renderMarketCard, type MarketCardData, type Direction } from '../../lib/marketCard'
+import { renderExplainerCard, type ExplainerCardData } from '../../lib/explainerCard'
 import { seedMarketCard } from '../../lib/marketCardSeed'
 import { toBold, toPlain, autoBoldBody } from '../../lib/unicodeBold'
+
+type CardType = 'market' | 'explainer'
+
+/** Seed the explainer builder from the draft's copy so it's half-filled. */
+function seedExplainer(content: { headline: string; body: string }): ExplainerCardData {
+  const points = toPlain(content.body)
+    .split('\n')
+    .map((l) => l.replace(/^[•\-*\s]*(?:\p{Extended_Pictographic}️?\s*)*/u, '').trim())
+    .filter((l) => l.length > 12 && !l.startsWith('#') && !l.endsWith('?'))
+    .slice(0, 3)
+  return {
+    eyebrow: 'MARKET BASICS',
+    title: toPlain(content.headline) || 'Explainer',
+    subtitle: '',
+    points: points.length ? points : ['', '', ''],
+    takeaway: '',
+  }
+}
 
 /** LinkedIn rejects posts past this length, so warn before Buffer does. */
 const LINKEDIN_LIMIT = 3000
@@ -33,6 +52,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   const [mc, setMc] = useState<MarketCardData>(() => campaign.marketCard ?? seedMarketCard(campaign.linkedin.content))
+  const [cardType, setCardType] = useState<CardType>('market')
+  const [ex, setEx] = useState<ExplainerCardData>(() => seedExplainer(campaign.linkedin.content))
   const [cardUrl, setCardUrl] = useState<string | null>(campaign.heroImage ?? null)
   const [saved, setSaved] = useState(false)
 
@@ -42,6 +63,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     setDraftHeadline(headline)
     setDraftBody(body)
     setMc(campaign.marketCard ?? seedMarketCard(campaign.linkedin.content))
+    setEx(seedExplainer(campaign.linkedin.content))
+    setCardType('market')
     setCardUrl(campaign.heroImage ?? null)
     setSaved(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,17 +75,14 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     if (!editing) return
     let cancelled = false
     const t = setTimeout(() => {
-      renderMarketCard(mc)
-        .then((r) => {
-          if (!cancelled) setCardUrl(r.dataUrl)
-        })
-        .catch(() => {})
+      const render = cardType === 'explainer' ? renderExplainerCard(ex) : renderMarketCard(mc)
+      render.then((r) => !cancelled && setCardUrl(r.dataUrl)).catch(() => {})
     }, 250)
     return () => {
       cancelled = true
       clearTimeout(t)
     }
-  }, [mc, editing])
+  }, [mc, ex, cardType, editing])
 
   const total = draftHeadline.trim().length + draftBody.trim().length + 2
   const overLimit = total > LINKEDIN_LIMIT
@@ -112,15 +132,19 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
 
   async function useCardAsImage() {
     try {
-      const r = await renderMarketCard(mc)
+      const r = cardType === 'explainer' ? await renderExplainerCard(ex) : await renderMarketCard(mc)
       setHeroImage(campaign.id, r.dataUrl)
-      setMarketCard(campaign.id, mc)
+      if (cardType === 'market') setMarketCard(campaign.id, mc)
       setCardUrl(r.dataUrl)
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch {
       /* preview stays; publishing can still go text-only */
     }
+  }
+
+  function updatePoint(i: number, val: string) {
+    setEx((e) => ({ ...e, points: e.points.map((p, j) => (j === i ? val : p)) }))
   }
 
   if (!editing) {
@@ -238,42 +262,103 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
         </div>
       </div>
 
-      {/* ---------- market card builder ---------- */}
+      {/* ---------- post image builder ---------- */}
       <div className="flex flex-col gap-3 border-t border-[rgba(255,255,255,0.07)] pt-5">
         <div className="flex items-center justify-between gap-3">
-          <MicroLabel tone="violet">Post image · market card</MicroLabel>
+          <MicroLabel tone="violet">Post image</MicroLabel>
           <div className="flex overflow-hidden rounded-lg border border-border text-[12.5px]">
-            {(['sleek', 'hand'] as const).map((s) => (
+            {(['market', 'explainer'] as const).map((t) => (
               <button
-                key={s}
+                key={t}
                 type="button"
-                onClick={() => setMc((m) => ({ ...m, style: s }))}
+                onClick={() => setCardType(t)}
                 className={cn(
                   'px-3 py-1 font-semibold transition-colors',
-                  (mc.style ?? 'sleek') === s
-                    ? 'bg-[rgba(160,140,220,0.18)] text-violet'
-                    : 'text-text-dim hover:text-text-2',
+                  cardType === t ? 'bg-[rgba(160,140,220,0.18)] text-violet' : 'text-text-dim hover:text-text-2',
                 )}
               >
-                {s === 'sleek' ? 'Sleek' : '✍️ Hand-drawn'}
+                {t === 'market' ? '📊 Market card' : '🎓 Explainer'}
               </button>
             ))}
           </div>
         </div>
+
+        {cardType === 'market' && (
+          <div className="flex items-center justify-end">
+            <div className="flex overflow-hidden rounded-lg border border-border text-[12.5px]">
+              {(['sleek', 'hand'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setMc((m) => ({ ...m, style: s }))}
+                  className={cn(
+                    'px-3 py-1 font-semibold transition-colors',
+                    (mc.style ?? 'sleek') === s
+                      ? 'bg-[rgba(160,140,220,0.18)] text-violet'
+                      : 'text-text-dim hover:text-text-2',
+                  )}
+                >
+                  {s === 'sleek' ? 'Sleek' : '✍️ Hand-drawn'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <p className="text-[12.5px] leading-relaxed text-text-dim">
-          Type today's numbers — the card updates live. Switch the look with{' '}
-          <strong className="text-text-2">Sleek / Hand-drawn</strong>, then press{' '}
-          <strong className="text-text-2">Use as post image</strong> to attach it.
+          {cardType === 'market'
+            ? 'Type today’s numbers — the card updates live. Then press Use as post image.'
+            : 'Write a title, a few points, and a takeaway — the explainer card updates live. Then press Use as post image.'}
         </p>
 
         {cardUrl && (
-          <img
-            src={cardUrl}
-            alt="Market card preview"
-            className="w-full rounded-xl border border-border"
-          />
+          <img src={cardUrl} alt="Post image preview" className="w-full rounded-xl border border-border" />
         )}
 
+        {cardType === 'explainer' && (
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex flex-col gap-1">
+                <MicroLabel className="text-text-dim">Eyebrow</MicroLabel>
+                <input className={fieldCls} value={ex.eyebrow} onChange={(e) => setEx((v) => ({ ...v, eyebrow: e.target.value }))} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <MicroLabel className="text-text-dim">Title</MicroLabel>
+                <input className={fieldCls} value={ex.title} onChange={(e) => setEx((v) => ({ ...v, title: e.target.value }))} />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1">
+              <MicroLabel className="text-text-dim">Subtitle (one line)</MicroLabel>
+              <input className={fieldCls} value={ex.subtitle} onChange={(e) => setEx((v) => ({ ...v, subtitle: e.target.value }))} />
+            </label>
+            {ex.points.map((p, i) => (
+              <label key={i} className="flex flex-col gap-1">
+                <MicroLabel className="text-text-dim">Point {i + 1}</MicroLabel>
+                <textarea
+                  className={cn(fieldCls, 'min-h-[52px] resize-y leading-relaxed')}
+                  value={p}
+                  onChange={(e) => updatePoint(i, e.target.value)}
+                />
+              </label>
+            ))}
+            {ex.points.length < 4 && (
+              <button
+                type="button"
+                onClick={() => setEx((v) => ({ ...v, points: [...v.points, ''] }))}
+                className="self-start text-[12.5px] text-violet hover:underline"
+              >
+                + add a point
+              </button>
+            )}
+            <label className="flex flex-col gap-1">
+              <MicroLabel className="text-text-dim">The takeaway (one line)</MicroLabel>
+              <input className={fieldCls} value={ex.takeaway} onChange={(e) => setEx((v) => ({ ...v, takeaway: e.target.value }))} />
+            </label>
+          </div>
+        )}
+
+        {cardType === 'market' && (
+        <div className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-2">
           <label className="col-span-2 flex flex-col gap-1">
             <MicroLabel className="text-text-dim">Date label</MicroLabel>
@@ -356,6 +441,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
             onChange={(e) => setMc((m) => ({ ...m, driver: e.target.value }))}
           />
         </label>
+        </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="primary" size="sm" onClick={useCardAsImage}>
