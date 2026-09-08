@@ -94,6 +94,18 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     setDraftBody(autoBoldBody(draftBody))
   }
 
+  /** Un-bold: just the selection if there is one, otherwise strip ALL bold from
+      the hook and body — a one-click undo for Auto-bold. */
+  function unbold() {
+    const el = bodyRef.current
+    if (el && el.selectionStart !== el.selectionEnd) {
+      transformSelection(toPlain)
+    } else {
+      setDraftHeadline(toPlain(draftHeadline))
+      setDraftBody(toPlain(draftBody))
+    }
+  }
+
   function updateIndex(i: number, patch: Partial<MarketCardData['indices'][number]>) {
     setMc((m) => ({ ...m, indices: m.indices.map((idx, j) => (j === i ? { ...idx, ...patch } : idx)) }))
   }
@@ -179,8 +191,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
               </button>
               <button
                 type="button"
-                onClick={() => transformSelection(toPlain)}
-                title="Remove bold from the selection"
+                onClick={unbold}
+                title="Remove bold — the selection, or ALL of it if nothing is selected (undo Auto-bold)"
                 className="rounded-md border border-border px-2 py-1 text-[12px] text-text-dim transition-colors hover:border-border-strong hover:text-text-2"
               >
                 un-bold
@@ -198,7 +210,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
 
         <p className="text-[12.5px] leading-relaxed text-text-dim">
           <strong className="text-text-2">✨ Auto-bold</strong> bolds the hook and each line's lead word in one click.
-          Or select any words and press <strong className="text-text-2">𝗕</strong> to bold just those.
+          Select words + <strong className="text-text-2">𝗕</strong> bolds just those. <strong className="text-text-2">un-bold</strong>{' '}
+          with nothing selected removes <em>all</em> bold — a one-click undo.
         </p>
 
         {overLimit && (
