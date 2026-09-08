@@ -139,10 +139,10 @@ export async function renderMarketCardHand(data: MarketCardData): Promise<{ blob
   // ---- eyebrow ----
   ctx.fillStyle = DOWN
   ctx.font = `700 22px ${CAVEAT}`
-  ctx.fillText(data.eyebrow, PAD + 18, PAD + 110)
+  ctx.fillText(data.eyebrow, PAD + 18, PAD + 104)
 
   // ---- title with highlighter behind accent words ----
-  const titleSize = 52
+  const titleSize = 48
   ctx.font = `700 ${titleSize}px ${CAVEAT}`
   const maxW = W - PAD * 2 - 18
   const toks = [
@@ -151,8 +151,10 @@ export async function renderMarketCardHand(data: MarketCardData): Promise<{ blob
   ]
   const rows = wrapTokens(ctx, toks, maxW)
   const space = ctx.measureText(' ').width
-  const lineH = 58
-  let ty = PAD + 150
+  const lineH = 54
+  // clear gap below the eyebrow (its baseline is at PAD+104) so the title's
+  // highlight never touches it
+  let ty = PAD + 178
   for (const row of rows) {
     let x = PAD + 18
     // highlight pass — one continuous swipe across the contiguous accent run,
@@ -182,18 +184,18 @@ export async function renderMarketCardHand(data: MarketCardData): Promise<{ blob
   }
 
   // ---- tiles ----
-  const tilesTop = Math.max(ty + 14, 300)
+  const tilesTop = Math.max(ty + 16, 300)
   const gap = 30
   const tileW = data.indices.length >= 2 ? (maxW - gap) / 2 : maxW
-  const tileH = 236
+  const tileH = 220
   data.indices.slice(0, 2).forEach((idx, i) => {
     const x = PAD + 18 + i * (tileW + gap)
     drawHandTile(ctx, rc, opt, x, tilesTop, tileW, tileH, idx)
   })
 
   // ---- driver ----
-  const dTop = tilesTop + tileH + 26
-  rc.rectangle(PAD + 18, dTop, maxW, 96, opt({ strokeWidth: 2, roughness: 2.4, stroke: '#8a8574' }))
+  const dTop = tilesTop + tileH + 22
+  rc.rectangle(PAD + 18, dTop, maxW, 86, opt({ strokeWidth: 2, roughness: 2.4, stroke: '#8a8574' }))
   ctx.fillStyle = DOWN
   ctx.font = `700 28px ${CAVEAT}`
   const tag = 'what moved it →'
