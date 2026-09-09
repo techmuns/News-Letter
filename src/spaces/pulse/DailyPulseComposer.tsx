@@ -104,7 +104,7 @@ function composeCaption(post: PulsePost): string {
   const bullets = post.linkedin.bullets
     .map((b) => b.trim())
     .filter(Boolean)
-    .map((b) => `• ${b.replace(/^•\s*/, '')}`)
+    .map((b) => `→ ${b.replace(/^[•\-→]\s*/, '')}`)
     .join('\n')
   const tags = normalizeTags(post.linkedin.hashtags).join(' ')
   const close = (post.linkedin.close || '').trim()
