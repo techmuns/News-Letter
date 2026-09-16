@@ -87,8 +87,29 @@ async function invokeImageModel(env: Env, model: string, prompt: string): Promis
   return extractBase64(await res.json())
 }
 
+export interface GenImage {
+  base64: string
+  model: string
+  mime: string
+}
+
+/** Cloudflare Workers AI — free built-in text-to-image (FLUX). No key needed. */
+async function generateWithWorkersAI(env: Env, prompt: string): Promise<GenImage> {
+  const model = env.WORKERS_AI_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell'
+  const out: any = await env.AI!.run(model, { prompt: prompt.slice(0, 2000), steps: 6 })
+  // FLUX returns { image: "<base64 jpeg>" }; SDXL-style models return raw bytes.
+  if (out && typeof out.image === 'string') return { base64: out.image, model, mime: 'image/jpeg' }
+  if (out instanceof ArrayBuffer) {
+    const bytes = new Uint8Array(out)
+    let bin = ''
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+    return { base64: btoa(bin), model, mime: 'image/png' }
+  }
+  throw new ApiError('Workers AI returned no image.', 502)
+}
+
 /** OpenAI image generation (gpt-image-1 — the DALL·E engine). Returns base64. */
-async function generateWithOpenAI(env: Env, prompt: string): Promise<{ base64: string; model: string }> {
+async function generateWithOpenAI(env: Env, prompt: string): Promise<GenImage> {
   const model = env.OPENAI_IMAGE_MODEL || 'gpt-image-1'
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
@@ -102,21 +123,22 @@ async function generateWithOpenAI(env: Env, prompt: string): Promise<{ base64: s
   const data: any = await res.json()
   const b64 = data?.data?.[0]?.b64_json
   if (!b64) throw new ApiError('OpenAI returned no image.', 502)
-  return { base64: b64, model }
+  return { base64: b64, model, mime: 'image/png' }
 }
 
 /** Try each candidate model until one returns an image. Returns raw base64.
     Prefers OpenAI (gpt-image-1) when a key is set — it matches the cinematic
     quality — and falls back to whatever image model Bedrock has enabled. */
-export async function generateStoryImage(env: Env, prompt: string): Promise<{ base64: string; model: string }> {
+export async function generateStoryImage(env: Env, prompt: string): Promise<GenImage> {
   if (env.OPENAI_API_KEY) return generateWithOpenAI(env, prompt)
+  if (env.AI) return generateWithWorkersAI(env, prompt)
   let lastErr = ''
   const listed = await listImageModels(env)
   const candidates = listed.ids.length ? Array.from(new Set([...listed.ids, ...IMAGE_MODELS])) : IMAGE_MODELS
   for (const model of candidates) {
     try {
       const b64 = await invokeImageModel(env, model, prompt)
-      if (b64) return { base64: b64, model }
+      if (b64) return { base64: b64, model, mime: 'image/png' }
       lastErr = `${model}: empty response`
     } catch (e: any) {
       lastErr = `${model}: ${e?.message || 'failed'}`

@@ -54,8 +54,13 @@ export interface Env {
   /** Bedrock runtime region (host). Defaults to us-east-1. */
   BEDROCK_REGION?: string
 
+  /** Cloudflare Workers AI binding — free built-in text-to-image (FLUX) used by
+      /api/story-image when no OPENAI_API_KEY is set. */
+  AI?: { run: (model: string, input: Record<string, unknown>) => Promise<any> }
+  /** Optional Workers AI image model override. */
+  WORKERS_AI_IMAGE_MODEL?: string
   /** OpenAI API key for story-image generation (gpt-image-1). When set, the
-      /api/story-image route uses OpenAI (the DALL·E engine) instead of Bedrock. */
+      /api/story-image route uses OpenAI (the DALL·E engine) instead. */
   OPENAI_API_KEY?: string
   /** Optional OpenAI image model override (default gpt-image-1). */
   OPENAI_IMAGE_MODEL?: string

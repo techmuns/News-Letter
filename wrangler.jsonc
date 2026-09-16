@@ -35,4 +35,10 @@
   // Until then the app runs fine; the static BUFFER_ACCESS_TOKEN path keeps
   // working as-is. Do NOT commit a fake database_id — deploy will fail.
   ,"d1_databases": [{ "binding": "DB", "database_name": "news-letter-db", "database_id": "484e83cc-884b-48eb-972d-a4cec529beae" }]
+
+  // ── Workers AI (free story-image generation) ─────────────────────────────
+  // Built-in text-to-image (FLUX) for the Data Snapshot hero. Free daily
+  // allowance, no external key — /api/story-image uses it when no OPENAI_API_KEY
+  // is set.
+  ,"ai": { "binding": "AI" }
 }

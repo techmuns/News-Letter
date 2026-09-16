@@ -259,8 +259,8 @@ export default {
           if (unauthorized) return unauthorized
           const prompt = body?.prompt ? String(body.prompt) : ''
           if (!prompt.trim()) return json({ error: 'A prompt is required.' }, 400)
-          const { base64, model } = await generateStoryImage(env, prompt)
-          return json({ ok: true, dataUrl: `data:image/png;base64,${base64}`, model })
+          const { base64, model, mime } = await generateStoryImage(env, prompt)
+          return json({ ok: true, dataUrl: `data:${mime};base64,${base64}`, model })
         })
       }
 
