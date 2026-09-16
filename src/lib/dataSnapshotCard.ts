@@ -490,21 +490,30 @@ function drawTitle(ctx: CanvasRenderingContext2D, d: DataSnapshotData, x: number
     ...d.title.split(/\s+/).filter(Boolean).map((t) => ({ t, accent: false })),
     ...(d.titleAccent || '').split(/\s+/).filter(Boolean).map((t) => ({ t, accent: true })),
   ]
-  const size = 45
-  ctx.font = `800 ${size}px ${SANS}`
-  const space = ctx.measureText(' ').width
-  const rows: Tok[][] = [[]]
-  let rowW = 0
-  for (const tok of toks) {
-    const tw = ctx.measureText(tok.t).width
-    if (rowW + tw > maxW && rows[rows.length - 1].length) {
-      rows.push([tok])
-      rowW = tw + space
-    } else {
-      rows[rows.length - 1].push(tok)
-      rowW += tw + space
+  // Shrink-to-fit: the headline is a short finding, not a paragraph. Drop the
+  // font size until it fits in at most 3 lines so a long title never becomes a
+  // wall of text that swamps the card.
+  let size = 45
+  let space = 0
+  let rows: Tok[][] = []
+  for (; size >= 26; size -= 3) {
+    ctx.font = `800 ${size}px ${SANS}`
+    space = ctx.measureText(' ').width
+    rows = [[]]
+    let rowW = 0
+    for (const tok of toks) {
+      const tw = ctx.measureText(tok.t).width
+      if (rowW + tw > maxW && rows[rows.length - 1].length) {
+        rows.push([tok])
+        rowW = tw + space
+      } else {
+        rows[rows.length - 1].push(tok)
+        rowW += tw + space
+      }
     }
+    if (rows.length <= 3) break
   }
+  ctx.font = `800 ${size}px ${SANS}`
   const lineH = Math.round(size * 1.08)
   let ty = top + size
   for (const row of rows) {
@@ -685,25 +694,13 @@ export async function renderDataSnapshotCard(d: DataSnapshotData): Promise<{ blo
     const gap = 32
     const rightX = PADX + heroW + gap
     const rightW = maxW - heroW - gap
+    // The hero is a clean visual — NO text/headline baked onto it. The
+    // headline lives in the card header and the numbers in the sidebar.
     ctx.save()
     roundRect(ctx, PADX, bodyTop, heroW, bodyH, 18)
     ctx.clip()
     if (heroImg) drawCover(ctx, heroImg, PADX, bodyTop, heroW, bodyH)
     else drawHeroScene(ctx, scene, PADX, bodyTop, heroW, bodyH)
-    const scrim = ctx.createLinearGradient(0, bodyTop + bodyH - 180, 0, bodyTop + bodyH)
-    scrim.addColorStop(0, 'rgba(20,12,32,0)')
-    scrim.addColorStop(1, 'rgba(20,12,32,0.86)')
-    ctx.fillStyle = scrim
-    ctx.fillRect(PADX, bodyTop + bodyH - 180, heroW, 180)
-    ctx.textBaseline = 'alphabetic'
-    ctx.font = `800 19px ${SANS}`
-    ctx.fillStyle = '#f2ecfb'
-    const echo = wrap(ctx, (d.title + ' ' + (d.titleAccent || '')).trim().toUpperCase(), heroW - 48).slice(0, 3)
-    let ey = bodyTop + bodyH - 28 - (echo.length - 1) * 26
-    for (const ln of echo) {
-      ctx.fillText(ln, PADX + 24, ey)
-      ey += 26
-    }
     ctx.restore()
     roundRect(ctx, PADX + 0.5, bodyTop + 0.5, heroW - 1, bodyH - 1, 18)
     ctx.strokeStyle = 'rgba(0,0,0,0.12)'

@@ -69,9 +69,14 @@ export function seedDataSnapshot(content: { headline: string; body: string }): D
   const base = seedMarketCard(content)
   const bars = base.indices.filter((i) => i.value.trim()).map(barFromIndex)
   const long = todayLong()
+  // The headline is a SHORT finding, not the whole caption — take the first
+  // sentence and cap it, so seeding from a long hook doesn't wall the card.
+  const rawHead = toPlain(content.headline).trim()
+  const firstSentence = rawHead.split(/(?<=[.!?])\s/)[0] || rawHead
+  const shortTitle = (firstSentence.length > 90 ? firstSentence.slice(0, 88).replace(/\s+\S*$/, '') + '…' : firstSentence) || 'Market snapshot'
   return {
     date: long,
-    title: toPlain(content.headline) || 'Market snapshot',
+    title: shortTitle,
     titleAccent: '',
     subtitle: `One-day index moves · ${long} · % change.`,
     layout: 'bars',

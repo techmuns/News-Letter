@@ -38,7 +38,7 @@ Choose the layout that best fits the story:
 - "trend": a series over time. Fill "series" with 1–3 { name, points:[numbers oldest→newest] } and "xLabels" [first, last]. ONLY use this when the sources give a real series of comparable numbers; otherwise pick another layout.
 
 Always fill:
-- title: the FINDING in a few words (not the topic). titleAccent: the tail of the headline, rendered in a highlight colour (split the headline so title+titleAccent read as one sentence). Example title "Gold hit a record in January." + titleAccent "It has quietly round-tripped since."
+- title: the FINDING as a SHORT phrase — at most ~8 words, NOT a paragraph and NOT the caption. titleAccent: a short tail (at most ~8 words) rendered in a highlight colour; title + titleAccent must read as ONE short headline sentence. Keep the whole headline to ~16 words max. Example title "Gold hit a record in January." + titleAccent "It has quietly round-tripped since." Put the full explanation in the takeaways, never in the title.
 - subtitle: the dataset / method line (what, when, units). One short line.
 - takeaways: EXACTLY 3. Each { tone, figure, lead, text }:
     - figure: a BIG real number/date from the sources ("~91%", "$5,597", "2007", "-23%"). This leads the point.
