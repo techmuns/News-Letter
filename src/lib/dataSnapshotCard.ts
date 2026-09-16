@@ -14,6 +14,8 @@
    Rendered entirely on canvas so the PNG exports for hosting/Buffer.
    Landscape 1200×900. */
 
+import { drawHeroScene } from './heroScenes'
+
 export type SnapTone = 'red' | 'green' | 'plum'
 export type SnapLayout = 'bars' | 'trend' | 'ranking' | 'stat'
 
@@ -55,7 +57,8 @@ export interface DataSnapshotData {
   takeaways: SnapTakeaway[] // up to 3
   watchNext: string // the "what to watch" line
   source: string // "exchange close data, 8 Sep 2026"
-  hero?: string // optional hero image (data URL) → collage mode
+  hero?: string // optional uploaded hero image (data URL) → collage mode
+  heroTheme?: string // optional built-in story-image theme → collage mode
 }
 
 const W = 1200
@@ -673,8 +676,9 @@ export async function renderDataSnapshotCard(d: DataSnapshotData): Promise<{ blo
   const bodyBot = H - 68
   const bodyH = bodyBot - bodyTop
 
-  if (heroImg) {
-    // ---- collage: hero image (left) + figure sidebar (right) ----
+  const scene = (d.heroTheme || '').trim()
+  if (heroImg || scene) {
+    // ---- collage: hero visual (left) + figure sidebar (right) ----
     // The image is the visual, so the chart is omitted here (Thurro's
     // "hero + key takeaways" shape); the sidebar gets the full height.
     const heroW = maxW * 0.48
@@ -684,7 +688,8 @@ export async function renderDataSnapshotCard(d: DataSnapshotData): Promise<{ blo
     ctx.save()
     roundRect(ctx, PADX, bodyTop, heroW, bodyH, 18)
     ctx.clip()
-    drawCover(ctx, heroImg, PADX, bodyTop, heroW, bodyH)
+    if (heroImg) drawCover(ctx, heroImg, PADX, bodyTop, heroW, bodyH)
+    else drawHeroScene(ctx, scene, PADX, bodyTop, heroW, bodyH)
     const scrim = ctx.createLinearGradient(0, bodyTop + bodyH - 180, 0, bodyTop + bodyH)
     scrim.addColorStop(0, 'rgba(20,12,32,0)')
     scrim.addColorStop(1, 'rgba(20,12,32,0.86)')

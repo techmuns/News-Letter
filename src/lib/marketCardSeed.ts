@@ -91,6 +91,7 @@ export function seedDataSnapshot(content: { headline: string; body: string }): D
     watchNext: '',
     source: `exchange close data, ${todayLabel()}`,
     hero: '',
+    heroTheme: '',
   }
 }
 

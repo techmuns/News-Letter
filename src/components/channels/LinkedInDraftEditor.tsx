@@ -8,6 +8,7 @@ import { cn } from '../../lib/cn'
 import { renderMarketCard, type MarketCardData, type Direction } from '../../lib/marketCard'
 import { renderExplainerCard, type ExplainerCardData } from '../../lib/explainerCard'
 import { renderDataSnapshotCard, type DataSnapshotData, type SnapTone, type SnapLayout } from '../../lib/dataSnapshotCard'
+import { HERO_THEMES } from '../../lib/heroScenes'
 import { seedMarketCard, seedDataSnapshot } from '../../lib/marketCardSeed'
 import { toBold, toPlain, autoBoldBody } from '../../lib/unicodeBold'
 
@@ -174,7 +175,7 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   function onHeroFile(file: File | undefined) {
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setDs((v) => ({ ...v, hero: String(reader.result || '') }))
+    reader.onload = () => setDs((v) => ({ ...v, hero: String(reader.result || ''), heroTheme: '' }))
     reader.readAsDataURL(file)
   }
 
@@ -430,22 +431,44 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
               />
             </label>
 
-            <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <MicroLabel className="text-text-dim">Hero image (optional — collage look)</MicroLabel>
-                {ds.hero ? (
+            <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
+              <MicroLabel className="text-text-dim">Story image (optional — collage look)</MicroLabel>
+              <p className="text-[11.5px] leading-relaxed text-text-dim">
+                Pick a theme that fits the story and the card becomes a collage — a matching visual + headline on the left, big figures on the
+                right (like Thurro's hero posts). No image tool needed.
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {HERO_THEMES.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setDs((v) => ({ ...v, heroTheme: v.heroTheme === t.key ? '' : t.key, hero: '' }))}
+                    className={cn(
+                      'rounded-md border px-2 py-1.5 text-[11.5px] font-semibold transition-colors',
+                      ds.heroTheme === t.key && !ds.hero
+                        ? 'border-[rgba(160,140,220,0.5)] bg-[rgba(160,140,220,0.18)] text-violet'
+                        : 'border-border text-text-dim hover:text-text-2',
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[11.5px] text-text-dim">…or upload your own photo</span>
+                {(ds.hero || ds.heroTheme) && (
                   <button
                     type="button"
-                    onClick={() => setDs((v) => ({ ...v, hero: '' }))}
+                    onClick={() => setDs((v) => ({ ...v, hero: '', heroTheme: '' }))}
                     className="text-[12px] text-text-dim hover:text-[#fb7185]"
                   >
-                    remove
+                    no image
                   </button>
-                ) : null}
+                )}
               </div>
               <div className="flex items-center gap-3">
                 {ds.hero ? (
-                  <img src={ds.hero} alt="Hero" className="h-14 w-20 rounded-md border border-border object-cover" />
+                  <img src={ds.hero} alt="Hero" className="h-12 w-16 rounded-md border border-border object-cover" />
                 ) : null}
                 <input
                   type="file"
@@ -454,10 +477,6 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                   className="text-[12px] text-text-dim file:mr-2 file:rounded-md file:border file:border-border file:bg-[rgba(160,140,220,0.1)] file:px-2 file:py-1 file:text-[12px] file:font-semibold file:text-violet"
                 />
               </div>
-              <p className="text-[11.5px] leading-relaxed text-text-dim">
-                Add a photo/illustration (make one in any AI image tool) and the card becomes a collage — image + headline on the left, chart
-                and takeaways on the right, like Thurro's hero posts. Leave empty for the standard chart card.
-              </p>
             </div>
 
             <div className="flex flex-col gap-1.5">
