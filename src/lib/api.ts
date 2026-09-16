@@ -214,6 +214,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  /** Auto-fill the Data Snapshot card (finding, chart data, figures) from a
+      topic, grounded in real recent news. */
+  snapshotGenerate: (input: { topic: string; market?: { name: string; value: number; changePct: number }[] }) =>
+    request<{ ok: true; card: any; sources: NewsItem[]; topic: string }>('/snapshot-generate', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   /** Generate a cinematic story image for a card hero (AI image model). */
   storyImage: (input: { prompt: string }) =>
     request<{ ok: true; dataUrl: string; model: string }>('/story-image', {

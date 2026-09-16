@@ -68,6 +68,10 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   const [ds, setDs] = useState<DataSnapshotData>(() => seedDataSnapshot(campaign.linkedin.content))
   const [genImg, setGenImg] = useState(false)
   const [genErr, setGenErr] = useState<string | null>(null)
+  const [snapTopic, setSnapTopic] = useState(campaign.topic || '')
+  const [autoFilling, setAutoFilling] = useState(false)
+  const [autoErr, setAutoErr] = useState<string | null>(null)
+  const [autoTick, setAutoTick] = useState(0) // bumps on auto-fill to remount uncontrolled inputs
   const [cardUrl, setCardUrl] = useState<string | null>(campaign.heroImage ?? null)
   const [saved, setSaved] = useState(false)
 
@@ -189,6 +193,38 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     reader.onload = () => setDs((v) => ({ ...v, hero: String(reader.result || ''), heroTheme: '' }))
     reader.readAsDataURL(file)
   }
+  async function autoFillFromTopic() {
+    const topic = snapTopic.trim()
+    if (!topic) {
+      setAutoErr('Enter a topic first.')
+      return
+    }
+    setAutoErr(null)
+    setAutoFilling(true)
+    try {
+      const { card } = await api.snapshotGenerate({ topic })
+      setDs((v) => ({
+        ...v,
+        layout: card.layout || 'bars',
+        title: card.title || v.title,
+        titleAccent: card.titleAccent || '',
+        subtitle: card.subtitle || v.subtitle,
+        bars: Array.isArray(card.bars) && card.bars.length ? card.bars : v.bars,
+        series: Array.isArray(card.series) && card.series.length ? card.series : v.series,
+        xLabels: Array.isArray(card.xLabels) ? card.xLabels : v.xLabels,
+        stat: card.stat || v.stat,
+        takeaways: Array.isArray(card.takeaways) && card.takeaways.length ? card.takeaways : v.takeaways,
+        watchNext: card.watchNext || '',
+        source: card.source || v.source,
+      }))
+      setAutoTick((n) => n + 1)
+    } catch (e) {
+      setAutoErr(e instanceof Error ? e.message : 'Auto-fill failed.')
+    } finally {
+      setAutoFilling(false)
+    }
+  }
+
   async function generateStoryImage() {
     setGenErr(null)
     setGenImg(true)
@@ -416,6 +452,32 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
 
         {cardType === 'snapshot' && (
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5 rounded-lg border border-[rgba(160,140,220,0.35)] bg-[rgba(160,140,220,0.07)] p-3">
+              <MicroLabel tone="violet">Auto-fill from a topic</MicroLabel>
+              <p className="text-[11.5px] leading-relaxed text-text-dim">
+                Type a topic and Munshot pulls the real numbers from recent news and fills the whole card — headline, chart, figures and
+                takeaways. Then tweak anything, pick a story image, and post. No typing numbers by hand.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  className={cn(fieldCls, 'flex-1')}
+                  value={snapTopic}
+                  onChange={(e) => setSnapTopic(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      autoFillFromTopic()
+                    }
+                  }}
+                  placeholder="e.g. gold price 2026, Fed rate decision, Nifty IT sector"
+                />
+                <Button variant="primary" size="sm" onClick={autoFillFromTopic} disabled={autoFilling}>
+                  {autoFilling ? 'Filling…' : '✨ Auto-fill'}
+                </Button>
+              </div>
+              {autoErr && <p className="text-[11.5px] leading-relaxed text-[#f7a3a3]">{autoErr}</p>}
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col gap-1">
                 <MicroLabel className="text-text-dim">Date label</MicroLabel>
@@ -595,7 +657,7 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
             <>
             <MicroLabel className="text-text-dim">Lines (name · values over time)</MicroLabel>
             {ds.series.map((s, i) => (
-              <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
+              <div key={`${autoTick}-${i}`} className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
                 <div className="flex items-center gap-2">
                   <input
                     className={cn(fieldCls, 'flex-1 text-[13px] font-semibold')}
@@ -634,6 +696,7 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
             <label className="flex flex-col gap-1">
               <MicroLabel className="text-text-dim">X-axis labels (first &amp; last, comma-separated)</MicroLabel>
               <input
+                key={`xl-${autoTick}`}
                 className={cn(fieldCls, 'text-[13px]')}
                 placeholder="Sep 25, Jun 26"
                 defaultValue={ds.xLabels.join(', ')}

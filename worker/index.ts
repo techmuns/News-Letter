@@ -13,6 +13,7 @@ import { searchStocks } from '../functions/api/_lib/stocksearch'
 import { generatePulsePost } from '../functions/api/_lib/pulsegen'
 import { generateTopicPost } from '../functions/api/_lib/topicgen'
 import { generateStoryImage } from '../functions/api/_lib/imagegen'
+import { generateSnapshotCard } from '../functions/api/_lib/snapshotgen'
 import { publishToBuffer, listBufferChannels, fetchBufferOrganizations, fetchBufferChannels, createBufferPost } from '../functions/api/_lib/buffer'
 import { sendEmail } from '../functions/api/_lib/email'
 import { fetchDailyPulse } from '../functions/api/_lib/dailypulse'
@@ -250,6 +251,24 @@ export default {
             market,
           })
           return json({ ok: true, post, sources, topic })
+        })
+      }
+
+      if (pathname === '/api/snapshot-generate') {
+        return guard(async () => {
+          const market = Array.isArray(body?.market)
+            ? (body.market as unknown[])
+                .map((m) => {
+                  const o = m as Record<string, unknown>
+                  return { name: String(o?.name ?? ''), value: Number(o?.value), changePct: Number(o?.changePct) }
+                })
+                .filter((m) => m.name && Number.isFinite(m.value) && Number.isFinite(m.changePct))
+            : undefined
+          const { card, sources, topic } = await generateSnapshotCard(env, {
+            topic: body?.topic ? String(body.topic) : '',
+            market,
+          })
+          return json({ ok: true, card, sources, topic })
         })
       }
 
