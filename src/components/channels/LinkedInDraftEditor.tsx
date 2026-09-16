@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn'
 import { renderMarketCard, type MarketCardData, type Direction } from '../../lib/marketCard'
 import { renderExplainerCard, type ExplainerCardData } from '../../lib/explainerCard'
 import { renderDataSnapshotCard, type DataSnapshotData, type SnapTone, type SnapLayout } from '../../lib/dataSnapshotCard'
-import { HERO_THEMES } from '../../lib/heroScenes'
+import { HERO_THEMES, drawHeroScene } from '../../lib/heroScenes'
 import { api } from '../../lib/api'
 
 /** Build a cinematic art-director prompt for the story image from the card's
@@ -223,6 +223,32 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     } finally {
       setAutoFilling(false)
     }
+  }
+
+  /** Use the story image ON ITS OWN as the post image — no card frame, no
+      headline, no figures. Just the picture; all words live in the caption. */
+  function useImageOnly() {
+    setGenErr(null)
+    let url = ds.hero
+    if (!url && ds.heroTheme) {
+      // Render the built-in theme scene standalone (landscape) to a data URL.
+      const c = document.createElement('canvas')
+      c.width = 1350
+      c.height = 900
+      const cx = c.getContext('2d')
+      if (cx) {
+        drawHeroScene(cx, ds.heroTheme, 0, 0, c.width, c.height)
+        url = c.toDataURL('image/png')
+      }
+    }
+    if (!url) {
+      setGenErr('Generate, pick a theme, or upload an image first.')
+      return
+    }
+    setHeroImage(campaign.id, url)
+    setCardUrl(url)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
   }
 
   async function generateStoryImage() {
@@ -551,6 +577,14 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                 <span className="text-[11px] text-text-dim">a cinematic scene from your headline</span>
               </div>
               {genErr && <p className="text-[11.5px] leading-relaxed text-[#f7a3a3]">{genErr}</p>}
+              <div className="flex items-center gap-2 rounded-md border border-[rgba(63,216,155,0.35)] bg-[rgba(63,216,155,0.08)] px-3 py-2">
+                <Button variant="primary" size="sm" onClick={useImageOnly}>
+                  {saved ? '✓ Set as post image' : '🖼 Use image only (no card)'}
+                </Button>
+                <span className="text-[11px] leading-snug text-text-dim">
+                  Posts just the picture — no headline, no numbers. Your caption carries all the words.
+                </span>
+              </div>
               <div className="flex items-center justify-between gap-2 pt-1">
                 <span className="text-[11.5px] text-text-dim">…or upload your own photo</span>
                 {(ds.hero || ds.heroTheme) && (
