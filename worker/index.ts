@@ -12,6 +12,7 @@ import { generateArticle } from '../functions/api/_lib/articlegen'
 import { searchStocks } from '../functions/api/_lib/stocksearch'
 import { generatePulsePost } from '../functions/api/_lib/pulsegen'
 import { generateTopicPost } from '../functions/api/_lib/topicgen'
+import { generateStoryImage } from '../functions/api/_lib/imagegen'
 import { publishToBuffer, listBufferChannels, fetchBufferOrganizations, fetchBufferChannels, createBufferPost } from '../functions/api/_lib/buffer'
 import { sendEmail } from '../functions/api/_lib/email'
 import { fetchDailyPulse } from '../functions/api/_lib/dailypulse'
@@ -249,6 +250,17 @@ export default {
             market,
           })
           return json({ ok: true, post, sources, topic })
+        })
+      }
+
+      if (pathname === '/api/story-image') {
+        return guard(async () => {
+          const unauthorized = checkAuth(ctx)
+          if (unauthorized) return unauthorized
+          const prompt = body?.prompt ? String(body.prompt) : ''
+          if (!prompt.trim()) return json({ error: 'A prompt is required.' }, 400)
+          const { base64, model } = await generateStoryImage(env, prompt)
+          return json({ ok: true, dataUrl: `data:image/png;base64,${base64}`, model })
         })
       }
 

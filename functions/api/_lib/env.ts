@@ -54,6 +54,12 @@ export interface Env {
   /** Bedrock runtime region (host). Defaults to us-east-1. */
   BEDROCK_REGION?: string
 
+  /** OpenAI API key for story-image generation (gpt-image-1). When set, the
+      /api/story-image route uses OpenAI (the DALL·E engine) instead of Bedrock. */
+  OPENAI_API_KEY?: string
+  /** Optional OpenAI image model override (default gpt-image-1). */
+  OPENAI_IMAGE_MODEL?: string
+
   // --- AI generation (Anthropic Claude, direct — fallback when no Bedrock) ---
   ANTHROPIC_API_KEY?: string
   /** Optional model override (Anthropic direct default claude-opus-5; also used

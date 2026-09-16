@@ -214,6 +214,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  /** Generate a cinematic story image for a card hero (AI image model). */
+  storyImage: (input: { prompt: string }) =>
+    request<{ ok: true; dataUrl: string; model: string }>('/story-image', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   /** Expand a recorded post + email into a full long-form article. */
   generateArticle: (input: {
     title?: string

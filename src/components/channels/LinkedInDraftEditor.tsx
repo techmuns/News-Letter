@@ -9,6 +9,15 @@ import { renderMarketCard, type MarketCardData, type Direction } from '../../lib
 import { renderExplainerCard, type ExplainerCardData } from '../../lib/explainerCard'
 import { renderDataSnapshotCard, type DataSnapshotData, type SnapTone, type SnapLayout } from '../../lib/dataSnapshotCard'
 import { HERO_THEMES } from '../../lib/heroScenes'
+import { api } from '../../lib/api'
+
+/** Build a cinematic art-director prompt for the story image from the card's
+    own headline. The card overlays the text/figures itself, so we ask for a
+    clean scene with NO text baked in (image models garble text). */
+function buildStoryPrompt(ds: DataSnapshotData): string {
+  const story = [ds.title, ds.titleAccent].filter(Boolean).join(' ').trim() || 'financial markets'
+  return `A premium, cinematic, photorealistic editorial hero image that visually tells this financial story: "${story}". ${ds.subtitle ? `Context: ${ds.subtitle}. ` : ''}Use one strong visual metaphor (a journey, before-vs-after, a rising path, a climb, a storm clearing) that a viewer understands in 3 seconds. Dramatic directional lighting, atmospheric depth, foreground/middle-ground/background, realistic materials, cinematic shadows, a controlled glow on the main subject. Bloomberg / Financial Times / Economist visual sophistication, movie-poster impact. Deep charcoal and dark tones with rich accent colour that fits the subject. Composition reads left to right. IMPORTANT: do NOT render any text, letters, numbers, words, logos, or labels anywhere in the image — leave the scene clean so a caption can be added later. 16:9, no borders.`
+}
 import { seedMarketCard, seedDataSnapshot } from '../../lib/marketCardSeed'
 import { toBold, toPlain, autoBoldBody } from '../../lib/unicodeBold'
 
@@ -57,6 +66,8 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   const [cardType, setCardType] = useState<CardType>('market')
   const [ex, setEx] = useState<ExplainerCardData>(() => seedExplainer(campaign.linkedin.content))
   const [ds, setDs] = useState<DataSnapshotData>(() => seedDataSnapshot(campaign.linkedin.content))
+  const [genImg, setGenImg] = useState(false)
+  const [genErr, setGenErr] = useState<string | null>(null)
   const [cardUrl, setCardUrl] = useState<string | null>(campaign.heroImage ?? null)
   const [saved, setSaved] = useState(false)
 
@@ -177,6 +188,18 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
     const reader = new FileReader()
     reader.onload = () => setDs((v) => ({ ...v, hero: String(reader.result || ''), heroTheme: '' }))
     reader.readAsDataURL(file)
+  }
+  async function generateStoryImage() {
+    setGenErr(null)
+    setGenImg(true)
+    try {
+      const { dataUrl } = await api.storyImage({ prompt: buildStoryPrompt(ds) })
+      setDs((v) => ({ ...v, hero: dataUrl, heroTheme: '' }))
+    } catch (e) {
+      setGenErr(e instanceof Error ? e.message : 'Image generation failed.')
+    } finally {
+      setGenImg(false)
+    }
   }
 
   if (!editing) {
@@ -454,6 +477,18 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                   </button>
                 ))}
               </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={generateStoryImage}
+                  disabled={genImg}
+                  className="rounded-md border border-[rgba(160,140,220,0.4)] bg-[rgba(160,140,220,0.14)] px-3 py-1.5 text-[12px] font-semibold text-violet transition-colors hover:bg-[rgba(160,140,220,0.22)] disabled:opacity-60"
+                >
+                  {genImg ? '✨ Generating…' : '✨ Generate story image (AI)'}
+                </button>
+                <span className="text-[11px] text-text-dim">a cinematic scene from your headline</span>
+              </div>
+              {genErr && <p className="text-[11.5px] leading-relaxed text-[#f7a3a3]">{genErr}</p>}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <span className="text-[11.5px] text-text-dim">…or upload your own photo</span>
                 {(ds.hero || ds.heroTheme) && (
