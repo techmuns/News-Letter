@@ -73,11 +73,15 @@ export function seedDataSnapshot(content: { headline: string; body: string }): D
     date: long,
     title: toPlain(content.headline) || 'Market snapshot',
     subtitle: `One-day index moves · ${long} · % change.`,
+    layout: 'bars',
     bars: bars.length ? bars : [
       { name: '', sub: '', pct: '' },
       { name: '', sub: '', pct: '' },
       { name: '', sub: '', pct: '' },
     ],
+    series: [{ name: '', color: '', points: [] }],
+    xLabels: [],
+    stat: { value: '', label: '', context: '' },
     takeaways: [
       { tone: 'red', lead: '', text: '' },
       { tone: 'green', lead: '', text: '' },

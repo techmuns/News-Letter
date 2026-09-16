@@ -7,7 +7,7 @@ import { LinkedInPost } from '../preview/LinkedInPost'
 import { cn } from '../../lib/cn'
 import { renderMarketCard, type MarketCardData, type Direction } from '../../lib/marketCard'
 import { renderExplainerCard, type ExplainerCardData } from '../../lib/explainerCard'
-import { renderDataSnapshotCard, type DataSnapshotData, type SnapTone } from '../../lib/dataSnapshotCard'
+import { renderDataSnapshotCard, type DataSnapshotData, type SnapTone, type SnapLayout } from '../../lib/dataSnapshotCard'
 import { seedMarketCard, seedDataSnapshot } from '../../lib/marketCardSeed'
 import { toBold, toPlain, autoBoldBody } from '../../lib/unicodeBold'
 
@@ -166,6 +166,11 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   function updateTakeaway(i: number, patch: Partial<DataSnapshotData['takeaways'][number]>) {
     setDs((d) => ({ ...d, takeaways: d.takeaways.map((t, j) => (j === i ? { ...t, ...patch } : t)) }))
   }
+  function updateSeries(i: number, patch: Partial<DataSnapshotData['series'][number]>) {
+    setDs((d) => ({ ...d, series: d.series.map((s, j) => (j === i ? { ...s, ...patch } : s)) }))
+  }
+  const parsePoints = (s: string): number[] =>
+    s.split(/[,\s]+/).map((n) => parseFloat(n)).filter((n) => !Number.isNaN(n))
 
   if (!editing) {
     return (
@@ -410,7 +415,35 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
               />
             </label>
 
-            <MicroLabel className="text-text-dim">Bars (index · level · % move)</MicroLabel>
+            <div className="flex flex-col gap-1.5">
+              <MicroLabel className="text-text-dim">Chart type</MicroLabel>
+              <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-border text-[12px]">
+                {(['bars', 'trend', 'ranking', 'stat'] as SnapLayout[]).map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setDs((v) => ({ ...v, layout: l }))}
+                    className={cn(
+                      'px-2 py-1.5 font-semibold transition-colors',
+                      ds.layout === l ? 'bg-[rgba(160,140,220,0.18)] text-violet' : 'text-text-dim hover:text-text-2',
+                    )}
+                  >
+                    {l === 'bars' ? '⇄ Bars' : l === 'trend' ? '📈 Trend' : l === 'ranking' ? '🏆 Ranking' : '# Big stat'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11.5px] leading-relaxed text-text-dim">
+                Pick the shape that fits the story so no two posts look alike — <strong className="text-text-2">Bars</strong> to compare a few
+                moves, <strong className="text-text-2">Trend</strong> for something over time, <strong className="text-text-2">Ranking</strong> for
+                winners vs losers, <strong className="text-text-2">Big stat</strong> for one striking number.
+              </p>
+            </div>
+
+            {(ds.layout === 'bars' || ds.layout === 'ranking') && (
+            <>
+            <MicroLabel className="text-text-dim">
+              {ds.layout === 'ranking' ? 'Rows (name · sub · % — auto-sorted)' : 'Bars (index · level · % move)'}
+            </MicroLabel>
             {ds.bars.map((b, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_84px_auto] items-center gap-2">
                 <input
@@ -441,19 +474,110 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                 </button>
               </div>
             ))}
-            {ds.bars.length < 5 && (
+            {ds.bars.length < 6 && (
               <button
                 type="button"
                 onClick={() => setDs((v) => ({ ...v, bars: [...v.bars, { name: '', sub: '', pct: '' }] }))}
                 className="self-start text-[12.5px] text-violet hover:underline"
               >
-                + add a bar
+                + add a row
               </button>
             )}
             <p className="text-[12px] leading-relaxed text-text-dim">
-              % move is signed — <strong className="text-text-2">-1.18</strong> for a fall, <strong className="text-text-2">0.4</strong> for a
-              rise. Under ±0.15% renders amber as “flat”. Bars auto-scale to the biggest mover.
+              % is signed — <strong className="text-text-2">-1.18</strong> for a fall, <strong className="text-text-2">0.4</strong> for a rise.
+              {ds.layout === 'ranking'
+                ? ' Rows auto-sort best → worst; green for gains, red for falls.'
+                : ' Under ±0.15% renders amber as “flat”. Bars auto-scale to the biggest mover.'}
             </p>
+            </>
+            )}
+
+            {ds.layout === 'trend' && (
+            <>
+            <MicroLabel className="text-text-dim">Lines (name · values over time)</MicroLabel>
+            {ds.series.map((s, i) => (
+              <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    className={cn(fieldCls, 'flex-1 text-[13px] font-semibold')}
+                    placeholder="Line name (e.g. VinFast)"
+                    value={s.name}
+                    onChange={(e) => updateSeries(i, { name: e.target.value })}
+                  />
+                  {ds.series.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setDs((v) => ({ ...v, series: v.series.filter((_, j) => j !== i) }))}
+                      className="px-2 text-[16px] leading-none text-text-dim hover:text-[#fb7185]"
+                      title="Remove this line"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                <input
+                  className={cn(fieldCls, 'text-[13px]')}
+                  placeholder="Values, comma-separated: 6, 14, 31, 45, 51, 77, 91"
+                  defaultValue={s.points.join(', ')}
+                  onChange={(e) => updateSeries(i, { points: parsePoints(e.target.value) })}
+                />
+              </div>
+            ))}
+            {ds.series.length < 3 && (
+              <button
+                type="button"
+                onClick={() => setDs((v) => ({ ...v, series: [...v.series, { name: '', color: '', points: [] }] }))}
+                className="self-start text-[12.5px] text-violet hover:underline"
+              >
+                + add a line
+              </button>
+            )}
+            <label className="flex flex-col gap-1">
+              <MicroLabel className="text-text-dim">X-axis labels (first &amp; last, comma-separated)</MicroLabel>
+              <input
+                className={cn(fieldCls, 'text-[13px]')}
+                placeholder="Sep 25, Jun 26"
+                defaultValue={ds.xLabels.join(', ')}
+                onChange={(e) => setDs((v) => ({ ...v, xLabels: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) }))}
+              />
+            </label>
+            <p className="text-[12px] leading-relaxed text-text-dim">
+              Each line needs 2+ values. All lines share one scale, so use the same units. The first line gets the shaded fill.
+            </p>
+            </>
+            )}
+
+            {ds.layout === 'stat' && (
+            <div className="flex flex-col gap-2">
+              <label className="flex flex-col gap-1">
+                <MicroLabel className="text-text-dim">The big number</MicroLabel>
+                <input
+                  className={cn(fieldCls, 'text-[15px] font-semibold')}
+                  placeholder="~91%"
+                  value={ds.stat.value}
+                  onChange={(e) => setDs((v) => ({ ...v, stat: { ...v.stat, value: e.target.value } }))}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <MicroLabel className="text-text-dim">Label (what it is)</MicroLabel>
+                <input
+                  className={fieldCls}
+                  placeholder="priced-in odds of a 25bp hike"
+                  value={ds.stat.label}
+                  onChange={(e) => setDs((v) => ({ ...v, stat: { ...v.stat, label: e.target.value } }))}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <MicroLabel className="text-text-dim">Context (one line)</MicroLabel>
+                <textarea
+                  className={cn(fieldCls, 'min-h-[52px] resize-y leading-relaxed')}
+                  placeholder="The first US rate rise since 2023, near-fully expected by markets."
+                  value={ds.stat.context}
+                  onChange={(e) => setDs((v) => ({ ...v, stat: { ...v.stat, context: e.target.value } }))}
+                />
+              </label>
+            </div>
+            )}
 
             <MicroLabel className="text-text-dim">What the numbers say (up to 3)</MicroLabel>
             {ds.takeaways.map((t, i) => (
