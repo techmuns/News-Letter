@@ -39,11 +39,7 @@ function cleanSnippet(sn: unknown): string {
 
 /** Recent news for a keyword, most-recent first. [] when unconfigured or when
     NewsAPI reports zero results for the query. */
-export async function fetchTopicNews(env: Env, topic: string): Promise<NewsItem[]> {
-  if (!newsConfigured(env)) return []
-  const q = topic.trim()
-  if (!q) return []
-
+async function runNewsQuery(env: Env, q: string): Promise<NewsItem[]> {
   const url = new URL(ENDPOINT)
   url.searchParams.set('q', q)
   url.searchParams.set('language', 'en')
@@ -97,4 +93,38 @@ export async function fetchTopicNews(env: Env, topic: string): Promise<NewsItem[
     })
   }
   return out.slice(0, 6)
+}
+
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'of', 'to', 'in', 'on', 'for', 'with', 'at', 'by', 'from', 'up', 'down',
+  'as', 'is', 'are', 'was', 'were', 'be', 'while', 'amid', 'today', 'now', 'persists', 'persist', 'modestly',
+  'fresh', 'record', 'records', 'demand', 'this', 'that', 'it', 'its', 'into', 'over', 'amid', 'about', 'latest',
+  'update', 'news', 'market', 'markets', 'day', 'week', 'session',
+])
+
+/** Reduce a long, sentence-like topic to a short keyword query NewsAPI can
+    actually match (a full sentence returns zero results). Keeps the first few
+    meaningful words. */
+function shortenQuery(q: string): string {
+  const words = q
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOPWORDS.has(w))
+  return words.slice(0, 4).join(' ')
+}
+
+/** Fetch recent news for a topic. Tries the topic as given, then — if that
+    returns nothing (common when the topic is a whole sentence) — retries with a
+    shortened keyword query so long headlines still surface sources. */
+export async function fetchTopicNews(env: Env, topic: string): Promise<NewsItem[]> {
+  if (!newsConfigured(env)) return []
+  const q = topic.trim()
+  if (!q) return []
+  let items = await runNewsQuery(env, q)
+  if (items.length === 0) {
+    const short = shortenQuery(q)
+    if (short && short !== q.toLowerCase()) items = await runNewsQuery(env, short)
+  }
+  return items
 }

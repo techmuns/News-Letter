@@ -100,7 +100,10 @@ function stripLeadingEmoji(s: string): string {
 }
 
 /** hook + bulleted lines + hashtags → the full LinkedIn caption text. */
-function composeCaption(post: PulsePost): string {
+/** The post BODY — bullets, close and hashtags, WITHOUT the hook. The hook is
+    stored separately as the headline, so keeping it out of the body stops the
+    caption repeating its first lines (headline + body = hook once). */
+function composeBody(post: PulsePost): string {
   const bullets = post.linkedin.bullets
     .map((b) => b.trim())
     .filter(Boolean)
@@ -108,7 +111,12 @@ function composeCaption(post: PulsePost): string {
     .join('\n')
   const tags = normalizeTags(post.linkedin.hashtags).join(' ')
   const close = (post.linkedin.close || '').trim()
-  return [post.linkedin.hook.trim(), bullets, close, tags].filter(Boolean).join('\n\n')
+  return [bullets, close, tags].filter(Boolean).join('\n\n')
+}
+
+/** The full single-field caption (hook + body) — for the copy-all preview. */
+function composeCaption(post: PulsePost): string {
+  return [post.linkedin.hook.trim(), composeBody(post)].filter(Boolean).join('\n\n')
 }
 
 export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: HealthFlags | null }) {
@@ -189,7 +197,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
     // the post. Two fallbacks: parse numbers out of the copy if the feed lacks
     // the indices, else the plain branded card (topic) / gainers board (market)
     // — so a non-market post never gets empty index tiles.
-    const postText = { headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, body: composeCaption(post) }
+    const postText = { headline: stripLeadingEmoji(post.linkedin.hook) || post.focus, body: composeBody(post) }
     const fromFeed = marketCardFromFeed(feed.items, postText)
     const fromText = fromFeed ?? (resultKind === 'topic' ? seedMarketCard(postText) : null)
     const seed = fromFeed ?? (fromText && marketCardIsUsable(fromText) ? fromText : null)
@@ -320,7 +328,7 @@ export function DailyPulseComposer({ feed, health }: { feed: PulseFeed; health: 
             name: generated.focus,
             topic: generated.focus,
             headline: stripLeadingEmoji(generated.linkedin.hook) || generated.focus,
-            body: composeCaption(generated),
+            body: composeBody(generated),
             email: generated.email,
             source: kind === 'topic' ? 'Daily Pulse · Topic' : 'Daily Pulse',
           }),
