@@ -3,6 +3,7 @@
    the generators (auto-attach the market card). */
 
 import { type MarketCardData, type Direction, type MarketIndex } from './marketCard'
+import { type DataSnapshotData, type SnapBar } from './dataSnapshotCard'
 import { type PulseItem } from './api'
 import { toPlain } from './unicodeBold'
 
@@ -42,6 +43,67 @@ const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', '
 export function todayLabel(): string {
   const d = new Date()
   return `${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+const MONTHS_LONG = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+/** "September 16, 2026" — the friendlier date the Data Snapshot header uses. */
+export function todayLong(): string {
+  const d = new Date()
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+}
+
+/** A market index (from the copy seed) as a signed Data Snapshot bar. */
+function barFromIndex(idx: MarketIndex): SnapBar {
+  const pct = idx.changePct.replace(/[^0-9.]/g, '')
+  return { name: idx.name, sub: idx.value, pct: idx.direction === 'down' ? `-${pct}` : pct }
+}
+
+/** Seed the Data Snapshot builder from a draft's copy so it opens half-filled:
+    a finding-style title, any index moves we can read as bars, and three empty
+    colour-coded takeaway slots for the writer to fill. Global/US-UK snapshots
+    are typed in by hand; Indian ones can be auto-filled from the feed below. */
+export function seedDataSnapshot(content: { headline: string; body: string }): DataSnapshotData {
+  const base = seedMarketCard(content)
+  const bars = base.indices.filter((i) => i.value.trim()).map(barFromIndex)
+  const long = todayLong()
+  return {
+    date: long,
+    title: toPlain(content.headline) || 'Market snapshot',
+    subtitle: `One-day index moves · ${long} · % change.`,
+    bars: bars.length ? bars : [
+      { name: '', sub: '', pct: '' },
+      { name: '', sub: '', pct: '' },
+      { name: '', sub: '', pct: '' },
+    ],
+    takeaways: [
+      { tone: 'red', lead: '', text: '' },
+      { tone: 'green', lead: '', text: '' },
+      { tone: 'plum', lead: '', text: '' },
+    ],
+    watchNext: '',
+    source: `exchange close data, ${todayLabel()}`,
+  }
+}
+
+/** Auto-fill the Data Snapshot bars straight from the live Indian feed. */
+export function dataSnapshotFromFeed(
+  items: PulseItem[],
+  post: { headline: string; body: string },
+): DataSnapshotData | null {
+  const nifty = items.find((i) => /nifty\s*50\b/i.test(i.name)) ?? items.find((i) => /^nifty 50/i.test(i.name))
+  const sensex = items.find((i) => /sensex/i.test(i.name))
+  if (!nifty || !sensex) return null
+  const seed = seedDataSnapshot(post)
+  const bar = (item: PulseItem, name: string): SnapBar => ({
+    name,
+    sub: inr(item.current),
+    pct: item.d1.toFixed(2),
+  })
+  seed.bars = [bar(nifty, 'NIFTY 50'), bar(sensex, 'SENSEX')]
+  return seed
 }
 
 const NUM = '[0-9][0-9,]*\\.?[0-9]*'
