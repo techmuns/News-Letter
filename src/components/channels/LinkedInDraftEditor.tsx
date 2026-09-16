@@ -171,6 +171,12 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
   }
   const parsePoints = (s: string): number[] =>
     s.split(/[,\s]+/).map((n) => parseFloat(n)).filter((n) => !Number.isNaN(n))
+  function onHeroFile(file: File | undefined) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setDs((v) => ({ ...v, hero: String(reader.result || '') }))
+    reader.readAsDataURL(file)
+  }
 
   if (!editing) {
     return (
@@ -402,7 +408,16 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                 className={cn(fieldCls, 'min-h-[52px] resize-y leading-relaxed')}
                 value={ds.title}
                 onChange={(e) => setDs((v) => ({ ...v, title: e.target.value }))}
-                placeholder="Same oil shock. Two markets. Opposite days."
+                placeholder="The bond market"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <MicroLabel className="text-text-dim">Headline accent (plum tail, optional)</MicroLabel>
+              <input
+                className={fieldCls}
+                value={ds.titleAccent ?? ''}
+                onChange={(e) => setDs((v) => ({ ...v, titleAccent: e.target.value }))}
+                placeholder="decided before the Fed did"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -414,6 +429,36 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                 placeholder="One-day index moves · 8 Sep 2026 close · % change."
               />
             </label>
+
+            <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <MicroLabel className="text-text-dim">Hero image (optional — collage look)</MicroLabel>
+                {ds.hero ? (
+                  <button
+                    type="button"
+                    onClick={() => setDs((v) => ({ ...v, hero: '' }))}
+                    className="text-[12px] text-text-dim hover:text-[#fb7185]"
+                  >
+                    remove
+                  </button>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-3">
+                {ds.hero ? (
+                  <img src={ds.hero} alt="Hero" className="h-14 w-20 rounded-md border border-border object-cover" />
+                ) : null}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => onHeroFile(e.target.files?.[0])}
+                  className="text-[12px] text-text-dim file:mr-2 file:rounded-md file:border file:border-border file:bg-[rgba(160,140,220,0.1)] file:px-2 file:py-1 file:text-[12px] file:font-semibold file:text-violet"
+                />
+              </div>
+              <p className="text-[11.5px] leading-relaxed text-text-dim">
+                Add a photo/illustration (make one in any AI image tool) and the card becomes a collage — image + headline on the left, chart
+                and takeaways on the right, like Thurro's hero posts. Leave empty for the standard chart card.
+              </p>
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <MicroLabel className="text-text-dim">Chart type</MicroLabel>
@@ -604,6 +649,13 @@ export function LinkedInDraftEditor({ campaign }: { campaign: Campaign }) {
                       </button>
                     ))}
                   </div>
+                  <input
+                    className={cn(fieldCls, 'w-[92px] text-[13px] font-bold')}
+                    placeholder="~91%"
+                    title="Big figure — the number this point leads with"
+                    value={t.figure ?? ''}
+                    onChange={(e) => updateTakeaway(i, { figure: e.target.value })}
+                  />
                   <input
                     className={cn(fieldCls, 'flex-1 text-[13px] font-semibold')}
                     placeholder="Bold lead label"

@@ -72,6 +72,7 @@ export function seedDataSnapshot(content: { headline: string; body: string }): D
   return {
     date: long,
     title: toPlain(content.headline) || 'Market snapshot',
+    titleAccent: '',
     subtitle: `One-day index moves · ${long} · % change.`,
     layout: 'bars',
     bars: bars.length ? bars : [
@@ -83,12 +84,13 @@ export function seedDataSnapshot(content: { headline: string; body: string }): D
     xLabels: [],
     stat: { value: '', label: '', context: '' },
     takeaways: [
-      { tone: 'red', lead: '', text: '' },
-      { tone: 'green', lead: '', text: '' },
-      { tone: 'plum', lead: '', text: '' },
+      { tone: 'red', figure: '', lead: '', text: '' },
+      { tone: 'green', figure: '', lead: '', text: '' },
+      { tone: 'plum', figure: '', lead: '', text: '' },
     ],
     watchNext: '',
     source: `exchange close data, ${todayLabel()}`,
+    hero: '',
   }
 }
 
