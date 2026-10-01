@@ -11,12 +11,29 @@ import { renderDataSnapshotCard, type DataSnapshotData, type SnapTone, type Snap
 import { HERO_THEMES, drawHeroScene } from '../../lib/heroScenes'
 import { api } from '../../lib/api'
 
-/** Build a cinematic art-director prompt for the story image from the card's
-    own headline. The card overlays the text/figures itself, so we ask for a
-    clean scene with NO text baked in (image models garble text). */
+/** Concrete subject matter per story-image theme, so the AI depicts THAT thing
+    (gold → gold, dollar → Wall Street) rather than a generic scene. */
+const THEME_SUBJECT: Record<string, string> = {
+  gold: 'gold — stacked gold bars and bullion, glinting gold coins, a gold trading/vault setting, warm gold light',
+  oil: 'crude oil and energy — oil barrels, an oil refinery with pipelines and flare stacks, oil rigs at dusk',
+  equities: 'the stock market — a modern stock-exchange trading floor with glowing green/red tickers and rising candlestick charts on screens',
+  rupee: 'the Indian rupee — Indian rupee banknotes and coins, the Reserve Bank of India, an Indian city skyline (Mumbai)',
+  dollar: 'the US dollar and Wall Street — US dollar bills, the New York Stock Exchange facade, the Manhattan financial district',
+  rates: 'central banking and interest rates — the Federal Reserve building columns, bond-market screens, a bold percent-sign motif',
+  crypto: 'cryptocurrency — a glowing golden bitcoin coin, abstract blockchain/digital-finance imagery',
+  realty: 'real estate — a modern residential city skyline, apartment towers and property/construction',
+}
+
+/** Build a cinematic art-director prompt for the story image. It depicts the
+    CONCRETE subject (from the picked theme, else from the headline) literally —
+    no generic metaphor — and carries no text (the card overlays text itself). */
 function buildStoryPrompt(ds: DataSnapshotData): string {
-  const story = [ds.title, ds.titleAccent].filter(Boolean).join(' ').trim() || 'financial markets'
-  return `A premium, cinematic, photorealistic editorial hero image that visually tells this financial story: "${story}". ${ds.subtitle ? `Context: ${ds.subtitle}. ` : ''}Use one strong visual metaphor (a journey, before-vs-after, a rising path, a climb, a storm clearing) that a viewer understands in 3 seconds. Dramatic directional lighting, atmospheric depth, foreground/middle-ground/background, realistic materials, cinematic shadows, a controlled glow on the main subject. Bloomberg / Financial Times / Economist visual sophistication, movie-poster impact. Deep charcoal and dark tones with rich accent colour that fits the subject. Composition reads left to right. IMPORTANT: do NOT render any text, letters, numbers, words, logos, or labels anywhere in the image — leave the scene clean so a caption can be added later. 16:9, no borders.`
+  const story = [ds.title, ds.titleAccent].filter(Boolean).join(' ').trim()
+  const subject = ds.heroTheme ? THEME_SUBJECT[ds.heroTheme] : ''
+  const focus = subject
+    ? `The image MUST clearly and literally depict ${subject}.`
+    : `The image MUST clearly and literally depict the concrete subject of this story: "${story || 'financial markets'}" — show the real objects, places and materials a viewer instantly recognises as this exact topic.`
+  return `A premium, cinematic, photorealistic editorial finance photograph. ${focus} ${story ? `It illustrates: "${story}". ` : ''}Keep the actual subject matter front and centre and recognisable — do NOT substitute an abstract metaphor like a mountain, a staircase, a lone figure, or a winding path. Dramatic directional lighting, rich depth of field, realistic materials and textures, a controlled glow on the main subject, Bloomberg / Financial Times sophistication with movie-poster impact. Deep, moody tones with an accent colour that fits the subject. IMPORTANT: no text, letters, numbers, words, logos or labels anywhere in the image. 16:9, no borders.`
 }
 import { seedMarketCard, seedDataSnapshot } from '../../lib/marketCardSeed'
 import { toBold, toPlain, autoBoldBody } from '../../lib/unicodeBold'
