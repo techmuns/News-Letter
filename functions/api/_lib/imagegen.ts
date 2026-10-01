@@ -94,9 +94,25 @@ export interface GenImage {
 }
 
 /** Cloudflare Workers AI — free built-in text-to-image (FLUX). No key needed. */
+// Random composition/lighting variations appended per call so the same theme
+// prompt produces a DIFFERENT image every time (FLUX-schnell takes no seed).
+const VARIATIONS = [
+  'wide establishing shot, golden-hour light',
+  'close-up macro detail, shallow depth of field',
+  'low dramatic angle, high-contrast chiaroscuro lighting',
+  'elevated overhead view, cool blue-hour dusk',
+  'cinematic three-quarter angle, soft rim light and haze',
+  'moody night scene with neon reflections',
+  'symmetrical head-on composition, studio spotlight',
+  'atmospheric foggy backdrop, warm key light',
+]
+
 async function generateWithWorkersAI(env: Env, prompt: string): Promise<GenImage> {
   const model = env.WORKERS_AI_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell'
-  const out: any = await env.AI!.run(model, { prompt: prompt.slice(0, 2000), steps: 6 })
+  // Vary composition each call so repeating a theme yields a different image.
+  const variation = VARIATIONS[Math.floor(Math.random() * VARIATIONS.length)]
+  const varied = `${prompt} Variation: ${variation}.`
+  const out: any = await env.AI!.run(model, { prompt: varied.slice(0, 2000), steps: 6 })
   // FLUX returns { image: "<base64 jpeg>" }; SDXL-style models return raw bytes.
   if (out && typeof out.image === 'string') return { base64: out.image, model, mime: 'image/jpeg' }
   if (out instanceof ArrayBuffer) {
