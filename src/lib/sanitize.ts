@@ -134,6 +134,78 @@ export function cleanLine(raw: string | undefined | null, max = 200): string {
   return unquoted.length > max ? `${unquoted.slice(0, max - 1).trimEnd()}…` : unquoted
 }
 
+/* ============================================================
+   Keeping the LinkedIn post to a LinkedIn length.
+
+   The strategy file is explicit — a LinkedIn post is ~100–200
+   words, one idea, signal above the "see more" fold — and the
+   compose prompt (functions/api/generate.js) now asks the model
+   to stay there. This is the second line again: the backstop for
+   when a model ignores it and hands back a full research note.
+   That is the "extremely verbose" failure, and a body past
+   LinkedIn's own 3,000-character limit cannot be posted at all.
+
+   Below the ceiling nothing is touched, so a well-sized post is
+   never altered. Above it the body is trimmed back to the whole
+   paragraphs that fit — the opening hook and its evidence — with
+   the closing line kept, so what survives still reads as a
+   finished post rather than a sentence sawn in half.
+
+   MODEL OUTPUT ONLY, like the rest of this file: the author's own
+   write-up is never shortened to fit a number.
+   ============================================================ */
+
+/** ~220 words — above the 100–200 target, far below LinkedIn's 3,000 limit. */
+const LINKEDIN_BODY_MAX = 1400
+
+/** Cut a block of prose at the last sentence end that fits, else a word. */
+function trimToSentence(text: string, max: number): string {
+  const t = text.trim()
+  if (t.length <= max) return t
+  const slice = t.slice(0, max)
+  // The last sentence-ending mark followed by a space — or one at the very end.
+  let lastEnd = -1
+  for (let i = 0; i < slice.length - 1; i++) {
+    if ('.!?'.includes(slice[i]) && /\s/.test(slice[i + 1])) lastEnd = i + 1
+  }
+  if ('.!?'.includes(slice[slice.length - 1])) lastEnd = slice.length
+  if (lastEnd > max * 0.5) return slice.slice(0, lastEnd).trim()
+  // No sentence break to land on — stop on a word and mark the trim.
+  const lastSpace = slice.lastIndexOf(' ')
+  const cut = lastSpace > max * 0.5 ? slice.slice(0, lastSpace) : slice
+  return `${cut.replace(/[\s,;:—-]+$/, '').trim()}…`
+}
+
+/**
+ * A LinkedIn post, kept to a LinkedIn length. Returns the body unchanged when it
+ * is already within range; otherwise trims it back to the paragraphs that fit.
+ */
+export function capLinkedInBody(body: string | undefined | null): string {
+  const text = (body ?? '').trim()
+  if (text.length <= LINKEDIN_BODY_MAX) return text
+
+  const paras = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+  // One long run-on block: cut it at the last whole sentence that fits.
+  if (paras.length <= 1) return trimToSentence(text, LINKEDIN_BODY_MAX)
+
+  // The last paragraph is usually the closing line or the one product pointer —
+  // worth keeping so the trimmed post still lands. Reserve its room when it fits.
+  const close = paras[paras.length - 1]
+  const keepClose = close.length + 2 < LINKEDIN_BODY_MAX
+  const budget = keepClose ? LINKEDIN_BODY_MAX - close.length - 2 : LINKEDIN_BODY_MAX
+
+  const kept: string[] = []
+  let used = 0
+  for (const p of paras.slice(0, -1)) {
+    if (used + p.length + 2 > budget) break
+    kept.push(p)
+    used += p.length + 2
+  }
+  if (!kept.length) kept.push(trimToSentence(paras[0], budget))
+  if (keepClose) kept.push(close)
+  return kept.join('\n\n')
+}
+
 /**
  * True when a field still carries something that reads as metadata.
  *

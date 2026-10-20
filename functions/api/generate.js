@@ -639,14 +639,24 @@ const COMPOSE_SYSTEM = `You are the writer behind an investor-grade intelligence
 
 ${HOUSE_RULES}
 
-WHAT TO PRODUCE — one argument in three shapes, all from the same material:
+WHAT TO PRODUCE — one argument in three shapes, all from the same material. Each
+channel has its OWN length. Any "Length" / reading-time directive you are given
+sizes the ARTICLE only — it never lengthens the LinkedIn post, which always stays
+short.
 
-· LinkedIn: a hook that states the finding, the specific evidence behind it with
-  its figures, what it implies, and one closing line. Short paragraphs separated
-  by blank lines. No hashtags unless the author asked for them.
+· LinkedIn: ONE idea, told tight. Lead with the finding in the very first line so
+  it lands above the "…see more" fold. Then the two or three STRONGEST figures
+  behind it — the sharpest ones, not every number in the material — then one line
+  on what it implies, then one closing line. Short paragraphs, a blank line
+  between each. Keep the whole post to 100–200 words; never exceed 250 words or
+  about 1,300 characters. A LinkedIn post that runs on into a wall of text does
+  not get read, and one past LinkedIn's 3,000-character limit cannot be posted at
+  all — so when in doubt, cut, don't add. No hashtags unless the author asked for
+  them.
 · Email: one idea, one story, one takeaway, one call to action.
 · Article: a title, a standfirst, and sections that carry the argument — the
-  finding, the evidence, the mechanism, what it means, what to watch.
+  finding, the evidence, the mechanism, what it means, what to watch. This is the
+  long shape — the "Length" directive's reading time applies HERE, not to LinkedIn.
 
 Return JSON only, in exactly this shape:
 {

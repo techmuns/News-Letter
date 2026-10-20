@@ -38,7 +38,7 @@ import {
   TONE_OPTS,
   labelOf,
 } from './brief'
-import { cleanCopy, cleanLine } from './sanitize'
+import { capLinkedInBody, cleanCopy, cleanLine } from './sanitize'
 
 const ENDPOINT = '/api/generate'
 
@@ -328,7 +328,9 @@ function cleanDraft(raw: Record<string, any>): AiDraft {
       .filter(Boolean),
     linkedin: {
       headline: cleanLine(raw.linkedin?.headline, 140),
-      body: cleanCopy(raw.linkedin?.body),
+      // Capped to a LinkedIn length: the prompt asks for 100–200 words, this is
+      // the backstop when the model runs long (see capLinkedInBody).
+      body: capLinkedInBody(cleanCopy(raw.linkedin?.body)),
     },
     email: {
       subject: cleanLine(raw.email?.subject, 140),
